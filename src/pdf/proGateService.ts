@@ -1,26 +1,31 @@
 /**
- * Pro Gate Service (Placeholder)
+ * Pro Gate Service
  *
- * Provides a placeholder implementation for Pro feature checking.
- * This will be replaced with RevenueCat integration in Milestone 12.
+ * Provides Pro feature checking using the subscription service.
+ * Integrates with RevenueCat for online verification and supports offline grace period.
  *
- * For now, this always returns isPro: false, but can be overridden for testing.
+ * Test override functionality is maintained for testing purposes.
  */
 
 import type { ProGateResult, ProGateReason } from './types';
+import { getProStatus } from '@/subscription/subscriptionService';
 
 // Internal state for test override
 let proStatusOverride: boolean | null = null;
 
 /**
- * Check if Pro features are allowed (placeholder)
+ * Check if Pro features are allowed
  *
- * Default behavior: Always returns isPro: false
- * Can be overridden with setProStatusOverride() for testing
+ * Flow:
+ * 1. If test override is set, return override status
+ * 2. Otherwise, use subscription service to check Pro status
+ *    - Tries online verification first
+ *    - Falls back to offline validation with 7-day grace period
  *
- * @returns ProGateResult with isPro status and reason
+ * @returns Promise<ProGateResult> with isPro status and reason
  */
-export function checkProStatus(): ProGateResult {
+export async function checkProStatus(): Promise<ProGateResult> {
+  // Check for test override first
   if (proStatusOverride !== null) {
     return {
       isPro: proStatusOverride,
@@ -28,10 +33,12 @@ export function checkProStatus(): ProGateResult {
     };
   }
 
-  // Default: Not Pro
+  // Use real subscription service
+  const result = await getProStatus();
+
   return {
-    isPro: false,
-    reason: 'placeholder_always_false',
+    isPro: result.isProAllowed,
+    reason: result.reason as ProGateReason,
   };
 }
 

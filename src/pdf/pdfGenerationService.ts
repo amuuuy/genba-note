@@ -117,7 +117,7 @@ export async function generateAndSharePdf(
   input: PdfTemplateInput
 ): Promise<PdfGenerationResult> {
   // 1. Enforce Pro status check at service layer
-  const proResult = checkProStatus();
+  const proResult = await checkProStatus();
   if (!proResult.isPro) {
     return {
       success: false,

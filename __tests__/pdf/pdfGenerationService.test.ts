@@ -7,12 +7,28 @@
  * All tests must go through generateAndSharePdf which enforces Pro status check.
  */
 
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
-import { generateAndSharePdf } from '@/pdf/pdfGenerationService';
-import { setProStatusOverride, resetProStatusOverride } from '@/pdf/proGateService';
-import { createTestTemplateInput } from './helpers';
+// Mock react-native-purchases (required by subscription service)
+jest.mock('react-native-purchases', () => ({
+  __esModule: true,
+  default: {
+    configure: jest.fn(),
+    getCustomerInfo: jest.fn(),
+    restorePurchases: jest.fn(),
+  },
+}));
+
+// Mock expo-secure-store (required by subscription service)
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(),
+  setItemAsync: jest.fn(),
+  deleteItemAsync: jest.fn(),
+}));
+
+// Mock react-native-device-info (required by uptime service)
+jest.mock('react-native-device-info', () => ({
+  __esModule: true,
+  getStartupTime: jest.fn(),
+}));
 
 // Mock expo-print, expo-sharing, and expo-file-system
 jest.mock('expo-print', () => ({
@@ -28,6 +44,13 @@ jest.mock('expo-file-system', () => ({
   deleteAsync: jest.fn(),
 }));
 
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
+import { generateAndSharePdf } from '@/pdf/pdfGenerationService';
+import { setProStatusOverride, resetProStatusOverride } from '@/pdf/proGateService';
+import { createTestTemplateInput } from './helpers';
+
 describe('pdfGenerationService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -41,7 +64,8 @@ describe('pdfGenerationService', () => {
   describe('generateAndSharePdf', () => {
     describe('Pro status enforcement', () => {
       it('returns PRO_REQUIRED error when not Pro', async () => {
-        // Default is not Pro
+        // Explicitly set not Pro via override
+        setProStatusOverride(false);
         const input = createTestTemplateInput();
         const result = await generateAndSharePdf(input);
 

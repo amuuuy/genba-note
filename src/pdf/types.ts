@@ -106,14 +106,25 @@ export interface PdfGenerationResult {
 // === Pro Gate ===
 
 /**
- * Reason codes for Pro status check (placeholder for M12)
+ * Reason codes for Pro status check
+ *
+ * Aligned with ProValidationResult.reason from subscription types.
  */
 export type ProGateReason =
-  | 'placeholder_always_false'
-  | 'placeholder_always_true'
+  // Success reasons
   | 'online_verified'
   | 'offline_grace_period'
-  | 'not_subscribed';
+  // Failure reasons (from offlineValidationService)
+  | 'cache_missing'
+  | 'cache_invalid'
+  | 'entitlement_inactive'
+  | 'entitlement_expired'
+  | 'uptime_rollback'
+  | 'grace_period_exceeded'
+  | 'clock_manipulation'
+  // Development/testing placeholders (kept for backwards compatibility)
+  | 'placeholder_always_false'
+  | 'placeholder_always_true';
 
 /**
  * Result of Pro status check
