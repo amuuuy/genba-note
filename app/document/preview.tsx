@@ -25,6 +25,7 @@ import { getIssuerSnapshot } from '@/storage/secureStorageService';
 import { generateHtmlTemplate } from '@/pdf/pdfTemplateService';
 // Import PDF generation service for Pro feature
 import { generateAndSharePdf } from '@/pdf/pdfGenerationService';
+import { getPdfErrorMessage } from '@/constants/errorMessages';
 import type { DocumentWithTotals, SensitiveIssuerSnapshot } from '@/types/document';
 
 type ScreenState = 'loading' | 'error' | 'ready';
@@ -37,6 +38,7 @@ export default function DocumentPreviewScreen() {
   const [sensitiveSnapshot, setSensitiveSnapshot] = useState<SensitiveIssuerSnapshot | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   // Load document and generate HTML preview
   useEffect(() => {
@@ -86,6 +88,9 @@ export default function DocumentPreviewScreen() {
   const handleSharePdf = useCallback(async () => {
     if (!documentWithTotals) return;
 
+    // Clear any previous error
+    setPdfError(null);
+
     // Generate and share PDF (Pro check is enforced at service layer)
     setIsGenerating(true);
     try {
@@ -100,13 +105,26 @@ export default function DocumentPreviewScreen() {
           router.push('/paywall');
           return;
         }
-        // Log other errors (could use Alert or toast in a real app)
-        console.error('PDF generation failed:', result.error.message);
+        // Handle SHARE_CANCELLED silently (user action)
+        if (result.error.code === 'SHARE_CANCELLED') {
+          return;
+        }
+        // Show user-friendly error message for other errors
+        const message = getPdfErrorMessage(result.error.code);
+        setPdfError(message);
       }
+    } catch {
+      // Handle unexpected errors
+      setPdfError('PDF生成中に予期しないエラーが発生しました。');
     } finally {
       setIsGenerating(false);
     }
   }, [documentWithTotals, sensitiveSnapshot]);
+
+  // Dismiss PDF error
+  const handleDismissPdfError = useCallback(() => {
+    setPdfError(null);
+  }, []);
 
   // Render loading state
   if (state === 'loading') {
@@ -146,6 +164,21 @@ export default function DocumentPreviewScreen() {
 
       {/* Action Buttons */}
       <View style={styles.buttonContainer}>
+        {/* PDF Error Display */}
+        {pdfError && (
+          <View style={styles.pdfErrorContainer}>
+            <Text style={styles.pdfErrorText}>{pdfError}</Text>
+            <View style={styles.pdfErrorButtons}>
+              <Pressable onPress={handleSharePdf} style={styles.retryButton}>
+                <Text style={styles.retryButtonText}>再試行</Text>
+              </Pressable>
+              <Pressable onPress={handleDismissPdfError} style={styles.dismissButton}>
+                <Text style={styles.dismissButtonText}>閉じる</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+
         <Pressable
           style={[styles.shareButton, isGenerating && styles.shareButtonDisabled]}
           onPress={handleSharePdf}
@@ -222,5 +255,41 @@ const styles = StyleSheet.create({
     color: '#FF3B30',
     textAlign: 'center',
     marginBottom: 20,
+  },
+  pdfErrorContainer: {
+    backgroundColor: '#FFEBEE',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  pdfErrorText: {
+    fontSize: 14,
+    color: '#C62828',
+    marginBottom: 8,
+  },
+  pdfErrorButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+  },
+  retryButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: '#C62828',
+    borderRadius: 4,
+  },
+  retryButtonText: {
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: '600',
+  },
+  dismissButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  dismissButtonText: {
+    fontSize: 12,
+    color: '#C62828',
+    fontWeight: '600',
   },
 });

@@ -12,6 +12,7 @@ import { SensitiveIssuerSettings } from '@/types/settings';
 import { SensitiveIssuerSnapshot } from '@/types/document';
 import { SubscriptionCache, SUBSCRIPTION_STORE_KEYS } from '@/types/subscription';
 import { SECURE_STORAGE_KEYS } from '@/utils/constants';
+import { getReadOnlyMode } from './readOnlyModeState';
 
 // === Result Types ===
 
@@ -20,7 +21,8 @@ export type SecureStorageErrorCode =
   | 'WRITE_ERROR'
   | 'DELETE_ERROR'
   | 'PARSE_ERROR'
-  | 'UNAVAILABLE';
+  | 'UNAVAILABLE'
+  | 'READONLY_MODE';
 
 export interface SecureStorageError {
   code: SecureStorageErrorCode;
@@ -50,6 +52,18 @@ function successResult<T>(data: T): SecureStorageResult<T> {
 
 function errorResult<T>(error: SecureStorageError): SecureStorageResult<T> {
   return { success: false, error };
+}
+
+/**
+ * Check if read-only mode is active and return error if so
+ */
+function checkReadOnlyMode(): SecureStorageResult<void> | null {
+  if (getReadOnlyMode()) {
+    return errorResult(
+      createError('READONLY_MODE', 'Cannot modify data in read-only mode')
+    );
+  }
+  return null;
 }
 
 // === Sensitive Issuer Info ===
@@ -94,6 +108,9 @@ export async function getSensitiveIssuerInfo(): Promise<
 export async function saveSensitiveIssuerInfo(
   info: SensitiveIssuerSettings
 ): Promise<SecureStorageResult<void>> {
+  const readOnlyError = checkReadOnlyMode();
+  if (readOnlyError) return readOnlyError;
+
   try {
     await SecureStore.setItemAsync(
       SECURE_STORAGE_KEYS.SENSITIVE_ISSUER_INFO,
@@ -153,6 +170,9 @@ export async function saveIssuerSnapshot(
   documentId: string,
   snapshot: SensitiveIssuerSnapshot
 ): Promise<SecureStorageResult<void>> {
+  const readOnlyError = checkReadOnlyMode();
+  if (readOnlyError) return readOnlyError;
+
   try {
     const key = `${SECURE_STORAGE_KEYS.ISSUER_SNAPSHOT_PREFIX}${documentId}`;
     await SecureStore.setItemAsync(key, JSON.stringify(snapshot));
@@ -174,6 +194,9 @@ export async function saveIssuerSnapshot(
 export async function deleteIssuerSnapshot(
   documentId: string
 ): Promise<SecureStorageResult<void>> {
+  const readOnlyError = checkReadOnlyMode();
+  if (readOnlyError) return readOnlyError;
+
   try {
     const key = `${SECURE_STORAGE_KEYS.ISSUER_SNAPSHOT_PREFIX}${documentId}`;
     await SecureStore.deleteItemAsync(key);
@@ -268,6 +291,9 @@ export async function getSubscriptionCache(): Promise<
 export async function saveSubscriptionCache(
   cache: SubscriptionCache
 ): Promise<SecureStorageResult<void>> {
+  const readOnlyError = checkReadOnlyMode();
+  if (readOnlyError) return readOnlyError;
+
   try {
     // Convert expiration: null -> 'null' string, number -> string
     const expirationStr =
@@ -310,6 +336,9 @@ export async function saveSubscriptionCache(
  * Clear all subscription cache values
  */
 export async function clearSubscriptionCache(): Promise<SecureStorageResult<void>> {
+  const readOnlyError = checkReadOnlyMode();
+  if (readOnlyError) return readOnlyError;
+
   try {
     await Promise.all([
       SecureStore.deleteItemAsync(SUBSCRIPTION_STORE_KEYS.ENTITLEMENT_ACTIVE),
@@ -365,6 +394,9 @@ export async function getEntitlementActive(): Promise<
 export async function setEntitlementActive(
   active: boolean
 ): Promise<SecureStorageResult<void>> {
+  const readOnlyError = checkReadOnlyMode();
+  if (readOnlyError) return readOnlyError;
+
   try {
     await SecureStore.setItemAsync(
       SUBSCRIPTION_STORE_KEYS.ENTITLEMENT_ACTIVE,
@@ -421,6 +453,9 @@ export async function getEntitlementExpiration(): Promise<
 export async function setEntitlementExpiration(
   expiration: number | null
 ): Promise<SecureStorageResult<void>> {
+  const readOnlyError = checkReadOnlyMode();
+  if (readOnlyError) return readOnlyError;
+
   try {
     const value = expiration === null ? 'null' : String(expiration);
     await SecureStore.setItemAsync(
@@ -472,6 +507,9 @@ export async function getLastVerifiedAt(): Promise<
 export async function setLastVerifiedAt(
   timestamp: number
 ): Promise<SecureStorageResult<void>> {
+  const readOnlyError = checkReadOnlyMode();
+  if (readOnlyError) return readOnlyError;
+
   try {
     await SecureStore.setItemAsync(
       SUBSCRIPTION_STORE_KEYS.LAST_VERIFIED_AT,
@@ -522,6 +560,9 @@ export async function getLastVerifiedUptime(): Promise<
 export async function setLastVerifiedUptime(
   uptime: number
 ): Promise<SecureStorageResult<void>> {
+  const readOnlyError = checkReadOnlyMode();
+  if (readOnlyError) return readOnlyError;
+
   try {
     await SecureStore.setItemAsync(
       SUBSCRIPTION_STORE_KEYS.LAST_VERIFIED_UPTIME,

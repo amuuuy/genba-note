@@ -262,20 +262,28 @@ export async function runMigrations(): Promise<MigrationRunResult> {
 /**
  * Retries migrations after a failure.
  * Called when user taps "Retry" button in migration failure dialog.
+ *
+ * IMPORTANT: Read-only mode is kept ENABLED during retry to prevent
+ * user writes while migrations are running. It's only disabled after
+ * successful completion.
  */
 export async function retryMigrations(): Promise<MigrationRunResult> {
-  // Disable read-only mode before retrying
-  setReadOnlyMode(false);
+  // NOTE: Do NOT disable read-only mode here!
+  // Keep it enabled to prevent writes during retry.
+  // It will be disabled only after successful migration completion.
 
   // Ensure migrations are registered
   await ensureMigrationsRegistered();
 
+  // Run migrations (they work even in read-only mode because
+  // setSchemaVersion bypasses the read-only check)
   const result = await runMigrations();
 
-  // If still successful, ensure read-only mode is off
+  // Only disable read-only mode if migrations succeeded
   if (result.success) {
     setReadOnlyMode(false);
   }
+  // If failed, read-only mode remains enabled (set by runMigrations on failure)
 
   return result;
 }

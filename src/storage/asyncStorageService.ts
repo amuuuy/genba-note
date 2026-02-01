@@ -39,23 +39,13 @@ export interface StorageResult<T> {
 }
 
 // === Read-Only Mode State ===
+// Re-export from shared module for backwards compatibility
+export {
+  setReadOnlyMode,
+  getReadOnlyMode,
+} from './readOnlyModeState';
 
-let isReadOnlyMode = false;
-
-/**
- * Set read-only mode state
- * When enabled, all write operations will be blocked
- */
-export function setReadOnlyMode(enabled: boolean): void {
-  isReadOnlyMode = enabled;
-}
-
-/**
- * Get current read-only mode state
- */
-export function getReadOnlyMode(): boolean {
-  return isReadOnlyMode;
-}
+import { getReadOnlyMode } from './readOnlyModeState';
 
 // === Helper Functions ===
 
@@ -136,7 +126,7 @@ export async function getDocumentById(
 export async function saveDocument(
   document: Document
 ): Promise<StorageResult<Document>> {
-  if (isReadOnlyMode) {
+  if (getReadOnlyMode()) {
     return readOnlyError();
   }
 
@@ -180,7 +170,7 @@ export async function saveDocument(
  * Delete document and its sensitive snapshot
  */
 export async function deleteDocument(id: string): Promise<StorageResult<void>> {
-  if (isReadOnlyMode) {
+  if (getReadOnlyMode()) {
     return readOnlyError();
   }
 
@@ -364,7 +354,7 @@ export async function getUnitPriceById(
 export async function saveUnitPrice(
   unitPrice: UnitPrice
 ): Promise<StorageResult<UnitPrice>> {
-  if (isReadOnlyMode) {
+  if (getReadOnlyMode()) {
     return readOnlyError();
   }
 
@@ -411,7 +401,7 @@ export async function saveUnitPrice(
  * Delete unit price
  */
 export async function deleteUnitPrice(id: string): Promise<StorageResult<void>> {
-  if (isReadOnlyMode) {
+  if (getReadOnlyMode()) {
     return readOnlyError();
   }
 
@@ -537,7 +527,7 @@ export async function getSettings(): Promise<StorageResult<AppSettings>> {
 export async function saveSettings(
   settings: AppSettings
 ): Promise<StorageResult<AppSettings>> {
-  if (isReadOnlyMode) {
+  if (getReadOnlyMode()) {
     return readOnlyError();
   }
 
@@ -562,7 +552,7 @@ export async function saveSettings(
 export async function updateSettings(
   partial: Partial<AppSettings>
 ): Promise<StorageResult<AppSettings>> {
-  if (isReadOnlyMode) {
+  if (getReadOnlyMode()) {
     return readOnlyError();
   }
 

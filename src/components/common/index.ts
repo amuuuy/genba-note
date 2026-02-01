@@ -27,3 +27,9 @@ export type { FormSectionProps } from './FormSection';
 
 export { DatePickerInput } from './DatePickerInput';
 export type { DatePickerInputProps } from './DatePickerInput';
+
+export { ReadOnlyBanner } from './ReadOnlyBanner';
+export type { ReadOnlyBannerProps } from './ReadOnlyBanner';
+
+export { getReadOnlyBannerConfig } from './readOnlyBannerConfig';
+export type { ReadOnlyBannerConfig } from './readOnlyBannerConfig';

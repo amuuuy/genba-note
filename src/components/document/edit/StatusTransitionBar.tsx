@@ -5,12 +5,13 @@
  * Handles the special case of transitioning to 'paid' which requires paidAt.
  */
 
-import React, { memo, useCallback } from 'react';
+import React, { memo, useCallback, useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { DocumentType, DocumentStatus } from '@/types/document';
 import { getAllowedTransitions } from '@/domain/document/statusTransitionService';
 import { getStatusConfig } from '@/components/document/statusConfig';
+import { WarningDialog } from '@/components/common';
 
 export interface StatusTransitionBarProps {
   /** Document type */
@@ -69,17 +70,40 @@ function StatusTransitionBarComponent({
   disabled = false,
   testID,
 }: StatusTransitionBarProps) {
+  const [showReversionWarning, setShowReversionWarning] = useState(false);
+  const [pendingTargetStatus, setPendingTargetStatus] = useState<DocumentStatus | null>(null);
+
   const allowedTransitions = getAllowedTransitions(documentType, currentStatus);
   const currentConfig = getStatusConfig(currentStatus);
 
   const handleTransition = useCallback(
     (targetStatus: DocumentStatus) => {
-      if (!disabled) {
-        onTransition(targetStatus);
+      if (disabled) return;
+
+      // Show warning when reverting from sent to draft
+      if (currentStatus === 'sent' && targetStatus === 'draft') {
+        setPendingTargetStatus(targetStatus);
+        setShowReversionWarning(true);
+        return;
       }
+
+      onTransition(targetStatus);
     },
-    [disabled, onTransition]
+    [disabled, onTransition, currentStatus]
   );
+
+  const handleReversionConfirm = useCallback(() => {
+    setShowReversionWarning(false);
+    if (pendingTargetStatus) {
+      onTransition(pendingTargetStatus);
+    }
+    setPendingTargetStatus(null);
+  }, [onTransition, pendingTargetStatus]);
+
+  const handleReversionCancel = useCallback(() => {
+    setShowReversionWarning(false);
+    setPendingTargetStatus(null);
+  }, []);
 
   if (allowedTransitions.length === 0) {
     return null;
@@ -145,6 +169,18 @@ function StatusTransitionBarComponent({
           );
         })}
       </View>
+
+      {/* Reversion warning dialog */}
+      <WarningDialog
+        visible={showReversionWarning}
+        title="送付済の書類を下書きに戻す"
+        message="送付済の書類を下書きに戻すと、送付履歴との整合性が失われる可能性があります。本当に下書きに戻しますか？"
+        continueText="下書きに戻す"
+        cancelText="キャンセル"
+        onContinue={handleReversionConfirm}
+        onCancel={handleReversionCancel}
+        testID="status-reversion-warning"
+      />
     </View>
   );
 }

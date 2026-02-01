@@ -23,6 +23,7 @@ import {
   getLastVerifiedUptime,
   setLastVerifiedUptime,
 } from '@/storage/secureStorageService';
+import { setReadOnlyMode } from '@/storage/asyncStorageService';
 import { SensitiveIssuerSettings } from '@/types/settings';
 import { SensitiveIssuerSnapshot } from '@/types/document';
 import { SubscriptionCache, SUBSCRIPTION_STORE_KEYS } from '@/types/subscription';
@@ -352,6 +353,163 @@ describe('secureStorageService', () => {
         expect(result.success).toBe(true);
         expect(result.data).toBeNull();
       });
+    });
+  });
+
+  // === Read-Only Mode Tests ===
+  describe('Read-only mode enforcement', () => {
+    const testIssuerInfo: SensitiveIssuerSettings = {
+      invoiceNumber: 'T1234567890123',
+      bankAccount: {
+        bankName: 'テスト銀行',
+        branchName: 'テスト支店',
+        accountType: '普通',
+        accountNumber: '1234567',
+        accountHolderName: 'テスト',
+      },
+    };
+
+    const testSnapshot: SensitiveIssuerSnapshot = {
+      invoiceNumber: 'T1234567890123',
+      bankName: 'テスト銀行',
+      branchName: 'テスト支店',
+      accountType: '普通',
+      accountNumber: '1234567',
+      accountHolderName: 'テスト',
+    };
+
+    const testCache: SubscriptionCache = {
+      entitlementActive: true,
+      entitlementExpiration: Date.now() + 30 * 24 * 60 * 60 * 1000,
+      lastVerifiedAt: Date.now(),
+      lastVerifiedUptime: 12345678,
+    };
+
+    beforeEach(() => {
+      // Ensure read-only mode is disabled before each test
+      setReadOnlyMode(false);
+    });
+
+    afterAll(() => {
+      // Clean up after all tests
+      setReadOnlyMode(false);
+    });
+
+    it('should block saveSensitiveIssuerInfo in read-only mode', async () => {
+      setReadOnlyMode(true);
+
+      const result = await saveSensitiveIssuerInfo(testIssuerInfo);
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('READONLY_MODE');
+      expect(mockedSecureStore.setItemAsync).not.toHaveBeenCalled();
+    });
+
+    it('should block saveIssuerSnapshot in read-only mode', async () => {
+      setReadOnlyMode(true);
+
+      const result = await saveIssuerSnapshot('doc-123', testSnapshot);
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('READONLY_MODE');
+      expect(mockedSecureStore.setItemAsync).not.toHaveBeenCalled();
+    });
+
+    it('should block deleteIssuerSnapshot in read-only mode', async () => {
+      setReadOnlyMode(true);
+
+      const result = await deleteIssuerSnapshot('doc-123');
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('READONLY_MODE');
+      expect(mockedSecureStore.deleteItemAsync).not.toHaveBeenCalled();
+    });
+
+    it('should block saveSubscriptionCache in read-only mode', async () => {
+      setReadOnlyMode(true);
+
+      const result = await saveSubscriptionCache(testCache);
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('READONLY_MODE');
+      expect(mockedSecureStore.setItemAsync).not.toHaveBeenCalled();
+    });
+
+    it('should block clearSubscriptionCache in read-only mode', async () => {
+      setReadOnlyMode(true);
+
+      const result = await clearSubscriptionCache();
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('READONLY_MODE');
+      expect(mockedSecureStore.deleteItemAsync).not.toHaveBeenCalled();
+    });
+
+    it('should block setEntitlementActive in read-only mode', async () => {
+      setReadOnlyMode(true);
+
+      const result = await setEntitlementActive(true);
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('READONLY_MODE');
+      expect(mockedSecureStore.setItemAsync).not.toHaveBeenCalled();
+    });
+
+    it('should block setEntitlementExpiration in read-only mode', async () => {
+      setReadOnlyMode(true);
+
+      const result = await setEntitlementExpiration(Date.now());
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('READONLY_MODE');
+      expect(mockedSecureStore.setItemAsync).not.toHaveBeenCalled();
+    });
+
+    it('should block setLastVerifiedAt in read-only mode', async () => {
+      setReadOnlyMode(true);
+
+      const result = await setLastVerifiedAt(Date.now());
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('READONLY_MODE');
+      expect(mockedSecureStore.setItemAsync).not.toHaveBeenCalled();
+    });
+
+    it('should block setLastVerifiedUptime in read-only mode', async () => {
+      setReadOnlyMode(true);
+
+      const result = await setLastVerifiedUptime(12345678);
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('READONLY_MODE');
+      expect(mockedSecureStore.setItemAsync).not.toHaveBeenCalled();
+    });
+
+    it('should allow read operations in read-only mode', async () => {
+      setReadOnlyMode(true);
+      mockedSecureStore.getItemAsync.mockResolvedValue(null);
+
+      // All read operations should still work
+      const issuerResult = await getSensitiveIssuerInfo();
+      expect(issuerResult.success).toBe(true);
+
+      const snapshotResult = await getIssuerSnapshot('doc-123');
+      expect(snapshotResult.success).toBe(true);
+
+      const cacheResult = await getSubscriptionCache();
+      expect(cacheResult.success).toBe(true);
+
+      const activeResult = await getEntitlementActive();
+      expect(activeResult.success).toBe(true);
+
+      const expirationResult = await getEntitlementExpiration();
+      expect(expirationResult.success).toBe(true);
+
+      const verifiedAtResult = await getLastVerifiedAt();
+      expect(verifiedAtResult.success).toBe(true);
+
+      const uptimeResult = await getLastVerifiedUptime();
+      expect(uptimeResult.success).toBe(true);
+    });
+
+    it('should allow write operations when read-only mode is disabled', async () => {
+      setReadOnlyMode(false);
+      mockedSecureStore.setItemAsync.mockResolvedValue();
+
+      const result = await saveSensitiveIssuerInfo(testIssuerInfo);
+      expect(result.success).toBe(true);
+      expect(mockedSecureStore.setItemAsync).toHaveBeenCalled();
     });
   });
 });
