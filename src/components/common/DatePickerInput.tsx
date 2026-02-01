@@ -218,10 +218,13 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   todayButton: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
     paddingVertical: 4,
     backgroundColor: '#007AFF',
     borderRadius: 6,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   todayButtonText: {
     fontSize: 12,
@@ -230,6 +233,10 @@ const styles = StyleSheet.create({
   },
   clearButton: {
     padding: 4,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   errorText: {
     fontSize: 12,

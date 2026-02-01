@@ -215,6 +215,7 @@ export default function DocumentListScreen() {
           onRefresh={refresh}
           refreshing={isLoading}
           drawDistance={250}
+          estimatedItemSize={88}
         />
       )}
 

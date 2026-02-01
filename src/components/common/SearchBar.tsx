@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F2F2F7',
     borderRadius: 10,
     paddingHorizontal: 12,
-    height: 40,
+    height: 44,
   },
   searchIcon: {
     marginRight: 8,
@@ -96,5 +96,9 @@ const styles = StyleSheet.create({
   clearButton: {
     marginLeft: 8,
     padding: 4,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

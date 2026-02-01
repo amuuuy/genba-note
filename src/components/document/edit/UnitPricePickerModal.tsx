@@ -12,9 +12,9 @@ import {
   Text,
   StyleSheet,
   Pressable,
-  FlatList,
   ActivityIndicator,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { Ionicons } from '@expo/vector-icons';
 import type { UnitPrice } from '@/types/unitPrice';
 import { SearchBar, FilterChipGroup, type FilterOption } from '@/components/common';
@@ -204,16 +204,17 @@ export const UnitPricePickerModal: React.FC<UnitPricePickerModalProps> = ({
         )}
 
         {/* List */}
-        <FlatList
+        <FlashList
           data={unitPrices}
           renderItem={renderItem}
           keyExtractor={keyExtractor}
+          estimatedItemSize={56}
+          ListEmptyComponent={ListEmptyComponent}
+          keyboardShouldPersistTaps="handled"
           style={styles.list}
           contentContainerStyle={
             unitPrices.length === 0 ? styles.listEmptyContent : undefined
           }
-          ListEmptyComponent={ListEmptyComponent}
-          keyboardShouldPersistTaps="handled"
         />
       </View>
     </Modal>

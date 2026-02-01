@@ -56,6 +56,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: '#F2F2F7',
     marginRight: 8,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   chipSelected: {
     backgroundColor: '#007AFF',
