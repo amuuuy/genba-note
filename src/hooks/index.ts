@@ -4,6 +4,7 @@
  * Exports all custom hooks.
  */
 
+export { useReadOnlyMode, type UseReadOnlyModeReturn } from './useReadOnlyMode';
 export { useDocumentFilter } from './useDocumentFilter';
 export type {
   FilterState,
@@ -26,3 +27,6 @@ export type {
   UseDocumentListReturn,
 } from './useDocumentList';
 export { enrichDocumentsWithTotals, createDeleteHandler } from './useDocumentList';
+
+export { useProStatus } from './useProStatus';
+export type { UseProStatusReturn } from './useProStatus';

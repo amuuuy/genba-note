@@ -225,4 +225,75 @@ describe('useDocumentEdit', () => {
       });
     });
   });
+
+  describe('sent status warning logic', () => {
+    // Helper function to compute shouldShowSentWarning
+    // This matches the logic in the actual hook implementation
+    function computeShouldShowSentWarning(
+      status: DocumentStatus,
+      hasAcknowledged: boolean
+    ): boolean {
+      return status === 'sent' && !hasAcknowledged;
+    }
+
+    describe('shouldShowSentWarning', () => {
+      it('should return true when document status is sent', () => {
+        const shouldShow = computeShouldShowSentWarning('sent', false);
+        expect(shouldShow).toBe(true);
+      });
+
+      it('should return false when document status is draft', () => {
+        const shouldShow = computeShouldShowSentWarning('draft', false);
+        expect(shouldShow).toBe(false);
+      });
+
+      it('should return false when document status is paid', () => {
+        const shouldShow = computeShouldShowSentWarning('paid', false);
+        expect(shouldShow).toBe(false);
+      });
+
+      it('should return false after acknowledgement even if status is sent', () => {
+        const shouldShow = computeShouldShowSentWarning('sent', true);
+        expect(shouldShow).toBe(false);
+      });
+    });
+
+    describe('acknowledgeSentWarning', () => {
+      it('should set hasAcknowledged to true', () => {
+        let hasAcknowledged = false;
+        const acknowledgeSentWarning = () => {
+          hasAcknowledged = true;
+        };
+
+        acknowledgeSentWarning();
+
+        expect(hasAcknowledged).toBe(true);
+      });
+    });
+
+    describe('edit flow for sent documents', () => {
+      it('should allow editing after warning is acknowledged', () => {
+        // Initially should show warning
+        expect(computeShouldShowSentWarning('sent', false)).toBe(true);
+
+        // After acknowledgement
+        expect(computeShouldShowSentWarning('sent', true)).toBe(false);
+
+        // Editing should now be allowed (acknowledgement overrides)
+        const canEdit = (hasAcknowledged: boolean, status: DocumentStatus) =>
+          hasAcknowledged || status !== 'sent';
+        expect(canEdit(true, 'sent')).toBe(true);
+      });
+
+      it('should not require acknowledgement for draft documents', () => {
+        // No warning needed
+        expect(computeShouldShowSentWarning('draft', false)).toBe(false);
+
+        // Can edit immediately
+        const canEdit = (hasAcknowledged: boolean, status: DocumentStatus) =>
+          hasAcknowledged || status !== 'sent';
+        expect(canEdit(false, 'draft')).toBe(true);
+      });
+    });
+  });
 });

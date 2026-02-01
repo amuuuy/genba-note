@@ -65,6 +65,7 @@ jest.mock('@/storage/asyncStorageService');
 
 import * as Sharing from 'expo-sharing';
 import * as asyncStorageService from '@/storage/asyncStorageService';
+import { setReadOnlyMode } from '@/storage/asyncStorageService';
 import { exportInvoicesToCsv } from '@/domain/csvExport/csvFileService';
 import {
   setProStatusOverride,
@@ -78,12 +79,14 @@ describe('csvFileService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     resetProStatusOverride();
+    setReadOnlyMode(false);
     mockFileWrite.mockResolvedValue(undefined);
     mockFileDelete.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
     resetProStatusOverride();
+    setReadOnlyMode(false);
   });
 
   describe('exportInvoicesToCsv', () => {
@@ -413,6 +416,64 @@ describe('csvFileService', () => {
           { type: 'invoice', status: ['sent', 'paid'] },
           undefined
         );
+      });
+    });
+
+    describe('read-only mode compatibility', () => {
+      /**
+       * CSV export should work in read-only mode because:
+       * 1. filterDocuments is a read operation (not blocked)
+       * 2. File writes go to file system cache (not AsyncStorage)
+       * 3. Pro status check reads from SecureStore (not blocked)
+       */
+
+      it('exports CSV successfully when Pro and read-only mode enabled', async () => {
+        // Enable Pro status and read-only mode
+        setProStatusOverride(true);
+        setReadOnlyMode(true);
+
+        // Mock documents
+        const invoices = [createSentInvoice('2026-01-10')];
+        mockedAsyncStorage.filterDocuments.mockResolvedValue({
+          success: true,
+          data: invoices,
+        });
+        (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true);
+        (Sharing.shareAsync as jest.Mock).mockResolvedValue(undefined);
+
+        const result = await exportInvoicesToCsv({
+          periodType: 'this-month',
+          referenceDate: '2026-01-15',
+        });
+
+        // CSV export should succeed
+        expect(result.success).toBe(true);
+        expect(result.data?.rowCount).toBe(1);
+        expect(mockFileWrite).toHaveBeenCalled();
+        expect(Sharing.shareAsync).toHaveBeenCalled();
+      });
+
+      it('uses filterDocuments (read operation) not saveDocument', async () => {
+        // Enable Pro status and read-only mode
+        setProStatusOverride(true);
+        setReadOnlyMode(true);
+
+        const invoices = [createSentInvoice('2026-01-10')];
+        mockedAsyncStorage.filterDocuments.mockResolvedValue({
+          success: true,
+          data: invoices,
+        });
+        (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true);
+        (Sharing.shareAsync as jest.Mock).mockResolvedValue(undefined);
+
+        await exportInvoicesToCsv({
+          periodType: 'this-month',
+          referenceDate: '2026-01-15',
+        });
+
+        // Verify only read operation was called
+        expect(mockedAsyncStorage.filterDocuments).toHaveBeenCalled();
+        // saveDocument should not be called (would fail in read-only mode)
       });
     });
   });

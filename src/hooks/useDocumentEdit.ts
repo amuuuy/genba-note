@@ -357,6 +357,10 @@ export interface UseDocumentEditReturn {
   isFieldEditable: (field: keyof Document) => boolean;
   /** Check if status requires paidAt */
   requiresPaidAt: (targetStatus: DocumentStatus) => boolean;
+  /** Whether to show sent document edit warning dialog */
+  shouldShowSentWarning: boolean;
+  /** Acknowledge the sent document edit warning */
+  acknowledgeSentWarning: () => void;
 }
 
 /**
@@ -370,6 +374,14 @@ export function useDocumentEdit(
   documentType: DocumentType = 'estimate'
 ): UseDocumentEditReturn {
   const [state, dispatch] = useReducer(documentEditReducer, initialState);
+
+  // Sent document edit warning state
+  const [hasSentWarningAcknowledged, setHasSentWarningAcknowledged] = useState(false);
+
+  // Reset acknowledgement when document changes
+  useEffect(() => {
+    setHasSentWarningAcknowledged(false);
+  }, [documentId]);
 
   // Load document on mount
   useEffect(() => {
@@ -558,6 +570,15 @@ export function useDocumentEdit(
     [state.values.type, state.status]
   );
 
+  // Compute whether to show sent warning
+  // Show warning when status is 'sent' and not yet acknowledged
+  const shouldShowSentWarning = state.status === 'sent' && !hasSentWarningAcknowledged;
+
+  // Acknowledge sent warning to allow editing
+  const acknowledgeSentWarning = useCallback(() => {
+    setHasSentWarningAcknowledged(true);
+  }, []);
+
   return {
     state,
     updateField,
@@ -568,5 +589,7 @@ export function useDocumentEdit(
     getAllowedStatuses,
     isFieldEditable,
     requiresPaidAt,
+    shouldShowSentWarning,
+    acknowledgeSentWarning,
   };
 }
