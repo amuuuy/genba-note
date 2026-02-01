@@ -4,7 +4,7 @@
  * Manages document filter state and converts to DocumentFilter for API.
  */
 
-import { useCallback, useState, useRef, useEffect } from 'react';
+import { useCallback, useState, useRef, useEffect, useMemo } from 'react';
 import type { DocumentType, DocumentStatus, DocumentFilter } from '../types';
 
 /**
@@ -165,10 +165,15 @@ export function useDocumentFilter(debounceMs = 300): UseDocumentFilterReturn {
   }, []);
 
   // Create filter result with debounced search text (separated domain filter and UI metadata)
-  const filterResult = toFilterResult({
-    ...filterState,
-    searchText: debouncedSearchText,
-  });
+  // Memoized to ensure stable reference - prevents infinite refresh loops in useDocumentList
+  const filterResult = useMemo(
+    () =>
+      toFilterResult({
+        ...filterState,
+        searchText: debouncedSearchText,
+      }),
+    [filterState.type, filterState.status, debouncedSearchText]
+  );
 
   return {
     filterState,
