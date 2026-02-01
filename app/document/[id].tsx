@@ -26,6 +26,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import type { DocumentType, DocumentStatus } from '@/types/document';
 import { useDocumentEdit } from '@/hooks/useDocumentEdit';
 import { useLineItemEditor } from '@/hooks/useLineItemEditor';
+import { useReadOnlyMode } from '@/hooks/useReadOnlyMode';
 import { DocumentEditForm } from '@/components/document/edit';
 import { WarningDialog } from '@/components/common';
 
@@ -59,6 +60,9 @@ export default function DocumentEditScreen() {
   // Line item editor state
   const lineItemEditor = useLineItemEditor(state.lineItems);
 
+  // Read-only mode state
+  const { isReadOnlyMode } = useReadOnlyMode();
+
   // Track if we've synced initial line items from document to editor
   const hasInitializedLineItems = useRef(false);
   // Track if we're syncing from state to prevent reverse sync loop
@@ -72,6 +76,17 @@ export default function DocumentEditScreen() {
     hasInitializedLineItems.current = false;
     isSyncingFromState.current = false;
   }, [documentId]);
+
+  // Handle read-only mode for new documents
+  useEffect(() => {
+    if (isNewDocument && isReadOnlyMode) {
+      Alert.alert(
+        '読み取り専用モード',
+        'データベースエラーにより、新規作成できません。',
+        [{ text: 'OK', onPress: () => router.back() }]
+      );
+    }
+  }, [isNewDocument, isReadOnlyMode]);
 
   // Sync line items from document to editor on initial load or after save
   useEffect(() => {
@@ -272,16 +287,16 @@ export default function DocumentEditScreen() {
               )}
               <Pressable
                 onPress={handleSave}
-                disabled={state.isSaving}
-                style={[styles.headerButton, state.isSaving && styles.headerButtonDisabled]}
-                accessibilityLabel={state.isSaving ? '保存中' : '保存'}
+                disabled={state.isSaving || isReadOnlyMode}
+                style={[styles.headerButton, (state.isSaving || isReadOnlyMode) && styles.headerButtonDisabled]}
+                accessibilityLabel={isReadOnlyMode ? '読み取り専用モード' : state.isSaving ? '保存中' : '保存'}
                 accessibilityRole="button"
-                accessibilityState={{ disabled: state.isSaving, busy: state.isSaving }}
+                accessibilityState={{ disabled: state.isSaving || isReadOnlyMode, busy: state.isSaving }}
               >
                 {state.isSaving ? (
                   <ActivityIndicator size="small" color="#007AFF" />
                 ) : (
-                  <Text style={styles.saveButtonText}>保存</Text>
+                  <Text style={[styles.saveButtonText, isReadOnlyMode && styles.saveButtonTextDisabled]}>保存</Text>
                 )}
               </Pressable>
             </View>
@@ -305,7 +320,7 @@ export default function DocumentEditScreen() {
           onLineItemUpdate={lineItemEditor.updateItem}
           onLineItemRemove={lineItemEditor.removeItem}
           onStatusTransition={handleStatusTransition}
-          disabled={state.isSaving}
+          disabled={state.isSaving || isReadOnlyMode}
         />
       </KeyboardAvoidingView>
 
@@ -380,5 +395,8 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     color: '#007AFF',
+  },
+  saveButtonTextDisabled: {
+    color: '#999',
   },
 });

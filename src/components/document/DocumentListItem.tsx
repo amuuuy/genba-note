@@ -19,6 +19,8 @@ export interface DocumentListItemProps {
   onPress: (id: string) => void;
   /** Callback when delete action is triggered */
   onDelete: (id: string, clientName: string) => void;
+  /** Disable swipe-to-delete (e.g., in read-only mode) */
+  disableDelete?: boolean;
   /** Test ID for testing */
   testID?: string;
 }
@@ -41,7 +43,7 @@ function formatCurrency(amount: number): string {
  * Document list item with swipe-to-delete
  */
 export const DocumentListItem: React.FC<DocumentListItemProps> = React.memo(
-  ({ document, onPress, onDelete, testID }) => {
+  ({ document, onPress, onDelete, disableDelete, testID }) => {
     const swipeableRef = useRef<Swipeable>(null);
 
     const handlePress = useCallback(() => {
@@ -83,9 +85,10 @@ export const DocumentListItem: React.FC<DocumentListItemProps> = React.memo(
     return (
       <Swipeable
         ref={swipeableRef}
-        renderRightActions={renderRightActions}
+        renderRightActions={disableDelete ? undefined : renderRightActions}
         rightThreshold={40}
         overshootRight={false}
+        enabled={!disableDelete}
       >
         <Pressable
           style={({ pressed }) => [

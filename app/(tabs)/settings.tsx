@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { Link } from 'expo-router';
 import { useSettingsEdit } from '@/hooks/useSettingsEdit';
+import { useReadOnlyMode } from '@/hooks/useReadOnlyMode';
 import {
   IssuerInfoSection,
   BankAccountSection,
@@ -32,6 +33,12 @@ export default function SettingsScreen() {
     getFormattedNextNumber,
     reload,
   } = useSettingsEdit();
+
+  // Read-only mode state
+  const { isReadOnlyMode } = useReadOnlyMode();
+
+  // Form is disabled when saving or in read-only mode
+  const isFormDisabled = state.isSaving || isReadOnlyMode;
 
   const handleSave = useCallback(async () => {
     const success = await save();
@@ -91,7 +98,7 @@ export default function SettingsScreen() {
             invoiceNumber: state.errors.invoiceNumber,
           }}
           onChange={(field, value) => updateField(field, value)}
-          disabled={state.isSaving}
+          disabled={isFormDisabled}
         />
 
         {/* Bank Account Section */}
@@ -105,7 +112,7 @@ export default function SettingsScreen() {
             accountNumber: state.errors.accountNumber,
           }}
           onChange={(field, value) => updateField(field, value)}
-          disabled={state.isSaving}
+          disabled={isFormDisabled}
         />
 
         {/* Numbering Settings Section */}
@@ -119,11 +126,11 @@ export default function SettingsScreen() {
             invoicePrefix: state.errors.invoicePrefix,
           }}
           onChange={(field, value) => updateField(field, value)}
-          disabled={state.isSaving}
+          disabled={isFormDisabled}
         />
 
         {/* Save Button */}
-        {state.isDirty && (
+        {state.isDirty && !isReadOnlyMode && (
           <Pressable
             style={[styles.saveButton, state.isSaving && styles.saveButtonDisabled]}
             onPress={handleSave}

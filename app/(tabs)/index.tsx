@@ -26,6 +26,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { DocumentWithTotals, DocumentType, DocumentStatus } from '../../src/types';
 import { useDocumentFilter } from '../../src/hooks/useDocumentFilter';
 import { useDocumentList } from '../../src/hooks/useDocumentList';
+import { useReadOnlyMode } from '../../src/hooks/useReadOnlyMode';
 import {
   DocumentListItem,
   EmptyDocumentList,
@@ -77,6 +78,9 @@ export default function DocumentListScreen() {
   // Document list state (pass only domain filter, no UI metadata)
   const { documents, isLoading, error, refresh, deleteDocument } =
     useDocumentList(filter);
+
+  // Read-only mode state
+  const { isReadOnlyMode } = useReadOnlyMode();
 
   // Delete confirmation dialog state
   const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmState | null>(
@@ -144,9 +148,10 @@ export default function DocumentListScreen() {
         document={item}
         onPress={handleDocumentPress}
         onDelete={handleDeleteTrigger}
+        disableDelete={isReadOnlyMode}
       />
     ),
-    [handleDocumentPress, handleDeleteTrigger]
+    [handleDocumentPress, handleDeleteTrigger, isReadOnlyMode]
   );
 
   // Render empty state
@@ -155,10 +160,10 @@ export default function DocumentListScreen() {
     return (
       <EmptyDocumentList
         isFiltered={isFiltered}
-        onCreatePress={handleCreatePress}
+        onCreatePress={isReadOnlyMode ? undefined : handleCreatePress}
       />
     );
-  }, [isLoading, isFiltered, handleCreatePress]);
+  }, [isLoading, isFiltered, handleCreatePress, isReadOnlyMode]);
 
   // Render header with search and filters
   const renderHeader = () => (
@@ -221,10 +226,16 @@ export default function DocumentListScreen() {
 
       {/* FAB for creating new document */}
       <Pressable
-        style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
+        style={({ pressed }) => [
+          styles.fab,
+          pressed && !isReadOnlyMode && styles.fabPressed,
+          isReadOnlyMode && styles.fabDisabled,
+        ]}
         onPress={handleCreatePress}
-        accessibilityLabel="新規作成"
+        disabled={isReadOnlyMode}
+        accessibilityLabel={isReadOnlyMode ? '読み取り専用モード中は作成できません' : '新規作成'}
         accessibilityRole="button"
+        accessibilityState={{ disabled: isReadOnlyMode }}
       >
         <Ionicons name="add" size={28} color="#fff" />
       </Pressable>
@@ -349,6 +360,10 @@ const styles = StyleSheet.create({
   fabPressed: {
     opacity: 0.8,
     transform: [{ scale: 0.95 }],
+  },
+  fabDisabled: {
+    backgroundColor: '#999',
+    opacity: 0.5,
   },
   modalOverlay: {
     flex: 1,
