@@ -248,12 +248,22 @@ export function useSettingsEdit(): UseSettingsEditReturn {
       // Load from SecureStore
       const sensitiveResult = await getSensitiveIssuerInfo();
 
-      // SecureStore read errors are non-blocking (sensitive data is optional)
-      // but we still use null to indicate no data rather than default values
+      // Distinguish between "no data" (success with null) and "read error" (failure)
+      // Read errors must block to prevent silent data loss on save
+      if (!sensitiveResult.success) {
+        dispatch({
+          type: 'LOAD_ERROR',
+          message:
+            sensitiveResult.error?.message ??
+            '機密情報の読み込みに失敗しました。再試行してください。',
+        });
+        return;
+      }
+
+      // Success with null means no data exists yet (first time use)
+      // This is safe - saving will create new data, not overwrite existing
       const sensitiveSettings: SensitiveIssuerSettings | null =
-        sensitiveResult.success && sensitiveResult.data
-          ? sensitiveResult.data
-          : null;
+        sensitiveResult.data ?? null;
 
       dispatch({
         type: 'LOAD_SUCCESS',

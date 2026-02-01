@@ -477,8 +477,32 @@ export async function searchUnitPrices(
 // === Settings Operations ===
 
 /**
+ * Deep merge settings with defaults to ensure all fields exist.
+ * This prevents crashes when stored settings are missing fields
+ * due to schema evolution or data corruption.
+ */
+function mergeSettingsWithDefaults(stored: Partial<AppSettings>): AppSettings {
+  return {
+    issuer: {
+      companyName: stored.issuer?.companyName ?? DEFAULT_APP_SETTINGS.issuer.companyName,
+      representativeName: stored.issuer?.representativeName ?? DEFAULT_APP_SETTINGS.issuer.representativeName,
+      address: stored.issuer?.address ?? DEFAULT_APP_SETTINGS.issuer.address,
+      phone: stored.issuer?.phone ?? DEFAULT_APP_SETTINGS.issuer.phone,
+    },
+    numbering: {
+      estimatePrefix: stored.numbering?.estimatePrefix ?? DEFAULT_APP_SETTINGS.numbering.estimatePrefix,
+      invoicePrefix: stored.numbering?.invoicePrefix ?? DEFAULT_APP_SETTINGS.numbering.invoicePrefix,
+      nextEstimateNumber: stored.numbering?.nextEstimateNumber ?? DEFAULT_APP_SETTINGS.numbering.nextEstimateNumber,
+      nextInvoiceNumber: stored.numbering?.nextInvoiceNumber ?? DEFAULT_APP_SETTINGS.numbering.nextInvoiceNumber,
+    },
+    schemaVersion: stored.schemaVersion ?? DEFAULT_APP_SETTINGS.schemaVersion,
+  };
+}
+
+/**
  * Get app settings
- * Returns default settings if none exist
+ * Returns default settings if none exist.
+ * Merges stored settings with defaults to handle missing fields.
  */
 export async function getSettings(): Promise<StorageResult<AppSettings>> {
   try {
@@ -489,7 +513,9 @@ export async function getSettings(): Promise<StorageResult<AppSettings>> {
     }
 
     try {
-      const settings = JSON.parse(data) as AppSettings;
+      const storedSettings = JSON.parse(data) as Partial<AppSettings>;
+      // Merge with defaults to ensure all fields exist
+      const settings = mergeSettingsWithDefaults(storedSettings);
       return successResult(settings);
     } catch {
       return errorResult(createError('PARSE_ERROR', 'Failed to parse settings'));
