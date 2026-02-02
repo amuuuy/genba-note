@@ -2,10 +2,13 @@
  * PDF Validation Service
  *
  * Validates documents before PDF generation.
- * Required fields for invoice PDF:
- * - documentNo (請求書番号)
- * - issueDate (発行日)
+ * Required fields for PDF:
+ * - documentNo (請求書番号) - always required
+ * - issueDate (発行日) - always required
  * - dueDate (支払期限) - invoice only
+ * - companyName (会社名) - always required
+ * - clientName (取引先名) - always required
+ * - lineItems (明細) - at least one required
  */
 
 import type { Document, DocumentType } from '@/types/document';
@@ -27,6 +30,9 @@ const FIELD_NAMES: Record<string, string> = {
   documentNo: '請求書番号',
   issueDate: '発行日',
   dueDate: '支払期限',
+  companyName: '会社名',
+  clientName: '取引先名',
+  lineItems: '明細',
 };
 
 /**
@@ -36,6 +42,9 @@ const FIELD_NAMES: Record<string, string> = {
  * - documentNo: Always required
  * - issueDate: Always required
  * - dueDate: Required for invoices only
+ * - companyName: Always required (from issuerSnapshot)
+ * - clientName: Always required
+ * - lineItems: At least one required
  *
  * @param document - Document to validate
  * @returns Validation result with missing field names
@@ -58,6 +67,24 @@ export function validateDocumentForPdf(document: Document): PdfValidationResult 
     if (!document.dueDate || document.dueDate.trim() === '') {
       missingFields.push(FIELD_NAMES.dueDate);
     }
+  }
+
+  // Company name is always required
+  if (
+    !document.issuerSnapshot?.companyName ||
+    document.issuerSnapshot.companyName.trim() === ''
+  ) {
+    missingFields.push(FIELD_NAMES.companyName);
+  }
+
+  // Client name is always required
+  if (!document.clientName || document.clientName.trim() === '') {
+    missingFields.push(FIELD_NAMES.clientName);
+  }
+
+  // At least one line item is required
+  if (!document.lineItems || document.lineItems.length === 0) {
+    missingFields.push(FIELD_NAMES.lineItems);
   }
 
   return {

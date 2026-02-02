@@ -262,7 +262,11 @@ export default function DocumentEditScreen() {
         if (result.error.code === 'PRO_REQUIRED') {
           router.push('/paywall');
         } else if (result.error.code !== 'SHARE_CANCELLED') {
-          const message = getPdfErrorMessage(result.error.code);
+          // Use detailed message for VALIDATION_FAILED, otherwise use generic message
+          const message =
+            result.error.code === 'VALIDATION_FAILED' && result.error.message
+              ? result.error.message
+              : getPdfErrorMessage(result.error.code);
           Alert.alert('PDF生成エラー', message);
         }
         // Status remains unchanged (draft or current)

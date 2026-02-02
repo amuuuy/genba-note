@@ -182,6 +182,91 @@ describe('issuerResolverService', () => {
       });
     });
 
+    describe('when document snapshot has data but companyName is null', () => {
+      const snapshotWithoutCompanyName: IssuerSnapshot = {
+        companyName: null,
+        representativeName: '山田太郎',
+        address: '東京都渋谷区',
+        phone: '03-1234-5678',
+        sealImageBase64: null,
+      };
+
+      const settingsWithCompanyName = {
+        issuer: {
+          companyName: '設定の会社名',
+          representativeName: '設定の代表者',
+          address: '設定の住所',
+          phone: '設定の電話番号',
+          sealImageUri: null,
+        },
+        numbering: {
+          estimatePrefix: 'EST-',
+          invoicePrefix: 'INV-',
+          nextEstimateNumber: 1,
+          nextInvoiceNumber: 1,
+        },
+        schemaVersion: 1,
+      };
+
+      beforeEach(() => {
+        mockGetIssuerSnapshot.mockResolvedValue({
+          success: true,
+          data: null,
+        });
+        mockGetSettings.mockResolvedValue({
+          success: true,
+          data: settingsWithCompanyName,
+        });
+      });
+
+      it('fills companyName from settings when snapshot companyName is null', async () => {
+        const result = await resolveIssuerInfo(documentId, snapshotWithoutCompanyName);
+
+        expect(result.issuerSnapshot.companyName).toBe('設定の会社名');
+        expect(result.source).toBe('snapshot');
+      });
+
+      it('preserves other snapshot fields while filling companyName', async () => {
+        const result = await resolveIssuerInfo(documentId, snapshotWithoutCompanyName);
+
+        expect(result.issuerSnapshot.representativeName).toBe('山田太郎');
+        expect(result.issuerSnapshot.address).toBe('東京都渋谷区');
+        expect(result.issuerSnapshot.phone).toBe('03-1234-5678');
+      });
+
+      it('keeps companyName as null when settings also have null companyName', async () => {
+        mockGetSettings.mockResolvedValue({
+          success: true,
+          data: {
+            ...settingsWithCompanyName,
+            issuer: {
+              ...settingsWithCompanyName.issuer,
+              companyName: null,
+            },
+          },
+        });
+
+        const result = await resolveIssuerInfo(documentId, snapshotWithoutCompanyName);
+
+        expect(result.issuerSnapshot.companyName).toBeNull();
+      });
+
+      it('fills companyName from settings when snapshot companyName is whitespace-only', async () => {
+        const snapshotWithWhitespaceCompanyName: IssuerSnapshot = {
+          companyName: '   ',
+          representativeName: '山田太郎',
+          address: '東京都渋谷区',
+          phone: '03-1234-5678',
+          sealImageBase64: null,
+        };
+
+        const result = await resolveIssuerInfo(documentId, snapshotWithWhitespaceCompanyName);
+
+        expect(result.issuerSnapshot.companyName).toBe('設定の会社名');
+        expect(result.source).toBe('snapshot');
+      });
+    });
+
     describe('when document snapshot is all null (fallback to settings)', () => {
       const emptySnapshot: IssuerSnapshot = {
         companyName: null,

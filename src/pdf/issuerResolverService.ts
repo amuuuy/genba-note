@@ -39,13 +39,14 @@ export interface ResolvedIssuerInfo {
 /**
  * Check if issuer snapshot has any meaningful data
  * Note: sealImageBase64 is excluded from this check as it's optional decoration
+ * Note: Whitespace-only strings are treated as empty (no data)
  */
 export function hasIssuerSnapshotData(snapshot: IssuerSnapshot): boolean {
   return !!(
-    snapshot.companyName ||
-    snapshot.representativeName ||
-    snapshot.address ||
-    snapshot.phone
+    snapshot.companyName?.trim() ||
+    snapshot.representativeName?.trim() ||
+    snapshot.address?.trim() ||
+    snapshot.phone?.trim()
   );
 }
 
@@ -102,19 +103,25 @@ export async function resolveIssuerInfo(
         ? sensitiveResult.data
         : null;
 
+    // Load settings for fallback values (sealImage, missing companyName)
+    const settingsResult = await getSettings();
+    const settings = settingsResult.success ? settingsResult.data : null;
+
     // If document snapshot has seal image, use it; otherwise try to load from settings
     let sealImageBase64 = documentIssuerSnapshot.sealImageBase64;
-    if (!sealImageBase64) {
-      // Try to load from current settings
-      const settingsResult = await getSettings();
-      if (settingsResult.success && settingsResult.data?.issuer.sealImageUri) {
-        sealImageBase64 = await loadSealImageBase64(settingsResult.data.issuer.sealImageUri);
-      }
+    if (!sealImageBase64 && settings?.issuer.sealImageUri) {
+      sealImageBase64 = await loadSealImageBase64(settings.issuer.sealImageUri);
     }
+
+    // Fill missing/empty companyName from settings if available (for older documents)
+    // Treat whitespace-only as empty to match validation behavior
+    const snapshotCompanyName = documentIssuerSnapshot.companyName?.trim();
+    const companyName = snapshotCompanyName || settings?.issuer.companyName || null;
 
     return {
       issuerSnapshot: {
         ...documentIssuerSnapshot,
+        companyName,
         sealImageBase64,
       },
       sensitiveSnapshot,

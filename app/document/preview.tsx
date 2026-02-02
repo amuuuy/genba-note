@@ -137,7 +137,11 @@ export default function DocumentPreviewScreen() {
           return;
         }
         // Show user-friendly error message for other errors
-        const message = getPdfErrorMessage(result.error.code);
+        // Use detailed message for VALIDATION_FAILED, otherwise use generic message
+        const message =
+          result.error.code === 'VALIDATION_FAILED' && result.error.message
+            ? result.error.message
+            : getPdfErrorMessage(result.error.code);
         setPdfError(message);
       }
     } catch {
