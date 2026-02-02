@@ -6,6 +6,7 @@
  */
 
 import React from 'react';
+import { View, Text, Switch, StyleSheet } from 'react-native';
 import { FormSection } from '@/components/common/FormSection';
 import { FormInput } from '@/components/common/FormInput';
 
@@ -20,6 +21,10 @@ export interface IssuerInfoSectionProps {
   phone: string;
   /** Invoice registration number (T + 13 digits) */
   invoiceNumber: string;
+  /** Contact person name */
+  contactPerson: string;
+  /** Whether to show contact person on documents */
+  showContactPerson: boolean;
   /** Field errors */
   errors: {
     companyName?: string;
@@ -27,9 +32,12 @@ export interface IssuerInfoSectionProps {
     address?: string;
     phone?: string;
     invoiceNumber?: string;
+    contactPerson?: string;
   };
   /** Callback when field value changes */
   onChange: (field: string, value: string) => void;
+  /** Callback when showContactPerson toggle changes */
+  onToggleShowContactPerson: (value: boolean) => void;
   /** Whether fields are disabled */
   disabled?: boolean;
 }
@@ -43,8 +51,11 @@ export const IssuerInfoSection: React.FC<IssuerInfoSectionProps> = ({
   address,
   phone,
   invoiceNumber,
+  contactPerson,
+  showContactPerson,
   errors,
   onChange,
+  onToggleShowContactPerson,
   disabled = false,
 }) => {
   return (
@@ -94,6 +105,27 @@ export const IssuerInfoSection: React.FC<IssuerInfoSectionProps> = ({
       />
 
       <FormInput
+        label="担当者名"
+        value={contactPerson}
+        onChangeText={(value) => onChange('contactPerson', value)}
+        error={errors.contactPerson}
+        disabled={disabled}
+        placeholder="例: 営業部 田中"
+        testID="input-contact-person"
+        autoCapitalize="none"
+      />
+
+      <View style={styles.toggleRow}>
+        <Text style={styles.toggleLabel}>担当者名を書類に表示する</Text>
+        <Switch
+          value={showContactPerson}
+          onValueChange={onToggleShowContactPerson}
+          disabled={disabled}
+          testID="toggle-show-contact-person"
+        />
+      </View>
+
+      <FormInput
         label="インボイス番号"
         value={invoiceNumber}
         onChangeText={(value) => onChange('invoiceNumber', value)}
@@ -108,3 +140,20 @@ export const IssuerInfoSection: React.FC<IssuerInfoSectionProps> = ({
 };
 
 IssuerInfoSection.displayName = 'IssuerInfoSection';
+
+const styles = StyleSheet.create({
+  toggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E5E5',
+    marginBottom: 16,
+  },
+  toggleLabel: {
+    fontSize: 14,
+    color: '#333',
+  },
+});

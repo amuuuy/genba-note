@@ -10,6 +10,10 @@ export interface AppSettings {
     phone: string | null;
     /** Seal image URI (local file path for PDF) */
     sealImageUri: string | null;
+    /** Contact person name (optional) */
+    contactPerson: string | null;
+    /** Whether to show contact person on documents */
+    showContactPerson: boolean;
   };
 
   /** Document numbering settings */
@@ -56,6 +60,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     address: null,
     phone: null,
     sealImageUri: null,
+    contactPerson: null,
+    showContactPerson: true,
   },
   numbering: {
     estimatePrefix: 'EST-',

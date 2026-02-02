@@ -66,6 +66,9 @@ async function getIssuerSnapshotFromSettings(): Promise<IssuerSnapshot> {
       address: settingsResult.data.issuer.address,
       phone: settingsResult.data.issuer.phone,
       sealImageBase64: null, // Seal image is resolved dynamically for PDF generation
+      contactPerson: settingsResult.data.issuer.showContactPerson
+        ? settingsResult.data.issuer.contactPerson
+        : null,
     };
   }
   return {
@@ -74,6 +77,7 @@ async function getIssuerSnapshotFromSettings(): Promise<IssuerSnapshot> {
     address: null,
     phone: null,
     sealImageBase64: null,
+    contactPerson: null,
   };
 }
 
@@ -207,6 +211,7 @@ export async function convertEstimateToInvoice(
     subject: estimate.subject,
     lineItems: regenerateLineItemIds(estimate.lineItems),
     notes: estimate.notes,
+    carriedForwardAmount: estimate.carriedForwardAmount, // Copy from estimate
 
     // Date transformations
     issueDate: todayDate, // Set to conversion date

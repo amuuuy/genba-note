@@ -36,6 +36,7 @@ export function createTestIssuerSnapshot(
     address: null,
     phone: null,
     sealImageBase64: null,
+    contactPerson: null,
     ...overrides,
   };
 }
@@ -59,6 +60,7 @@ export function createTestDocument(overrides?: Partial<Document>): Document {
     dueDate: null,
     paidAt: null,
     lineItems: [createTestLineItem()],
+    carriedForwardAmount: null,
     notes: null,
     issuerSnapshot: createTestIssuerSnapshot(),
     createdAt: now,
@@ -86,6 +88,7 @@ export function createTestInvoice(overrides?: Partial<Document>): Document {
     dueDate: '2026-02-28',
     paidAt: null,
     lineItems: [createTestLineItem()],
+    carriedForwardAmount: null,
     notes: null,
     issuerSnapshot: createTestIssuerSnapshot(),
     createdAt: now,

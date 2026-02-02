@@ -23,6 +23,10 @@ export interface SettingsFormValues {
   representativeName: string;
   address: string;
   phone: string;
+  /** Contact person name */
+  contactPerson: string;
+  /** Whether to show contact person on documents */
+  showContactPerson: boolean;
   estimatePrefix: string;
   invoicePrefix: string;
   /** Seal image URI (local file path) */

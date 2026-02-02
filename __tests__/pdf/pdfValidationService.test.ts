@@ -89,6 +89,7 @@ describe('pdfValidationService', () => {
             address: null,
             phone: null,
             sealImageBase64: null,
+            contactPerson: null,
           },
         });
         const result = validateDocumentForPdf(doc);
@@ -103,6 +104,7 @@ describe('pdfValidationService', () => {
             address: null,
             phone: null,
             sealImageBase64: null,
+            contactPerson: null,
           },
         });
         const result = validateDocumentForPdf(doc);
@@ -118,6 +120,7 @@ describe('pdfValidationService', () => {
             address: null,
             phone: null,
             sealImageBase64: null,
+            contactPerson: null,
           },
         });
         const result = validateDocumentForPdf(doc);
@@ -133,6 +136,7 @@ describe('pdfValidationService', () => {
             address: null,
             phone: null,
             sealImageBase64: null,
+            contactPerson: null,
           },
         });
         const result = validateDocumentForPdf(doc);
@@ -191,6 +195,7 @@ describe('pdfValidationService', () => {
             address: null,
             phone: null,
             sealImageBase64: null,
+            contactPerson: null,
           },
         });
         const result = validateDocumentForPdf(doc);

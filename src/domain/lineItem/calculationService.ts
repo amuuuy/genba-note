@@ -174,12 +174,16 @@ export function enrichDocumentWithTotals(document: Document): DocumentWithTotals
   const lineItemsCalculated = calculateLineItems(document.lineItems);
   const totals = calculateDocumentTotals(document.lineItems);
 
+  // Include carried forward amount in the total
+  const carriedForward = document.carriedForwardAmount ?? 0;
+  const totalWithCarriedForward = totals.totalYen + carriedForward;
+
   return {
     ...document,
     lineItemsCalculated,
     subtotalYen: totals.subtotalYen,
     taxYen: totals.taxYen,
-    totalYen: totals.totalYen,
+    totalYen: totalWithCarriedForward,
     taxBreakdown: totals.taxBreakdown,
   };
 }

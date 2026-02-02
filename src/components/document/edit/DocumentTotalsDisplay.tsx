@@ -12,6 +12,8 @@ import { calculateDocumentTotals } from '@/domain/lineItem';
 export interface DocumentTotalsDisplayProps {
   /** Line items to calculate totals for */
   lineItems: LineItem[];
+  /** Carried forward amount (yen) */
+  carriedForwardAmount?: number | null;
   /** Test ID */
   testID?: string;
 }
@@ -35,11 +37,15 @@ function formatTaxRate(rate: TaxRate): string {
  */
 function DocumentTotalsDisplayComponent({
   lineItems,
+  carriedForwardAmount,
   testID,
 }: DocumentTotalsDisplayProps) {
   const totals = useMemo(() => {
     return calculateDocumentTotals(lineItems);
   }, [lineItems]);
+
+  const hasCarriedForward = carriedForwardAmount != null && carriedForwardAmount > 0;
+  const grandTotal = totals.totalYen + (carriedForwardAmount ?? 0);
 
   if (lineItems.length === 0) {
     return null;
@@ -65,13 +71,23 @@ function DocumentTotalsDisplayComponent({
           </View>
         ))}
 
+        {/* Carried Forward Amount */}
+        {hasCarriedForward && (
+          <View style={styles.carriedForwardRow}>
+            <Text style={styles.carriedForwardLabel}>繰越金額</Text>
+            <Text style={styles.carriedForwardValue}>
+              ¥{formatCurrency(carriedForwardAmount)}
+            </Text>
+          </View>
+        )}
+
         {/* Divider */}
         <View style={styles.divider} />
 
         {/* Total */}
         <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>合計（税込）</Text>
-          <Text style={styles.totalValue}>¥{formatCurrency(totals.totalYen)}</Text>
+          <Text style={styles.totalValue}>¥{formatCurrency(grandTotal)}</Text>
         </View>
       </View>
     </View>
@@ -116,6 +132,24 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 15,
     color: '#333',
+  },
+  carriedForwardRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    backgroundColor: '#F9F9F9',
+    marginHorizontal: -16,
+    paddingHorizontal: 16,
+    marginTop: 4,
+  },
+  carriedForwardLabel: {
+    fontSize: 14,
+    color: '#888',
+  },
+  carriedForwardValue: {
+    fontSize: 15,
+    color: '#666',
   },
   divider: {
     height: StyleSheet.hairlineWidth,

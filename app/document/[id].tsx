@@ -206,6 +206,7 @@ export default function DocumentEditScreen() {
         address: null,
         phone: null,
         sealImageBase64: null,
+        contactPerson: null,
       },
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -257,6 +258,9 @@ export default function DocumentEditScreen() {
             address: resolvedIssuerSnapshot?.address ?? issuer.address ?? null,
             phone: resolvedIssuerSnapshot?.phone ?? issuer.phone ?? null,
             sealImageBase64: null, // Will be resolved later in PDF generation
+            contactPerson: issuer.showContactPerson
+              ? (resolvedIssuerSnapshot?.contactPerson ?? issuer.contactPerson ?? null)
+              : null,
           };
         }
       } catch {

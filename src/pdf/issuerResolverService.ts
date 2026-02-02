@@ -38,7 +38,7 @@ export interface ResolvedIssuerInfo {
 
 /**
  * Check if issuer snapshot has any meaningful data
- * Note: sealImageBase64 is excluded from this check as it's optional decoration
+ * Note: sealImageBase64 and contactPerson are excluded from this check as they're optional
  * Note: Whitespace-only strings are treated as empty (no data)
  */
 export function hasIssuerSnapshotData(snapshot: IssuerSnapshot): boolean {
@@ -118,11 +118,18 @@ export async function resolveIssuerInfo(
     const snapshotCompanyName = documentIssuerSnapshot.companyName?.trim();
     const companyName = snapshotCompanyName || settings?.issuer.companyName || null;
 
+    // Use document's contactPerson if set, otherwise try to get from settings (respecting showContactPerson)
+    let contactPerson = documentIssuerSnapshot.contactPerson;
+    if (!contactPerson && settings?.issuer.showContactPerson) {
+      contactPerson = settings.issuer.contactPerson || null;
+    }
+
     return {
       issuerSnapshot: {
         ...documentIssuerSnapshot,
         companyName,
         sealImageBase64,
+        contactPerson,
       },
       sensitiveSnapshot,
       source: 'snapshot',
@@ -152,6 +159,10 @@ export async function resolveIssuerInfo(
           address: settingsResult.data.issuer.address,
           phone: settingsResult.data.issuer.phone,
           sealImageBase64,
+          // Only include contactPerson if showContactPerson is true
+          contactPerson: settingsResult.data.issuer.showContactPerson
+            ? settingsResult.data.issuer.contactPerson
+            : null,
         }
       : {
           companyName: null,
@@ -159,6 +170,7 @@ export async function resolveIssuerInfo(
           address: null,
           phone: null,
           sealImageBase64: null,
+          contactPerson: null,
         };
 
   // For sensitive data: prefer document-specific snapshot, fallback to global settings

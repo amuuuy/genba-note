@@ -17,7 +17,7 @@ import {
  * Current schema version for the application.
  * Increment this when adding new migrations.
  */
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION = 2;
 
 // === Migrations Initialization Flag ===
 let migrationsInitialized = false;

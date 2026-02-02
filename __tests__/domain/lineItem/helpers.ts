@@ -69,8 +69,10 @@ export function createTestDocumentWithLineItems(
       address: null,
       phone: null,
       sealImageBase64: null,
+      contactPerson: null,
     },
     createdAt: now,
     updatedAt: now,
+    carriedForwardAmount: null,
   };
 }

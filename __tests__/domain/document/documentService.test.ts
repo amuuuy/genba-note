@@ -208,6 +208,8 @@ describe('documentService', () => {
           address: 'Test Address',
           phone: '123-456-7890',
           sealImageUri: null,
+          contactPerson: null,
+          showContactPerson: true,
         },
       };
       mockedNumbering.generateDocumentNumber.mockResolvedValue({

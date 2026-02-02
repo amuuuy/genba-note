@@ -49,6 +49,7 @@ describe('useDocumentEdit', () => {
       validUntil: '2026-02-28',
       dueDate: '',
       paidAt: '',
+      carriedForwardAmount: '',
       notes: '備考',
       ...overrides,
     };

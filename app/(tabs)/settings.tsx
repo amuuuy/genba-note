@@ -32,6 +32,7 @@ export default function SettingsScreen() {
     state,
     updateField,
     updateSealImage,
+    toggleShowContactPerson,
     save,
     getFormattedNextNumber,
     reload,
@@ -97,10 +98,13 @@ export default function SettingsScreen() {
           address={state.values.address}
           phone={state.values.phone}
           invoiceNumber={state.values.invoiceNumber}
+          contactPerson={state.values.contactPerson}
+          showContactPerson={state.values.showContactPerson}
           errors={{
             invoiceNumber: state.errors.invoiceNumber,
           }}
           onChange={(field, value) => updateField(field as keyof SettingsFormValues, value)}
+          onToggleShowContactPerson={toggleShowContactPerson}
           disabled={isFormDisabled}
         />
 

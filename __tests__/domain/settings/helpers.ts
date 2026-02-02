@@ -26,6 +26,8 @@ export function createValidSettingsFormValues(
     accountType: '普通',
     accountNumber: '1234567',
     accountHolderName: 'カ）テストケンセツ',
+    contactPerson: '',
+    showContactPerson: true,
     ...overrides,
   };
 }
@@ -48,5 +50,7 @@ export function createEmptySettingsFormValues(): SettingsFormValues {
     accountType: '',
     accountNumber: '',
     accountHolderName: '',
+    contactPerson: '',
+    showContactPerson: true,
   };
 }

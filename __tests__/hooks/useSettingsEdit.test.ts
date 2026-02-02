@@ -63,6 +63,8 @@ describe('useSettingsEdit', () => {
           address: '東京都渋谷区',
           phone: '03-1234-5678',
           sealImageUri: null,
+          contactPerson: null,
+          showContactPerson: true,
         },
         numbering: {
           estimatePrefix: 'Q-',
@@ -144,6 +146,8 @@ describe('useSettingsEdit', () => {
               address: null,
               phone: null,
               sealImageUri: null,
+              contactPerson: null,
+              showContactPerson: true,
             },
           },
           sensitiveSettings: {

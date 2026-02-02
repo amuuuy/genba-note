@@ -343,6 +343,8 @@ describe('conversionService', () => {
               address: 'New Address',
               phone: '090-1234-5678',
               sealImageUri: null,
+              contactPerson: null,
+              showContactPerson: true,
             },
           },
         });

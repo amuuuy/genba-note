@@ -90,6 +90,9 @@ export interface IssuerSnapshot {
 
   /** Seal image as base64 string for PDF embedding (optional) */
   sealImageBase64: string | null;
+
+  /** Contact person name for document (optional) */
+  contactPerson: string | null;
 }
 
 /**
@@ -185,6 +188,12 @@ export interface Document {
 
   /** Line items (at least one required for saving) */
   lineItems: LineItem[];
+
+  /**
+   * Carried forward amount from previous invoice (optional)
+   * Amount in yen (integer, >= 0)
+   */
+  carriedForwardAmount: number | null;
 
   /** Notes/remarks (optional) */
   notes: string | null;

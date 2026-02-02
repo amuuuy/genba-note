@@ -49,6 +49,7 @@ export interface DocumentFormValues {
   validUntil: string;
   dueDate: string;
   paidAt: string;
+  carriedForwardAmount: string;
   notes: string;
 }
 
@@ -109,6 +110,7 @@ const initialFormValues: DocumentFormValues = {
   validUntil: '',
   dueDate: '',
   paidAt: '',
+  carriedForwardAmount: '',
   notes: '',
 };
 
@@ -156,6 +158,7 @@ function documentEditReducer(
           validUntil: action.document.validUntil ?? '',
           dueDate: action.document.dueDate ?? '',
           paidAt: action.document.paidAt ?? '',
+          carriedForwardAmount: action.document.carriedForwardAmount?.toString() ?? '',
           notes: action.document.notes ?? '',
         },
         lineItems: action.document.lineItems,
@@ -444,6 +447,9 @@ export function useDocumentEdit(
     try {
       if (!state.documentId) {
         // Create new document
+        const carriedForwardAmount = state.values.carriedForwardAmount
+          ? parseInt(state.values.carriedForwardAmount, 10)
+          : null;
         const input: CreateDocumentInput = {
           type: state.values.type,
           clientName: state.values.clientName,
@@ -459,6 +465,10 @@ export function useDocumentEdit(
               ? state.values.dueDate || null
               : null,
           lineItems: state.lineItems.map(({ id, ...rest }) => rest),
+          carriedForwardAmount:
+            carriedForwardAmount && !isNaN(carriedForwardAmount)
+              ? carriedForwardAmount
+              : null,
           notes: state.values.notes || null,
         };
 
@@ -475,6 +485,9 @@ export function useDocumentEdit(
         }
       } else {
         // Update existing document
+        const carriedForwardAmountUpdate = state.values.carriedForwardAmount
+          ? parseInt(state.values.carriedForwardAmount, 10)
+          : null;
         const input: UpdateDocumentInput = {
           clientName: state.values.clientName,
           clientAddress: state.values.clientAddress || null,
@@ -489,6 +502,10 @@ export function useDocumentEdit(
               ? state.values.dueDate || null
               : null,
           lineItems: state.lineItems.map(({ id, ...rest }) => rest),
+          carriedForwardAmount:
+            carriedForwardAmountUpdate && !isNaN(carriedForwardAmountUpdate)
+              ? carriedForwardAmountUpdate
+              : null,
           notes: state.values.notes || null,
         };
 

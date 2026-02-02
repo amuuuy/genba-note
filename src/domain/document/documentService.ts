@@ -52,6 +52,7 @@ export interface CreateDocumentInput {
   validUntil?: string | null;
   dueDate?: string | null;
   lineItems: Omit<LineItem, 'id'>[];
+  carriedForwardAmount?: number | null;
   notes?: string | null;
 }
 
@@ -66,6 +67,7 @@ export interface UpdateDocumentInput {
   validUntil?: string | null;
   dueDate?: string | null;
   lineItems?: Omit<LineItem, 'id'>[];
+  carriedForwardAmount?: number | null;
   notes?: string | null;
 }
 
@@ -87,12 +89,15 @@ function addLineItemIds(lineItems: Omit<LineItem, 'id'>[]): LineItem[] {
 async function getIssuerSnapshotFromSettings(): Promise<IssuerSnapshot> {
   const settingsResult = await getSettings();
   if (settingsResult.success && settingsResult.data) {
+    const issuer = settingsResult.data.issuer;
     return {
-      companyName: settingsResult.data.issuer.companyName,
-      representativeName: settingsResult.data.issuer.representativeName,
-      address: settingsResult.data.issuer.address,
-      phone: settingsResult.data.issuer.phone,
+      companyName: issuer.companyName,
+      representativeName: issuer.representativeName,
+      address: issuer.address,
+      phone: issuer.phone,
       sealImageBase64: null, // Seal image is resolved dynamically for PDF generation
+      // Only include contactPerson if showContactPerson is true
+      contactPerson: issuer.showContactPerson ? issuer.contactPerson : null,
     };
   }
   return {
@@ -101,6 +106,7 @@ async function getIssuerSnapshotFromSettings(): Promise<IssuerSnapshot> {
     address: null,
     phone: null,
     sealImageBase64: null,
+    contactPerson: null,
   };
 }
 
@@ -209,6 +215,7 @@ export async function createDocument(
     dueDate: input.type === 'invoice' ? (input.dueDate ?? null) : null,
     paidAt: null,
     lineItems: addLineItemIds(input.lineItems),
+    carriedForwardAmount: input.carriedForwardAmount ?? null,
     notes: input.notes ?? null,
     issuerSnapshot,
     createdAt: now,
@@ -338,6 +345,10 @@ export async function updateDocument(
     lineItems: updates.lineItems
       ? addLineItemIds(updates.lineItems)
       : existing.lineItems,
+    carriedForwardAmount:
+      updates.carriedForwardAmount !== undefined
+        ? updates.carriedForwardAmount
+        : existing.carriedForwardAmount,
     notes: updates.notes !== undefined ? updates.notes : existing.notes,
     updatedAt: Date.now(),
   };

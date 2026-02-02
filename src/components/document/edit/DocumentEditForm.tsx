@@ -178,6 +178,21 @@ function DocumentEditFormComponent({
         disabled={isFieldsDisabled}
       />
 
+      {/* Carried Forward Amount (Invoice only) */}
+      {values.type === 'invoice' && (
+        <FormSection title="繰越金額">
+          <FormInput
+            label="繰越金額"
+            value={values.carriedForwardAmount}
+            onChangeText={(value) => onFieldChange('carriedForwardAmount', value)}
+            error={errors.carriedForwardAmount}
+            disabled={isFieldsDisabled}
+            placeholder="0"
+            keyboardType="numeric"
+          />
+        </FormSection>
+      )}
+
       {/* Line Items */}
       <LineItemList
         lineItems={lineItems}
@@ -189,7 +204,14 @@ function DocumentEditFormComponent({
       />
 
       {/* Totals */}
-      <DocumentTotalsDisplay lineItems={lineItems} />
+      <DocumentTotalsDisplay
+        lineItems={lineItems}
+        carriedForwardAmount={
+          values.carriedForwardAmount
+            ? parseInt(values.carriedForwardAmount, 10)
+            : null
+        }
+      />
 
       {/* Notes */}
       <FormSection title="備考">

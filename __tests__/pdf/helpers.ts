@@ -77,6 +77,7 @@ export function createTestIssuerSnapshot(
     address: '東京都渋谷区テスト1-2-3',
     phone: '03-1234-5678',
     sealImageBase64: null,
+    contactPerson: null,
     ...overrides,
   };
 }
@@ -124,6 +125,7 @@ export function createTestDocument(
     issuerSnapshot: createTestIssuerSnapshot(),
     createdAt: Date.now(),
     updatedAt: Date.now(),
+    carriedForwardAmount: null,
     ...overrides,
   };
 }

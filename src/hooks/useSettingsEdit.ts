@@ -46,6 +46,7 @@ export type SettingsEditAction =
   | { type: 'LOAD_ERROR'; message: string }
   | { type: 'UPDATE_FIELD'; field: keyof SettingsFormValues; value: string }
   | { type: 'UPDATE_SEAL_IMAGE'; uri: string | null }
+  | { type: 'TOGGLE_SHOW_CONTACT_PERSON'; value: boolean }
   | { type: 'SET_ERRORS'; errors: SettingsFormErrors }
   | { type: 'CLEAR_ERRORS' }
   | { type: 'START_SAVING' }
@@ -60,6 +61,8 @@ const initialFormValues: SettingsFormValues = {
   representativeName: '',
   address: '',
   phone: '',
+  contactPerson: '',
+  showContactPerson: true,
   estimatePrefix: 'EST-',
   invoicePrefix: 'INV-',
   sealImageUri: null,
@@ -101,6 +104,8 @@ export function createInitialFormValues(
     representativeName: issuer.representativeName ?? '',
     address: issuer.address ?? '',
     phone: issuer.phone ?? '',
+    contactPerson: issuer.contactPerson ?? '',
+    showContactPerson: issuer.showContactPerson ?? true,
     estimatePrefix: numbering.estimatePrefix,
     invoicePrefix: numbering.invoicePrefix,
     sealImageUri: issuer.sealImageUri ?? null,
@@ -177,6 +182,16 @@ export function settingsEditReducer(
         isDirty: true,
       };
 
+    case 'TOGGLE_SHOW_CONTACT_PERSON':
+      return {
+        ...state,
+        values: {
+          ...state.values,
+          showContactPerson: action.value,
+        },
+        isDirty: true,
+      };
+
     case 'SET_ERRORS':
       return {
         ...state,
@@ -223,6 +238,7 @@ export interface UseSettingsEditReturn {
   state: SettingsEditState;
   updateField: (field: keyof SettingsFormValues, value: string) => void;
   updateSealImage: (uri: string | null) => void;
+  toggleShowContactPerson: (value: boolean) => void;
   save: () => Promise<boolean>;
   validate: () => boolean;
   getFormattedNextNumber: (type: 'estimate' | 'invoice') => string;
@@ -310,6 +326,11 @@ export function useSettingsEdit(): UseSettingsEditReturn {
     dispatch({ type: 'UPDATE_SEAL_IMAGE', uri });
   }, []);
 
+  // Toggle showContactPerson
+  const toggleShowContactPerson = useCallback((value: boolean) => {
+    dispatch({ type: 'TOGGLE_SHOW_CONTACT_PERSON', value });
+  }, []);
+
   // Validate the form
   const validate = useCallback((): boolean => {
     const errors = validateSettingsForm(state.values);
@@ -343,6 +364,8 @@ export function useSettingsEdit(): UseSettingsEditReturn {
           representativeName: state.values.representativeName || null,
           address: state.values.address || null,
           phone: state.values.phone || null,
+          contactPerson: state.values.contactPerson || null,
+          showContactPerson: state.values.showContactPerson,
           sealImageUri: state.values.sealImageUri,
         },
         // Only update prefixes, NOT next numbers (managed by autoNumberingService)
@@ -413,6 +436,7 @@ export function useSettingsEdit(): UseSettingsEditReturn {
     state,
     updateField,
     updateSealImage,
+    toggleShowContactPerson,
     save,
     validate,
     getFormattedNextNumber,

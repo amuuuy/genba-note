@@ -43,6 +43,7 @@ describe('issuerResolverService', () => {
         address: null,
         phone: null,
         sealImageBase64: null,
+        contactPerson: null,
       };
       expect(hasIssuerSnapshotData(snapshot)).toBe(true);
     });
@@ -54,6 +55,7 @@ describe('issuerResolverService', () => {
         address: null,
         phone: null,
         sealImageBase64: null,
+        contactPerson: null,
       };
       expect(hasIssuerSnapshotData(snapshot)).toBe(true);
     });
@@ -65,6 +67,7 @@ describe('issuerResolverService', () => {
         address: '東京都渋谷区',
         phone: null,
         sealImageBase64: null,
+        contactPerson: null,
       };
       expect(hasIssuerSnapshotData(snapshot)).toBe(true);
     });
@@ -76,6 +79,7 @@ describe('issuerResolverService', () => {
         address: null,
         phone: '03-1234-5678',
         sealImageBase64: null,
+        contactPerson: null,
       };
       expect(hasIssuerSnapshotData(snapshot)).toBe(true);
     });
@@ -87,6 +91,7 @@ describe('issuerResolverService', () => {
         address: null,
         phone: null,
         sealImageBase64: null,
+        contactPerson: null,
       };
       expect(hasIssuerSnapshotData(snapshot)).toBe(false);
     });
@@ -98,6 +103,7 @@ describe('issuerResolverService', () => {
         address: '' as unknown as string | null,
         phone: '' as unknown as string | null,
         sealImageBase64: null,
+        contactPerson: null,
       };
       expect(hasIssuerSnapshotData(snapshot)).toBe(false);
     });
@@ -125,6 +131,8 @@ describe('issuerResolverService', () => {
               address: null,
               phone: null,
               sealImageUri: null,
+              contactPerson: null,
+              showContactPerson: true,
             },
             numbering: {
               estimatePrefix: 'EST-',
@@ -189,6 +197,7 @@ describe('issuerResolverService', () => {
         address: '東京都渋谷区',
         phone: '03-1234-5678',
         sealImageBase64: null,
+        contactPerson: null,
       };
 
       const settingsWithCompanyName = {
@@ -198,6 +207,8 @@ describe('issuerResolverService', () => {
           address: '設定の住所',
           phone: '設定の電話番号',
           sealImageUri: null,
+          contactPerson: null,
+          showContactPerson: true,
         },
         numbering: {
           estimatePrefix: 'EST-',
@@ -258,6 +269,7 @@ describe('issuerResolverService', () => {
           address: '東京都渋谷区',
           phone: '03-1234-5678',
           sealImageBase64: null,
+          contactPerson: null,
         };
 
         const result = await resolveIssuerInfo(documentId, snapshotWithWhitespaceCompanyName);
@@ -274,6 +286,7 @@ describe('issuerResolverService', () => {
         address: null,
         phone: null,
         sealImageBase64: null,
+        contactPerson: null,
       };
 
       const settingsIssuer = {
@@ -282,6 +295,8 @@ describe('issuerResolverService', () => {
         address: '設定の住所',
         phone: '設定の電話番号',
         sealImageUri: null,
+        contactPerson: null,
+        showContactPerson: true,
       };
 
       const mockAppSettings: AppSettings = {
@@ -333,6 +348,7 @@ describe('issuerResolverService', () => {
           address: settingsIssuer.address,
           phone: settingsIssuer.phone,
           sealImageBase64: null, // Mock returns null for seal image
+          contactPerson: null, // showContactPerson is true but contactPerson is null in settings
         });
       });
 
@@ -382,6 +398,7 @@ describe('issuerResolverService', () => {
         address: null,
         phone: null,
         sealImageBase64: null,
+        contactPerson: null,
       };
 
       const docSensitiveSnapshot: SensitiveIssuerSnapshot = {
@@ -414,6 +431,8 @@ describe('issuerResolverService', () => {
               address: null,
               phone: null,
               sealImageUri: null,
+              contactPerson: null,
+              showContactPerson: true,
             },
             numbering: {
               estimatePrefix: 'EST-',
@@ -464,6 +483,7 @@ describe('issuerResolverService', () => {
         address: null,
         phone: null,
         sealImageBase64: null,
+        contactPerson: null,
       };
 
       const emptySettings: AppSettings = {
@@ -473,6 +493,8 @@ describe('issuerResolverService', () => {
           address: null,
           phone: null,
           sealImageUri: null,
+          contactPerson: null,
+          showContactPerson: true,
         },
         numbering: {
           estimatePrefix: 'EST-',
@@ -507,6 +529,7 @@ describe('issuerResolverService', () => {
           address: null,
           phone: null,
           sealImageBase64: null,
+          contactPerson: null,
         });
       });
 
@@ -530,6 +553,7 @@ describe('issuerResolverService', () => {
         address: null,
         phone: null,
         sealImageBase64: null,
+        contactPerson: null,
       };
 
       it('returns empty data when getSettings fails', async () => {
@@ -554,6 +578,7 @@ describe('issuerResolverService', () => {
           address: null,
           phone: null,
           sealImageBase64: null,
+          contactPerson: null,
         });
         expect(result.source).toBe('settings');
       });
@@ -568,6 +593,8 @@ describe('issuerResolverService', () => {
               address: null,
               phone: null,
               sealImageUri: null,
+              contactPerson: null,
+              showContactPerson: true,
             },
             numbering: {
               estimatePrefix: 'EST-',
@@ -613,6 +640,8 @@ describe('issuerResolverService', () => {
               address: null,
               phone: null,
               sealImageUri: null,
+              contactPerson: null,
+              showContactPerson: true,
             },
             numbering: {
               estimatePrefix: 'EST-',
