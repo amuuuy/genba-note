@@ -206,8 +206,8 @@ function renderIssuerSection(
 
 /**
  * Render issuer section with seal image for formal PDF header
- * Seal is overlaid on company name only (standard placement for construction industry)
- * This is placed in the header-right area per Japanese business document conventions
+ * Creates a block layout with issuer info on left and seal on right
+ * Layout: [Company Info Text] [Seal Image]
  */
 function renderFormalIssuerSection(
   doc: DocumentWithTotals,
@@ -216,27 +216,14 @@ function renderFormalIssuerSection(
   const { issuerSnapshot } = doc;
   const hasSeal = !!issuerSnapshot.sealImageBase64;
 
-  // Seal image - overlaid on company name only
-  const sealHtml = hasSeal
-    ? `<div class="seal-overlay"><img src="data:image/png;base64,${issuerSnapshot.sealImageBase64}" alt="印影" class="seal-image" /></div>`
-    : '';
+  // Build issuer info lines (displayed vertically on left side)
+  const infoLines: string[] = [];
 
-  // Company name: use wrapper only when seal exists to avoid unnecessary spacing
-  let companyHtml = '';
   if (issuerSnapshot.companyName) {
-    if (hasSeal) {
-      // With seal: wrap in relative container for overlay positioning
-      companyHtml = `<div class="issuer-company-wrapper"><div class="issuer-company">${escapeHtml(issuerSnapshot.companyName)}</div>${sealHtml}</div>`;
-    } else {
-      // Without seal: simple company name without wrapper
-      companyHtml = `<div class="issuer-company">${escapeHtml(issuerSnapshot.companyName)}</div>`;
-    }
+    infoLines.push(`<div class="issuer-company">${escapeHtml(issuerSnapshot.companyName)}</div>`);
   }
-
-  // Other issuer info (address, TEL/FAX, invoice number, contact person) - not overlapped by seal
-  const otherLines: string[] = [];
   if (issuerSnapshot.address) {
-    otherLines.push(`<div class="issuer-address">${escapeHtml(issuerSnapshot.address)}</div>`);
+    infoLines.push(`<div class="issuer-address">${escapeHtml(issuerSnapshot.address)}</div>`);
   }
   // TEL / FAX on the same line
   const telFaxParts: string[] = [];
@@ -247,25 +234,32 @@ function renderFormalIssuerSection(
     telFaxParts.push(`FAX: ${escapeHtml(issuerSnapshot.fax)}`);
   }
   if (telFaxParts.length > 0) {
-    otherLines.push(`<div class="issuer-tel-fax">${telFaxParts.join(' / ')}</div>`);
+    infoLines.push(`<div class="issuer-tel-fax">${telFaxParts.join(' / ')}</div>`);
   }
   if (sensitiveSnapshot?.invoiceNumber) {
-    otherLines.push(`<div class="issuer-invoice-number">登録番号: ${escapeHtml(sensitiveSnapshot.invoiceNumber)}</div>`);
+    infoLines.push(`<div class="issuer-invoice-number">登録番号: ${escapeHtml(sensitiveSnapshot.invoiceNumber)}</div>`);
   }
   if (issuerSnapshot.contactPerson) {
-    otherLines.push(`<div class="issuer-contact">担当: ${escapeHtml(issuerSnapshot.contactPerson)}</div>`);
+    infoLines.push(`<div class="issuer-contact">担当: ${escapeHtml(issuerSnapshot.contactPerson)}</div>`);
   }
 
   // Return empty string if no issuer info to display
-  if (!companyHtml && otherLines.length === 0) {
+  if (infoLines.length === 0) {
     return '';
   }
 
-  // Return issuer block for header placement
+  // Seal image HTML (positioned to the right of the info block)
+  const sealHtml = hasSeal
+    ? `<div class="issuer-seal"><img src="data:image/png;base64,${issuerSnapshot.sealImageBase64}" alt="印影" class="seal-image" /></div>`
+    : '';
+
+  // Return issuer block with flexbox layout: [info] [seal]
   return `
       <div class="header-issuer-block">
-        ${companyHtml}
-        ${otherLines.join('\n        ')}
+        <div class="issuer-info">
+          ${infoLines.join('\n          ')}
+        </div>
+        ${sealHtml}
       </div>
   `;
 }
@@ -952,20 +946,19 @@ function generateFormalPdfTemplate(
       font-weight: bold;
     }
 
-    /* Issuer block styles for header placement */
+    /* Issuer block - flexbox layout with info on left and seal on right */
     .header-issuer-block {
-      text-align: right;
+      display: flex;
+      justify-content: flex-end;
+      align-items: flex-start;
+      gap: 10px;
       margin-bottom: 15px;
       padding-bottom: 10px;
-      border-bottom: 1px solid #ccc;
     }
 
-    /* Company name wrapper - relative container for seal overlay */
-    .issuer-company-wrapper {
-      position: relative;
-      display: inline-block;
-      min-height: 80px;
-      padding-right: 50px;
+    /* Issuer info text container */
+    .issuer-info {
+      text-align: right;
     }
 
     .issuer-company {
@@ -974,23 +967,9 @@ function generateFormalPdfTemplate(
       margin-bottom: 4px;
     }
 
-    /* Ensure company name maintains 14px even when direct child of header-issuer-block */
-    .header-issuer-block > .issuer-company {
-      font-size: 14px;
-      font-weight: bold;
-    }
-
-    .header-issuer-block > div:not(.issuer-company):not(.issuer-company-wrapper) {
-      font-size: 11px;
-      margin-bottom: 2px;
-    }
-
     .issuer-address {
       font-size: 11px;
-    }
-
-    .issuer-phone {
-      font-size: 11px;
+      margin-bottom: 2px;
     }
 
     .issuer-tel-fax {
@@ -998,26 +977,28 @@ function generateFormalPdfTemplate(
       margin-bottom: 2px;
     }
 
-    .issuer-invoice-number,
-    .header-issuer-block .issuer-invoice-number {
+    .issuer-invoice-number {
       font-size: 10px;
       color: #333;
+      margin-bottom: 2px;
     }
 
-    /* Seal overlay - positioned to overlap company name in header */
-    .seal-overlay {
-      position: absolute;
-      right: -35px;
-      top: -8px;
-      width: 80px;
-      height: 80px;
-      opacity: 0.85;
+    .issuer-contact {
+      font-size: 11px;
+    }
+
+    /* Seal image container - positioned to right of info */
+    .issuer-seal {
+      flex-shrink: 0;
+      width: 70px;
+      height: 70px;
     }
 
     .seal-image {
       width: 100%;
       height: 100%;
       object-fit: contain;
+      opacity: 0.85;
     }
 
     /* Line items table */
@@ -1100,11 +1081,6 @@ function generateFormalPdfTemplate(
       font-weight: bold;
       font-size: 13px;
       padding-top: 10px;
-    }
-
-    /* Contact person styling */
-    .issuer-contact {
-      font-size: 11px;
     }
 
     /* Notes section */
