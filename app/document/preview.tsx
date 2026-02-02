@@ -7,10 +7,11 @@
  * Flow:
  * 1. Load document from storage
  * 2. Enrich with calculated totals
- * 3. Fetch sensitive issuer snapshot
- * 4. Generate HTML template
- * 5. Display in WebView
- * 6. On PDF share: check Pro status → generate/share or redirect to paywall
+ * 3. Resolve issuer info (snapshot with settings fallback)
+ * 4. Create document with resolved issuer info
+ * 5. Generate HTML template
+ * 6. Display in WebView
+ * 7. On PDF share: check Pro status → generate/share or redirect to paywall
  */
 
 import { useEffect, useState, useCallback } from 'react';
@@ -20,7 +21,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 
 import { getDocument } from '@/domain/document';
 import { enrichDocumentWithTotals } from '@/domain/lineItem/calculationService';
-import { getIssuerSnapshot } from '@/storage/secureStorageService';
+import { resolveIssuerInfo } from '@/pdf/issuerResolverService';
 // Import template service directly to avoid bundling expo-print/sharing dependencies in preview
 import { generateHtmlTemplate } from '@/pdf/pdfTemplateService';
 // Import PDF generation service for Pro feature
@@ -60,17 +61,22 @@ export default function DocumentPreviewScreen() {
 
         // 2. Enrich with totals
         const enriched = enrichDocumentWithTotals(docResult.data);
-        setDocumentWithTotals(enriched);
 
-        // 3. Fetch sensitive snapshot
-        const snapshotResult = await getIssuerSnapshot(id);
-        const snapshot = snapshotResult.success && snapshotResult.data ? snapshotResult.data : null;
-        setSensitiveSnapshot(snapshot);
+        // 3. Resolve issuer info (snapshot or settings fallback)
+        const issuerInfo = await resolveIssuerInfo(id, enriched.issuerSnapshot);
+        setSensitiveSnapshot(issuerInfo.sensitiveSnapshot);
 
-        // 4. Generate HTML
+        // 4. Create document with resolved issuer info
+        const documentForTemplate = {
+          ...enriched,
+          issuerSnapshot: issuerInfo.issuerSnapshot,
+        };
+        setDocumentWithTotals(documentForTemplate);
+
+        // 5. Generate HTML with resolved data
         const templateResult = generateHtmlTemplate({
-          document: enriched,
-          sensitiveSnapshot: snapshot,
+          document: documentForTemplate,
+          sensitiveSnapshot: issuerInfo.sensitiveSnapshot,
         });
         setHtml(templateResult.html);
 

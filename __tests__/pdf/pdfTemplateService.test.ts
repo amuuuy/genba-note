@@ -622,6 +622,71 @@ describe('pdfTemplateService', () => {
         expect(result.html).toContain('株式会社ABC');
         expect(result.html).toContain('090-1234-5678');
       });
+
+      it('omits issuer section when all issuerSnapshot fields are null', () => {
+        const input = createTestTemplateInput({
+          document: {
+            issuerSnapshot: {
+              companyName: null,
+              representativeName: null,
+              address: null,
+              phone: null,
+            },
+          },
+          sensitiveSnapshot: null,
+        });
+        const result = generateHtmlTemplate(input);
+
+        expect(result.html).not.toContain('<div class="issuer-section">');
+      });
+
+      it('shows issuer section with only invoice number when issuerSnapshot is empty but sensitiveSnapshot has invoice number', () => {
+        const input = createTestTemplateInput({
+          document: {
+            issuerSnapshot: {
+              companyName: null,
+              representativeName: null,
+              address: null,
+              phone: null,
+            },
+          },
+          sensitiveSnapshot: createTestSensitiveSnapshot({
+            invoiceNumber: 'T1234567890123',
+            bankName: null,
+            branchName: null,
+            accountType: null,
+            accountNumber: null,
+            accountHolderName: null,
+          }),
+        });
+        const result = generateHtmlTemplate(input);
+
+        expect(result.html).toContain('<div class="issuer-section">');
+        expect(result.html).toContain('登録番号');
+        expect(result.html).toContain('T1234567890123');
+      });
+
+      it('generates valid HTML when all issuer data is missing', () => {
+        const input = createTestTemplateInput({
+          document: {
+            issuerSnapshot: {
+              companyName: null,
+              representativeName: null,
+              address: null,
+              phone: null,
+            },
+          },
+          sensitiveSnapshot: null,
+        });
+        const result = generateHtmlTemplate(input);
+
+        // Should generate valid HTML without errors
+        expect(result.html).toContain('<!DOCTYPE html>');
+        expect(result.html).toContain('</html>');
+        // Other sections should still render
+        expect(result.html).toContain('<div class="header">');
+        expect(result.html).toContain('<div class="client-section">');
+      });
     });
 
     describe('fonts', () => {
