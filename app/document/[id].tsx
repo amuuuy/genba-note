@@ -493,6 +493,18 @@ export default function DocumentEditScreen() {
                   </View>
                 )}
               </Pressable>
+              <Pressable
+                onPress={handlePublishPdf}
+                disabled={state.isSaving || isPublishing || isReadOnlyMode}
+                style={[styles.headerButton, (state.isSaving || isPublishing || isReadOnlyMode) && styles.headerButtonDisabled]}
+                accessibilityLabel="PDF発行"
+                accessibilityRole="button"
+                accessibilityState={{ disabled: state.isSaving || isPublishing || isReadOnlyMode }}
+              >
+                <Text style={[styles.saveButtonText, (state.isSaving || isPublishing || isReadOnlyMode) && styles.saveButtonTextDisabled]}>
+                  PDF
+                </Text>
+              </Pressable>
             </View>
           ),
         }}

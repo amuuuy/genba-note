@@ -193,8 +193,9 @@ function renderIssuerSection(
 }
 
 /**
- * Render issuer section with seal image for formal PDF
+ * Render issuer section with seal image for formal PDF header
  * Seal is overlaid on company name only (standard placement for construction industry)
+ * This is placed in the header-right area per Japanese business document conventions
  */
 function renderFormalIssuerSection(
   doc: DocumentWithTotals,
@@ -232,13 +233,17 @@ function renderFormalIssuerSection(
     otherLines.push(`<div class="issuer-invoice-number">登録番号: ${escapeHtml(sensitiveSnapshot.invoiceNumber)}</div>`);
   }
 
+  // Return empty string if no issuer info to display
+  if (!companyHtml && otherLines.length === 0) {
+    return '';
+  }
+
+  // Return issuer block for header placement
   return `
-    <div class="formal-issuer-section">
-      <div class="issuer-info">
+      <div class="header-issuer-block">
         ${companyHtml}
         ${otherLines.join('\n        ')}
       </div>
-    </div>
   `;
 }
 
@@ -809,7 +814,8 @@ function generateFormalPdfTemplate(
       font-size: 12px;
     }
 
-    .header-right div {
+    /* Meta info (date, document number) */
+    .header-meta div {
       margin-bottom: 4px;
     }
 
@@ -866,22 +872,20 @@ function generateFormalPdfTemplate(
       font-weight: bold;
     }
 
-    /* Issuer section with seal overlay on company name only */
-    .formal-issuer-section {
+    /* Issuer block styles for header placement */
+    .header-issuer-block {
       text-align: right;
-      margin: 20px 0;
-    }
-
-    .issuer-info {
-      text-align: right;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #ccc;
     }
 
     /* Company name wrapper - relative container for seal overlay */
     .issuer-company-wrapper {
       position: relative;
       display: inline-block;
-      min-height: 100px;
-      padding-right: 60px;
+      min-height: 80px;
+      padding-right: 50px;
     }
 
     .issuer-company {
@@ -890,23 +894,38 @@ function generateFormalPdfTemplate(
       margin-bottom: 4px;
     }
 
-    .issuer-info > div {
+    /* Ensure company name maintains 14px even when direct child of header-issuer-block */
+    .header-issuer-block > .issuer-company {
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .header-issuer-block > div:not(.issuer-company):not(.issuer-company-wrapper) {
       font-size: 11px;
       margin-bottom: 2px;
     }
 
-    .issuer-invoice-number {
+    .issuer-address {
+      font-size: 11px;
+    }
+
+    .issuer-phone {
+      font-size: 11px;
+    }
+
+    .issuer-invoice-number,
+    .header-issuer-block .issuer-invoice-number {
       font-size: 10px;
       color: #333;
     }
 
-    /* Seal overlay - positioned to overlap company name only */
+    /* Seal overlay - positioned to overlap company name in header */
     .seal-overlay {
       position: absolute;
-      right: -40px;
-      top: -10px;
-      width: 100px;
-      height: 100px;
+      right: -35px;
+      top: -8px;
+      width: 80px;
+      height: 80px;
       opacity: 0.85;
     }
 
@@ -1046,15 +1065,18 @@ function generateFormalPdfTemplate(
     <!-- Title -->
     <div class="formal-title">${title}</div>
 
-    <!-- Two-column header -->
+    <!-- Two-column header with issuer info -->
     <div class="formal-header">
       <div class="header-left">
         <div class="formal-client-name">${escapeHtml(doc.clientName)}</div>
         ${clientAddressHtml}
       </div>
       <div class="header-right">
-        <div>発行日: ${formatDate(doc.issueDate)}</div>
-        <div>請求書番号: ${escapeHtml(doc.documentNo)}</div>
+        ${issuerHtml}
+        <div class="header-meta">
+          <div>発行日: ${formatDate(doc.issueDate)}</div>
+          <div>請求書番号: ${escapeHtml(doc.documentNo)}</div>
+        </div>
       </div>
     </div>
 
@@ -1068,9 +1090,6 @@ function generateFormalPdfTemplate(
       <span class="total-label">合計金額</span>
       <span class="total-amount">${formatCurrency(doc.totalYen)}円</span>
     </div>
-
-    <!-- Issuer with seal -->
-    ${issuerHtml}
 
     <!-- Line items -->
     ${lineItemsTableHtml}
