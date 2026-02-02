@@ -14,3 +14,16 @@ export type { DocumentListItemProps } from './DocumentListItem';
 
 export { EmptyDocumentList } from './EmptyDocumentList';
 export type { EmptyDocumentListProps } from './EmptyDocumentList';
+
+// Creation Hub components
+export { CreationHubHeader } from './CreationHubHeader';
+export type { CreationHubHeaderProps } from './CreationHubHeader';
+
+export { CreateDocumentCard } from './CreateDocumentCard';
+export type { CreateDocumentCardProps } from './CreateDocumentCard';
+
+export { CreateDocumentCardGroup } from './CreateDocumentCardGroup';
+export type { CreateDocumentCardGroupProps } from './CreateDocumentCardGroup';
+
+export { RecentDocumentsSection } from './RecentDocumentsSection';
+export type { RecentDocumentsSectionProps } from './RecentDocumentsSection';

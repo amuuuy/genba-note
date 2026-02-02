@@ -6,14 +6,12 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 export interface EmptyDocumentListProps {
   /** Whether the list is empty due to filters/search */
   isFiltered: boolean;
-  /** Callback to create a new document */
-  onCreatePress?: () => void;
   /** Test ID for testing */
   testID?: string;
 }
@@ -23,7 +21,6 @@ export interface EmptyDocumentListProps {
  */
 export const EmptyDocumentList: React.FC<EmptyDocumentListProps> = ({
   isFiltered,
-  onCreatePress,
   testID,
 }) => {
   if (isFiltered) {
@@ -41,21 +38,7 @@ export const EmptyDocumentList: React.FC<EmptyDocumentListProps> = ({
   return (
     <View style={styles.container} testID={testID}>
       <Ionicons name="document-text-outline" size={48} color="#C7C7CC" />
-      <Text style={styles.title}>書類がありません</Text>
-      <Text style={styles.message}>
-        最初の見積書または請求書を作成しましょう
-      </Text>
-      {onCreatePress && (
-        <Pressable
-          style={styles.createButton}
-          onPress={onCreatePress}
-          accessibilityRole="button"
-          accessibilityLabel="新規作成"
-        >
-          <Ionicons name="add-circle-outline" size={20} color="#fff" />
-          <Text style={styles.createButtonText}>新規作成</Text>
-        </Pressable>
-      )}
+      <Text style={styles.title}>まだ書類がありません</Text>
     </View>
   );
 };
@@ -82,20 +65,5 @@ const styles = StyleSheet.create({
     color: '#8E8E93',
     textAlign: 'center',
     lineHeight: 20,
-  },
-  createButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 24,
-    gap: 8,
-  },
-  createButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
   },
 });
