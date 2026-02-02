@@ -228,6 +228,17 @@ export const LineItemEditorModal: React.FC<LineItemEditorModalProps> = ({
             testID="line-item-name"
           />
 
+          <FormInput
+            label="単価（円）"
+            value={form.unitPrice}
+            onChangeText={(text) => updateField('unitPrice', text)}
+            error={errors.unitPrice}
+            required
+            keyboardType="number-pad"
+            placeholder="0"
+            testID="line-item-unit-price"
+          />
+
           <View style={styles.row}>
             <View style={styles.quantityContainer}>
               <FormInput
@@ -253,17 +264,6 @@ export const LineItemEditorModal: React.FC<LineItemEditorModalProps> = ({
               />
             </View>
           </View>
-
-          <FormInput
-            label="単価（円）"
-            value={form.unitPrice}
-            onChangeText={(text) => updateField('unitPrice', text)}
-            error={errors.unitPrice}
-            required
-            keyboardType="number-pad"
-            placeholder="0"
-            testID="line-item-unit-price"
-          />
 
           {/* Tax rate selector */}
           <View style={styles.taxRateContainer}>
