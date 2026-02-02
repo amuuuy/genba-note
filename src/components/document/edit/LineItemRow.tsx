@@ -6,7 +6,7 @@
  * Tapping opens edit modal, swipe reveals delete button.
  */
 
-import React, { memo, useCallback, useRef } from 'react';
+import React, { memo, useCallback, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import type { LineItem } from '@/types/document';
 import { calcLineSubtotal, fromQuantityMilli } from '@/domain/lineItem';
+import { QuantityStepper } from '@/components/common/QuantityStepper';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 
 export interface LineItemRowProps {
   /** Line item data */
@@ -28,6 +30,8 @@ export interface LineItemRowProps {
   onPress: (id: string) => void;
   /** Callback when delete is pressed */
   onDelete: (id: string) => void;
+  /** Callback when quantity changes via stepper */
+  onQuantityChange: (id: string, newQuantityMilli: number) => void;
   /** Whether editing is disabled */
   disabled?: boolean;
   /** Test ID */
@@ -58,12 +62,16 @@ function LineItemRowComponent({
   index,
   onPress,
   onDelete,
+  onQuantityChange,
   disabled = false,
   testID,
 }: LineItemRowProps) {
   const subtotal = calcLineSubtotal(lineItem.quantityMilli, lineItem.unitPrice);
   const translateX = useRef(new Animated.Value(0)).current;
   const deleteButtonWidth = 80;
+
+  // State for delete confirmation when quantity reaches zero
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -116,6 +124,30 @@ function LineItemRowComponent({
     onDelete(lineItem.id);
   }, [lineItem.id, onDelete]);
 
+  // Handle quantity change from stepper
+  const handleQuantityChange = useCallback(
+    (newQuantityMilli: number) => {
+      onQuantityChange(lineItem.id, newQuantityMilli);
+    },
+    [lineItem.id, onQuantityChange]
+  );
+
+  // Handle when stepper would reduce quantity to zero
+  const handleZeroReached = useCallback(() => {
+    setShowDeleteConfirm(true);
+  }, []);
+
+  // Confirm delete from dialog
+  const handleConfirmDelete = useCallback(() => {
+    setShowDeleteConfirm(false);
+    onDelete(lineItem.id);
+  }, [lineItem.id, onDelete]);
+
+  // Cancel delete from dialog
+  const handleCancelDelete = useCallback(() => {
+    setShowDeleteConfirm(false);
+  }, []);
+
   return (
     <View style={styles.container} testID={testID}>
       {/* Delete button (behind the row) */}
@@ -152,9 +184,14 @@ function LineItemRowComponent({
               {lineItem.name}
             </Text>
             <View style={styles.calculation}>
-              <Text style={styles.quantity}>
-                {formatQuantity(lineItem.quantityMilli)}{lineItem.unit}
-              </Text>
+              <QuantityStepper
+                value={lineItem.quantityMilli}
+                onChange={handleQuantityChange}
+                onZeroReached={handleZeroReached}
+                unit={lineItem.unit}
+                disabled={disabled}
+                testID={testID ? `${testID}-quantity-stepper` : undefined}
+              />
               <Text style={styles.operator}>×</Text>
               <Text style={styles.unitPrice}>
                 ¥{formatCurrency(lineItem.unitPrice)}
@@ -179,6 +216,19 @@ function LineItemRowComponent({
           )}
         </Pressable>
       </Animated.View>
+
+      {/* Delete confirmation dialog when quantity reaches zero */}
+      <ConfirmDialog
+        visible={showDeleteConfirm}
+        title="明細の削除"
+        message="数量が0になりました。この明細を削除しますか？"
+        confirmText="削除"
+        cancelText="キャンセル"
+        destructive
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+        testID={testID ? `${testID}-delete-confirm` : undefined}
+      />
     </View>
   );
 }

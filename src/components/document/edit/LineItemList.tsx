@@ -87,6 +87,21 @@ function LineItemListComponent({
     [onRemove]
   );
 
+  // Handle quantity change from stepper
+  const handleQuantityChange = useCallback(
+    (id: string, newQuantityMilli: number) => {
+      const success = onUpdate(id, { quantityMilli: newQuantityMilli });
+      if (!success) {
+        Alert.alert(
+          '更新エラー',
+          '数量の更新に失敗しました。',
+          [{ text: 'OK' }]
+        );
+      }
+    },
+    [onUpdate]
+  );
+
   // Handle save from editor
   const handleEditorSave = useCallback(
     (input: LineItemInput) => {
@@ -162,10 +177,11 @@ function LineItemListComponent({
         index={index}
         onPress={handleItemPress}
         onDelete={handleDelete}
+        onQuantityChange={handleQuantityChange}
         disabled={disabled}
       />
     ),
-    [handleItemPress, handleDelete, disabled]
+    [handleItemPress, handleDelete, handleQuantityChange, disabled]
   );
 
   const keyExtractor = useCallback((item: LineItem) => item.id, []);
