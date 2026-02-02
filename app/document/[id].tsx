@@ -7,7 +7,7 @@
  * - id=UUID for editing existing documents
  */
 
-import React, { useEffect, useCallback, useRef } from 'react';
+import React, { useEffect, useCallback, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -23,12 +23,18 @@ import { useLocalSearchParams, router, Stack, useFocusEffect } from 'expo-router
 import { Ionicons } from '@expo/vector-icons';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-import type { DocumentType, DocumentStatus } from '@/types/document';
+import type { DocumentType, DocumentStatus, Document } from '@/types/document';
 import { useDocumentEdit } from '@/hooks/useDocumentEdit';
 import { useLineItemEditor } from '@/hooks/useLineItemEditor';
 import { useReadOnlyMode } from '@/hooks/useReadOnlyMode';
-import { DocumentEditForm } from '@/components/document/edit';
+import { DocumentEditForm, SaveActionSheet, PublishConfirmModal } from '@/components/document/edit';
 import { WarningDialog } from '@/components/common';
+import { checkProStatus } from '@/pdf/proGateService';
+import { generateAndSharePdf } from '@/pdf/pdfGenerationService';
+import { enrichDocumentWithTotals } from '@/domain/lineItem/calculationService';
+import { resolveIssuerInfo } from '@/pdf/issuerResolverService';
+import { getPdfErrorMessage } from '@/constants/errorMessages';
+import { changeDocumentStatus } from '@/domain/document';
 
 /**
  * Get display name for document type
@@ -62,6 +68,17 @@ export default function DocumentEditScreen() {
 
   // Read-only mode state
   const { isReadOnlyMode } = useReadOnlyMode();
+
+  // Action sheet and publish modal state
+  const [showActionSheet, setShowActionSheet] = useState(false);
+  const [showPublishConfirm, setShowPublishConfirm] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [isPro, setIsPro] = useState(true); // Default to true, update on mount
+
+  // Check Pro status on mount
+  useEffect(() => {
+    checkProStatus().then((result) => setIsPro(result.isPro));
+  }, []);
 
   // Track if we've synced initial line items from document to editor
   const hasInitializedLineItems = useRef(false);
@@ -158,14 +175,130 @@ export default function DocumentEditScreen() {
     // or errorMessage is set in state (displayed via useEffect if needed)
   }, [save, isNewDocument]);
 
-  // Handle preview navigation
+  // Handle preview navigation (without saving)
   const handlePreview = useCallback(() => {
-    if (state.documentId) {
-      router.push({ pathname: '/document/preview', params: { id: state.documentId } });
-    } else {
-      Alert.alert('保存が必要です', 'プレビューを表示するには先に保存してください。');
+    setShowActionSheet(false);
+
+    // Build document data for preview
+    const previewDocument: Partial<Document> = {
+      id: state.documentId || '',
+      documentNo: state.documentNo || '',
+      type: state.values.type,
+      status: state.status || 'draft',
+      clientName: state.values.clientName,
+      clientAddress: state.values.clientAddress || null,
+      subject: state.values.subject || null,
+      issueDate: state.values.issueDate,
+      validUntil: state.values.validUntil || null,
+      dueDate: state.values.dueDate || null,
+      paidAt: state.values.paidAt || null,
+      lineItems: state.lineItems,
+      notes: state.values.notes || null,
+      issuerSnapshot: state.issuerSnapshot ?? {
+        companyName: null,
+        representativeName: null,
+        address: null,
+        phone: null,
+      },
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+
+    // Navigate to preview with the document data
+    router.push({
+      pathname: '/document/preview',
+      params: { previewData: JSON.stringify(previewDocument) },
+    });
+  }, [state.documentId, state.documentNo, state.values, state.status, state.lineItems]);
+
+  // Handle save as draft (existing save behavior)
+  const handleSaveDraft = useCallback(async () => {
+    setShowActionSheet(false);
+    await handleSave();
+  }, [handleSave]);
+
+  // Handle PDF publish
+  const handlePublishPdf = useCallback(() => {
+    setShowActionSheet(false);
+    if (!isPro) {
+      router.push('/paywall');
+      return;
     }
-  }, [state.documentId]);
+    setShowPublishConfirm(true);
+  }, [isPro]);
+
+  // Handle PDF publish confirmation
+  const handlePublishConfirm = useCallback(async () => {
+    setIsPublishing(true);
+
+    try {
+      // 1. Save the document first (as draft)
+      const savedDocument = await save();
+      if (!savedDocument) {
+        setIsPublishing(false);
+        setShowPublishConfirm(false);
+        return;
+      }
+
+      // 2. Generate and share PDF FIRST (before changing status)
+      // Use temporary 'issued' status for PDF template only
+      const enriched = enrichDocumentWithTotals(savedDocument);
+      const issuerInfo = await resolveIssuerInfo(savedDocument.id, savedDocument.issuerSnapshot);
+      const documentForPdf = {
+        ...enriched,
+        status: 'issued' as DocumentStatus, // Temporary for PDF display only
+        issuerSnapshot: issuerInfo.issuerSnapshot,
+      };
+
+      const result = await generateAndSharePdf({
+        document: documentForPdf,
+        sensitiveSnapshot: issuerInfo.sensitiveSnapshot,
+      });
+
+      // 3. Handle PDF generation/share result
+      if (!result.success && result.error) {
+        // PDF failed or was cancelled - do NOT change status
+        if (result.error.code === 'PRO_REQUIRED') {
+          router.push('/paywall');
+        } else if (result.error.code !== 'SHARE_CANCELLED') {
+          const message = getPdfErrorMessage(result.error.code);
+          Alert.alert('PDF生成エラー', message);
+        }
+        // Status remains unchanged (draft or current)
+        return;
+      }
+
+      // 4. PDF shared successfully - change status to 'issued' if applicable
+      // Only change status if current status is 'draft' (domain rule: draft → issued)
+      // Skip if already 'issued' or other statuses (sent/paid)
+      if (savedDocument.status === 'draft') {
+        const statusResult = await changeDocumentStatus(savedDocument.id, 'issued');
+        if (!statusResult.success) {
+          // Status change failed but PDF was shared - inform user
+          Alert.alert(
+            '注意',
+            'PDFは共有されましたが、ステータスの更新に失敗しました。手動で「発行済」に変更してください。'
+          );
+        }
+      }
+      // If already 'issued', 'sent', or 'paid', status remains unchanged (PDF re-share)
+
+      // 5. Navigate to the document (for both new and existing)
+      // For new documents: replace with saved document route
+      // For existing documents: refresh to show updated status
+      router.replace(`/document/${savedDocument.id}`);
+    } catch {
+      Alert.alert('エラー', 'PDF発行中に予期しないエラーが発生しました');
+    } finally {
+      setIsPublishing(false);
+      setShowPublishConfirm(false);
+    }
+  }, [save]);
+
+  // Handle action sheet trigger
+  const handleActionSheetOpen = useCallback(() => {
+    setShowActionSheet(true);
+  }, []);
 
   // Handle status transition
   const handleStatusTransition = useCallback(
@@ -275,28 +408,26 @@ export default function DocumentEditScreen() {
           ),
           headerRight: () => (
             <View style={styles.headerButtons}>
-              {state.documentId && (
-                <Pressable
-                  onPress={handlePreview}
-                  style={styles.headerButton}
-                  accessibilityLabel="プレビュー"
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="eye-outline" size={24} color="#007AFF" />
-                </Pressable>
-              )}
               <Pressable
-                onPress={handleSave}
-                disabled={state.isSaving || isReadOnlyMode}
-                style={[styles.headerButton, (state.isSaving || isReadOnlyMode) && styles.headerButtonDisabled]}
-                accessibilityLabel={isReadOnlyMode ? '読み取り専用モード' : state.isSaving ? '保存中' : '保存'}
+                onPress={handleActionSheetOpen}
+                disabled={state.isSaving || isPublishing || isReadOnlyMode}
+                style={[styles.headerButton, (state.isSaving || isPublishing || isReadOnlyMode) && styles.headerButtonDisabled]}
+                accessibilityLabel={isReadOnlyMode ? '読み取り専用モード' : state.isSaving || isPublishing ? '処理中' : 'アクション'}
                 accessibilityRole="button"
-                accessibilityState={{ disabled: state.isSaving || isReadOnlyMode, busy: state.isSaving }}
+                accessibilityState={{ disabled: state.isSaving || isPublishing || isReadOnlyMode, busy: state.isSaving || isPublishing }}
               >
-                {state.isSaving ? (
+                {state.isSaving || isPublishing ? (
                   <ActivityIndicator size="small" color="#007AFF" />
                 ) : (
-                  <Text style={[styles.saveButtonText, isReadOnlyMode && styles.saveButtonTextDisabled]}>保存</Text>
+                  <View style={styles.actionButtonContent}>
+                    <Text style={[styles.saveButtonText, isReadOnlyMode && styles.saveButtonTextDisabled]}>保存</Text>
+                    <Ionicons
+                      name="chevron-down"
+                      size={16}
+                      color={isReadOnlyMode ? '#999' : '#007AFF'}
+                      style={styles.actionChevron}
+                    />
+                  </View>
                 )}
               </Pressable>
             </View>
@@ -333,6 +464,29 @@ export default function DocumentEditScreen() {
         cancelText="戻る"
         onContinue={handleSentWarningContinue}
         onCancel={handleSentWarningCancel}
+      />
+
+      {/* Save action sheet */}
+      <SaveActionSheet
+        visible={showActionSheet}
+        isDirty={state.isDirty}
+        isNewDocument={isNewDocument}
+        currentStatus={state.status}
+        isSaving={state.isSaving || isPublishing}
+        isPro={isPro}
+        onPreview={handlePreview}
+        onSaveDraft={handleSaveDraft}
+        onPublishPdf={handlePublishPdf}
+        onClose={() => setShowActionSheet(false)}
+      />
+
+      {/* Publish confirmation modal */}
+      <PublishConfirmModal
+        visible={showPublishConfirm}
+        isPublishing={isPublishing}
+        currentStatus={state.status}
+        onConfirm={handlePublishConfirm}
+        onCancel={() => setShowPublishConfirm(false)}
       />
     </GestureHandlerRootView>
   );
@@ -398,5 +552,12 @@ const styles = StyleSheet.create({
   },
   saveButtonTextDisabled: {
     color: '#999',
+  },
+  actionButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  actionChevron: {
+    marginLeft: 2,
   },
 });

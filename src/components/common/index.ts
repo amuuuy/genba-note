@@ -33,3 +33,6 @@ export type { ReadOnlyBannerProps } from './ReadOnlyBanner';
 
 export { getReadOnlyBannerConfig } from './readOnlyBannerConfig';
 export type { ReadOnlyBannerConfig } from './readOnlyBannerConfig';
+
+export { ActionSheetModal } from './ActionSheetModal';
+export type { ActionSheetModalProps, ActionSheetOption } from './ActionSheetModal';

@@ -13,11 +13,12 @@ export type DocumentType = 'estimate' | 'invoice';
 
 /**
  * Document status with transition rules:
- * - estimate: draft <-> sent
- * - invoice: draft <-> sent <-> paid
+ * - estimate: draft <-> sent, draft <-> issued
+ * - invoice: draft <-> sent <-> paid, draft <-> issued
  * - draft -> paid is FORBIDDEN (must go through sent)
+ * - issued: PDF発行済み（最終確定）
  */
-export type DocumentStatus = 'draft' | 'sent' | 'paid';
+export type DocumentStatus = 'draft' | 'sent' | 'paid' | 'issued';
 
 /** Tax rate (0% or 10% only - construction industry has no reduced rate) */
 export type TaxRate = 0 | 10;

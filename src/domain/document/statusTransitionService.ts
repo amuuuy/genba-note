@@ -18,24 +18,28 @@ import { successResult, errorResult, createTransitionError } from './types';
 
 /**
  * Allowed transitions for estimates
- * Estimates can only be draft or sent
+ * Estimates can be draft, sent, or issued
+ * issued = PDF発行済み（最終確定）
  */
 const ESTIMATE_TRANSITIONS: Record<DocumentStatus, DocumentStatus[]> = {
-  draft: ['sent'],
+  draft: ['sent', 'issued'],
   sent: ['draft'],
   paid: [], // Estimates cannot be paid
+  issued: ['draft'], // Can revert to draft for re-editing
 };
 
 /**
  * Allowed transitions for invoices
- * Invoices can be draft, sent, or paid
+ * Invoices can be draft, sent, paid, or issued
  * Transitions form a chain: draft ⇔ sent ⇔ paid
+ * Additionally: draft ⇔ issued (PDF発行)
  * Note: draft → paid and paid → draft are forbidden (must go through sent)
  */
 const INVOICE_TRANSITIONS: Record<DocumentStatus, DocumentStatus[]> = {
-  draft: ['sent'],
+  draft: ['sent', 'issued'],
   sent: ['draft', 'paid'],
   paid: ['sent'], // Can only go back to sent, not directly to draft
+  issued: ['draft'], // Can revert to draft for re-editing
 };
 
 // === Public API ===

@@ -49,6 +49,12 @@ export function getStatusConfig(status: DocumentStatus): StatusConfig {
         textColor: '#34C759',
         backgroundColor: '#E8F5E9',
       };
+    case 'issued':
+      return {
+        label: '発行済',
+        textColor: '#007AFF',
+        backgroundColor: '#E3F2FD',
+      };
     default:
       // Exhaustive check - if TypeScript catches this, a new status was added
       // eslint-disable-next-line @typescript-eslint/no-unused-vars

@@ -33,3 +33,9 @@ export type { PaidAtModalProps } from './PaidAtModal';
 
 export { DocumentTotalsDisplay } from './DocumentTotalsDisplay';
 export type { DocumentTotalsDisplayProps } from './DocumentTotalsDisplay';
+
+export { SaveActionSheet } from './SaveActionSheet';
+export type { SaveActionSheetProps } from './SaveActionSheet';
+
+export { PublishConfirmModal } from './PublishConfirmModal';
+export type { PublishConfirmModalProps } from './PublishConfirmModal';

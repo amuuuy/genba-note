@@ -91,6 +91,18 @@ describe('statusTransitionService', () => {
         expect(canTransition('estimate', 'draft', 'draft')).toBe(false);
         expect(canTransition('estimate', 'sent', 'sent')).toBe(false);
       });
+
+      it('should allow draft -> issued', () => {
+        expect(canTransition('estimate', 'draft', 'issued')).toBe(true);
+      });
+
+      it('should allow issued -> draft', () => {
+        expect(canTransition('estimate', 'issued', 'draft')).toBe(true);
+      });
+
+      it('should NOT allow issued -> issued', () => {
+        expect(canTransition('estimate', 'issued', 'issued')).toBe(false);
+      });
     });
 
     describe('invoice transitions', () => {
@@ -123,13 +135,27 @@ describe('statusTransitionService', () => {
         expect(canTransition('invoice', 'sent', 'sent')).toBe(false);
         expect(canTransition('invoice', 'paid', 'paid')).toBe(false);
       });
+
+      it('should allow draft -> issued', () => {
+        expect(canTransition('invoice', 'draft', 'issued')).toBe(true);
+      });
+
+      it('should allow issued -> draft', () => {
+        expect(canTransition('invoice', 'issued', 'draft')).toBe(true);
+      });
+
+      it('should NOT allow issued -> issued', () => {
+        expect(canTransition('invoice', 'issued', 'issued')).toBe(false);
+      });
     });
   });
 
   describe('getAllowedTransitions', () => {
-    it('should return [sent] for estimate draft', () => {
+    it('should return [sent, issued] for estimate draft', () => {
       const allowed = getAllowedTransitions('estimate', 'draft');
-      expect(allowed).toEqual(['sent']);
+      expect(allowed).toContain('sent');
+      expect(allowed).toContain('issued');
+      expect(allowed).toHaveLength(2);
     });
 
     it('should return [draft] for estimate sent', () => {
@@ -142,9 +168,16 @@ describe('statusTransitionService', () => {
       expect(allowed).toEqual([]);
     });
 
-    it('should return [sent] for invoice draft', () => {
+    it('should return [draft] for estimate issued', () => {
+      const allowed = getAllowedTransitions('estimate', 'issued');
+      expect(allowed).toEqual(['draft']);
+    });
+
+    it('should return [sent, issued] for invoice draft', () => {
       const allowed = getAllowedTransitions('invoice', 'draft');
-      expect(allowed).toEqual(['sent']);
+      expect(allowed).toContain('sent');
+      expect(allowed).toContain('issued');
+      expect(allowed).toHaveLength(2);
     });
 
     it('should return [draft, paid] for invoice sent', () => {
@@ -157,6 +190,11 @@ describe('statusTransitionService', () => {
     it('should return [sent] for invoice paid (can only go back to sent)', () => {
       const allowed = getAllowedTransitions('invoice', 'paid');
       expect(allowed).toEqual(['sent']);
+    });
+
+    it('should return [draft] for invoice issued', () => {
+      const allowed = getAllowedTransitions('invoice', 'issued');
+      expect(allowed).toEqual(['draft']);
     });
   });
 

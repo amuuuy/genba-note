@@ -37,6 +37,8 @@ function getTransitionLabel(targetStatus: DocumentStatus): string {
       return '送付済に変更';
     case 'paid':
       return '入金済に変更';
+    case 'issued':
+      return '発行済に変更';
     default:
       return targetStatus;
   }
@@ -47,7 +49,7 @@ function getTransitionLabel(targetStatus: DocumentStatus): string {
  */
 function getTransitionIcon(
   targetStatus: DocumentStatus
-): 'arrow-back-outline' | 'send-outline' | 'checkmark-circle-outline' {
+): 'arrow-back-outline' | 'send-outline' | 'checkmark-circle-outline' | 'document-text-outline' {
   switch (targetStatus) {
     case 'draft':
       return 'arrow-back-outline';
@@ -55,6 +57,8 @@ function getTransitionIcon(
       return 'send-outline';
     case 'paid':
       return 'checkmark-circle-outline';
+    case 'issued':
+      return 'document-text-outline';
     default:
       return 'send-outline';
   }
@@ -80,8 +84,8 @@ function StatusTransitionBarComponent({
     (targetStatus: DocumentStatus) => {
       if (disabled) return;
 
-      // Show warning when reverting from sent to draft
-      if (currentStatus === 'sent' && targetStatus === 'draft') {
+      // Show warning when reverting from sent or issued to draft
+      if ((currentStatus === 'sent' || currentStatus === 'issued') && targetStatus === 'draft') {
         setPendingTargetStatus(targetStatus);
         setShowReversionWarning(true);
         return;
@@ -173,8 +177,12 @@ function StatusTransitionBarComponent({
       {/* Reversion warning dialog */}
       <WarningDialog
         visible={showReversionWarning}
-        title="送付済の書類を下書きに戻す"
-        message="送付済の書類を下書きに戻すと、送付履歴との整合性が失われる可能性があります。本当に下書きに戻しますか？"
+        title={currentStatus === 'issued' ? '発行済の書類を下書きに戻す' : '送付済の書類を下書きに戻す'}
+        message={
+          currentStatus === 'issued'
+            ? '発行済の書類を下書きに戻すと、発行履歴との整合性が失われる可能性があります。本当に下書きに戻しますか？'
+            : '送付済の書類を下書きに戻すと、送付履歴との整合性が失われる可能性があります。本当に下書きに戻しますか？'
+        }
         continueText="下書きに戻す"
         cancelText="キャンセル"
         onContinue={handleReversionConfirm}
