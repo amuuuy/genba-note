@@ -194,38 +194,50 @@ function renderIssuerSection(
 
 /**
  * Render issuer section with seal image for formal PDF
+ * Seal is overlaid on company name only (standard placement for construction industry)
  */
 function renderFormalIssuerSection(
   doc: DocumentWithTotals,
   sensitiveSnapshot: SensitiveIssuerSnapshot | null
 ): string {
   const { issuerSnapshot } = doc;
-  const lines: string[] = [];
+  const hasSeal = !!issuerSnapshot.sealImageBase64;
 
+  // Seal image - overlaid on company name only
+  const sealHtml = hasSeal
+    ? `<div class="seal-overlay"><img src="data:image/png;base64,${issuerSnapshot.sealImageBase64}" alt="印影" class="seal-image" /></div>`
+    : '';
+
+  // Company name: use wrapper only when seal exists to avoid unnecessary spacing
+  let companyHtml = '';
   if (issuerSnapshot.companyName) {
-    lines.push(`<div class="issuer-company">${escapeHtml(issuerSnapshot.companyName)}</div>`);
+    if (hasSeal) {
+      // With seal: wrap in relative container for overlay positioning
+      companyHtml = `<div class="issuer-company-wrapper"><div class="issuer-company">${escapeHtml(issuerSnapshot.companyName)}</div>${sealHtml}</div>`;
+    } else {
+      // Without seal: simple company name without wrapper
+      companyHtml = `<div class="issuer-company">${escapeHtml(issuerSnapshot.companyName)}</div>`;
+    }
   }
+
+  // Other issuer info (address, phone, invoice number) - not overlapped by seal
+  const otherLines: string[] = [];
   if (issuerSnapshot.address) {
-    lines.push(`<div class="issuer-address">${escapeHtml(issuerSnapshot.address)}</div>`);
+    otherLines.push(`<div class="issuer-address">${escapeHtml(issuerSnapshot.address)}</div>`);
   }
   if (issuerSnapshot.phone) {
-    lines.push(`<div class="issuer-phone">TEL: ${escapeHtml(issuerSnapshot.phone)}</div>`);
+    otherLines.push(`<div class="issuer-phone">TEL: ${escapeHtml(issuerSnapshot.phone)}</div>`);
   }
   if (sensitiveSnapshot?.invoiceNumber) {
-    lines.push(`<div class="issuer-invoice-number">登録番号: ${escapeHtml(sensitiveSnapshot.invoiceNumber)}</div>`);
+    otherLines.push(`<div class="issuer-invoice-number">登録番号: ${escapeHtml(sensitiveSnapshot.invoiceNumber)}</div>`);
   }
-
-  // Seal image
-  const sealHtml = issuerSnapshot.sealImageBase64
-    ? `<div class="seal-container"><img src="data:image/png;base64,${issuerSnapshot.sealImageBase64}" alt="印影" class="seal-image" /></div>`
-    : '';
 
   return `
     <div class="formal-issuer-section">
       <div class="issuer-info">
-        ${lines.join('\n        ')}
+        ${companyHtml}
+        ${otherLines.join('\n        ')}
       </div>
-      ${sealHtml}
     </div>
   `;
 }
@@ -731,6 +743,10 @@ function generateFormalPdfTemplate(
       ? `<div class="formal-due-date">支払期限: ${formatDate(doc.dueDate)}</div>`
       : '';
 
+  const introHtml = isInvoice
+    ? '<div class="formal-intro">下記のとおりご請求申し上げます。</div>'
+    : '<div class="formal-intro">下記のとおりお見積り申し上げます。</div>';
+
   const notesHtml = doc.notes
     ? `<div class="formal-notes-section"><div class="notes-title">備考欄</div><div class="notes-content">${escapeHtml(doc.notes)}</div></div>`
     : '<div class="formal-notes-section"><div class="notes-title">備考欄</div><div class="notes-content"></div></div>';
@@ -850,17 +866,22 @@ function generateFormalPdfTemplate(
       font-weight: bold;
     }
 
-    /* Issuer section with seal */
+    /* Issuer section with seal overlay on company name only */
     .formal-issuer-section {
-      display: flex;
-      justify-content: flex-end;
-      align-items: flex-start;
+      text-align: right;
       margin: 20px 0;
-      gap: 15px;
     }
 
     .issuer-info {
       text-align: right;
+    }
+
+    /* Company name wrapper - relative container for seal overlay */
+    .issuer-company-wrapper {
+      position: relative;
+      display: inline-block;
+      min-height: 100px;
+      padding-right: 60px;
     }
 
     .issuer-company {
@@ -879,10 +900,14 @@ function generateFormalPdfTemplate(
       color: #333;
     }
 
-    .seal-container {
-      width: 70px;
-      height: 70px;
-      flex-shrink: 0;
+    /* Seal overlay - positioned to overlap company name only */
+    .seal-overlay {
+      position: absolute;
+      right: -40px;
+      top: -10px;
+      width: 100px;
+      height: 100px;
+      opacity: 0.85;
     }
 
     .seal-image {
@@ -1036,7 +1061,7 @@ function generateFormalPdfTemplate(
     ${subjectHtml}
     ${dueDateHtml}
 
-    <div class="formal-intro">下記のとおりご請求申し上げます。</div>
+    ${introHtml}
 
     <!-- Total amount -->
     <div class="formal-total-box">
