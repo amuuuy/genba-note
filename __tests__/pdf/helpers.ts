@@ -13,7 +13,7 @@ import type {
   DocumentStatus,
   TaxRate,
 } from '@/types/document';
-import type { PdfTemplateInput } from '@/pdf/types';
+import type { PdfTemplateInput, TemplateMode } from '@/pdf/types';
 
 /**
  * Generate a unique test ID
@@ -179,6 +179,7 @@ export function createTestTemplateInput(
   overrides: {
     document?: Partial<DocumentWithTotals>;
     sensitiveSnapshot?: SensitiveIssuerSnapshot | null;
+    mode?: TemplateMode;
   } = {}
 ): PdfTemplateInput {
   return {
@@ -186,6 +187,7 @@ export function createTestTemplateInput(
     sensitiveSnapshot: overrides.sensitiveSnapshot === undefined
       ? createTestSensitiveSnapshot()
       : overrides.sensitiveSnapshot,
+    mode: overrides.mode,
   };
 }
 

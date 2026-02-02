@@ -12,7 +12,7 @@ import {
   createTestLineItem,
   resetTestIdCounter,
 } from './helpers';
-import { ESTIMATE_COLORS, INVOICE_COLORS } from '@/pdf/types';
+import { ESTIMATE_COLORS, INVOICE_COLORS, FORMAL_COLORS } from '@/pdf/types';
 import {
   generateHtmlTemplate,
   getColorScheme,
@@ -179,6 +179,85 @@ describe('pdfTemplateService', () => {
         const result = generateHtmlTemplate(input);
 
         expect(result.html).toContain(INVOICE_COLORS.primary);
+      });
+    });
+
+    describe('template mode', () => {
+      it('uses colorful screen theme by default (mode not specified)', () => {
+        const input = createTestTemplateInput({
+          document: { type: 'estimate' },
+        });
+        const result = generateHtmlTemplate(input);
+
+        // Default mode should use document-type specific colors
+        expect(result.html).toContain(ESTIMATE_COLORS.primary);
+        expect(result.html).not.toContain(FORMAL_COLORS.primary);
+      });
+
+      it('uses colorful screen theme when mode is "screen"', () => {
+        const input = createTestTemplateInput({
+          document: { type: 'invoice' },
+          mode: 'screen',
+        });
+        const result = generateHtmlTemplate(input);
+
+        expect(result.html).toContain(INVOICE_COLORS.primary);
+        expect(result.html).not.toContain(FORMAL_COLORS.primary);
+      });
+
+      it('uses formal monochrome theme when mode is "pdf"', () => {
+        const input = createTestTemplateInput({
+          document: { type: 'estimate' },
+          mode: 'pdf',
+        });
+        const result = generateHtmlTemplate(input);
+
+        expect(result.html).toContain(FORMAL_COLORS.primary);
+        expect(result.html).not.toContain(ESTIMATE_COLORS.primary);
+      });
+
+      it('uses same formal colors for both estimate and invoice in pdf mode', () => {
+        const estimateInput = createTestTemplateInput({
+          document: { type: 'estimate' },
+          mode: 'pdf',
+        });
+        const invoiceInput = createTestTemplateInput({
+          document: { type: 'invoice' },
+          mode: 'pdf',
+        });
+
+        const estimateResult = generateHtmlTemplate(estimateInput);
+        const invoiceResult = generateHtmlTemplate(invoiceInput);
+
+        // Both should use FORMAL_COLORS
+        expect(estimateResult.html).toContain(FORMAL_COLORS.primary);
+        expect(invoiceResult.html).toContain(FORMAL_COLORS.primary);
+
+        // Neither should use document-type specific colors
+        expect(estimateResult.html).not.toContain(ESTIMATE_COLORS.primary);
+        expect(invoiceResult.html).not.toContain(INVOICE_COLORS.primary);
+      });
+
+      it('pdf mode includes formal theme CSS (transparent backgrounds)', () => {
+        const input = createTestTemplateInput({
+          document: { type: 'invoice' },
+          mode: 'pdf',
+        });
+        const result = generateHtmlTemplate(input);
+
+        // Formal theme uses transparent background for headers
+        expect(result.html).toContain('background: transparent');
+      });
+
+      it('screen mode includes screen theme CSS (colored backgrounds)', () => {
+        const input = createTestTemplateInput({
+          document: { type: 'invoice' },
+          mode: 'screen',
+        });
+        const result = generateHtmlTemplate(input);
+
+        // Screen theme uses colored background
+        expect(result.html).toContain(INVOICE_COLORS.background);
       });
     });
 

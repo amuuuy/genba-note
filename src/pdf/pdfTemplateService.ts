@@ -7,7 +7,8 @@
 
 import type { DocumentType, DocumentWithTotals, TaxRate, SensitiveIssuerSnapshot } from '@/types/document';
 import type { PdfTemplateInput, PdfTemplateResult, ColorScheme } from './types';
-import { ESTIMATE_COLORS, INVOICE_COLORS } from './types';
+import { ESTIMATE_COLORS, INVOICE_COLORS, FORMAL_COLORS } from './types';
+import { getScreenThemeCss, getFormalThemeCss } from './themes';
 
 // === Color Scheme ===
 
@@ -251,10 +252,21 @@ function escapeHtml(text: string): string {
 
 /**
  * Generate HTML template for document preview/PDF
+ *
+ * @param input - Template input with document data and optional mode
+ * @param input.mode - Output mode: 'screen' (colorful preview) or 'pdf' (formal print)
  */
 export function generateHtmlTemplate(input: PdfTemplateInput): PdfTemplateResult {
-  const { document: doc, sensitiveSnapshot } = input;
-  const colors = getColorScheme(doc.type);
+  const { document: doc, sensitiveSnapshot, mode = 'screen' } = input;
+
+  // Select color scheme based on mode
+  // - screen: document-type specific colors (blue for estimate, orange for invoice)
+  // - pdf: formal monochrome colors for all document types
+  const colors = mode === 'pdf' ? FORMAL_COLORS : getColorScheme(doc.type);
+
+  // Get theme-specific CSS
+  const themeCss = mode === 'pdf' ? getFormalThemeCss(colors) : getScreenThemeCss(colors);
+
   const title = generateDocumentTitle(doc.type);
   const isInvoice = doc.type === 'invoice';
 
@@ -562,6 +574,9 @@ export function generateHtmlTemplate(input: PdfTemplateInput): PdfTemplateResult
       color: #666;
       margin-top: 5px;
     }
+
+    /* Theme-specific styles */
+    ${themeCss}
 
     /* Print styles */
     @media print {

@@ -110,11 +110,15 @@ async function cleanupPdfFile(fileUri: string): Promise<void> {
  * IMPORTANT: This function enforces Pro status check at the service layer.
  * If not Pro, returns PRO_REQUIRED error immediately.
  *
- * @param input - Template input with document and sensitive snapshot
+ * NOTE: PDF output always uses formal monochrome theme ('pdf' mode).
+ * The 'mode' property in input is ignored; formal theme is enforced for
+ * professional business document quality.
+ *
+ * @param input - Template input with document and sensitive snapshot (mode is ignored)
  * @returns PdfGenerationResult
  */
 export async function generateAndSharePdf(
-  input: PdfTemplateInput
+  input: Omit<PdfTemplateInput, 'mode'>
 ): Promise<PdfGenerationResult> {
   // 1. Enforce Pro status check at service layer
   const proResult = await checkProStatus();
@@ -128,8 +132,11 @@ export async function generateAndSharePdf(
     };
   }
 
-  // 2. Generate HTML template
-  const { html } = generateHtmlTemplate(input);
+  // 2. Generate HTML template with formal PDF theme
+  const { html } = generateHtmlTemplate({
+    ...input,
+    mode: 'pdf',
+  });
 
   // 3. Generate PDF
   const pdfResult = await generatePdf(html);

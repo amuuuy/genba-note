@@ -9,6 +9,7 @@ export type {
   PdfTemplateInput,
   PdfTemplateResult,
   ColorScheme,
+  TemplateMode,
   PdfGenerationErrorCode,
   PdfGenerationError,
   PdfGenerationResult,
@@ -16,7 +17,10 @@ export type {
   ProGateResult,
 } from './types';
 
-export { ESTIMATE_COLORS, INVOICE_COLORS, getColorSchemeForType } from './types';
+export { ESTIMATE_COLORS, INVOICE_COLORS, FORMAL_COLORS, getColorSchemeForType } from './types';
+
+// Theme CSS Functions
+export { getScreenThemeCss, getFormalThemeCss } from './themes';
 
 // Template Service
 export {

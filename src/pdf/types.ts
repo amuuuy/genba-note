@@ -18,6 +18,9 @@ export interface PdfTemplateInput {
 
   /** Sensitive issuer snapshot (bank account, invoice number) */
   sensitiveSnapshot: SensitiveIssuerSnapshot | null;
+
+  /** Output mode - 'screen' for colorful preview, 'pdf' for formal print (default: 'screen') */
+  mode?: TemplateMode;
 }
 
 /**
@@ -30,6 +33,15 @@ export interface PdfTemplateResult {
   /** Title for PDF filename (e.g., "EST-001_見積書") */
   title: string;
 }
+
+// === Template Mode ===
+
+/**
+ * Template output mode - controls visual styling
+ * - 'screen': Colorful theme for preview (blue/orange based on document type)
+ * - 'pdf': Formal monochrome theme for print/PDF output
+ */
+export type TemplateMode = 'screen' | 'pdf';
 
 // === Color Scheme ===
 
@@ -63,6 +75,16 @@ export const INVOICE_COLORS: ColorScheme = {
   primary: '#FF6D00',
   secondary: '#FFAB91',
   background: '#FBE9E7',
+};
+
+/**
+ * Formal monochrome color scheme for PDF output
+ * Designed for black & white printing and professional business documents
+ */
+export const FORMAL_COLORS: ColorScheme = {
+  primary: '#333333',      // Dark gray for text/headers
+  secondary: '#666666',    // Medium gray for borders
+  background: '#FFFFFF',   // White background
 };
 
 /**
