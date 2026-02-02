@@ -14,6 +14,12 @@ jest.mock('@/subscription/subscriptionService', () => ({
   getProStatus: () => mockGetProStatus(),
 }));
 
+// Mock environment utility
+const mockIsDevelopmentMode = jest.fn();
+jest.mock('@/utils/environment', () => ({
+  isDevelopmentMode: () => mockIsDevelopmentMode(),
+}));
+
 import {
   checkProStatus,
   setProStatusOverride,
@@ -21,6 +27,11 @@ import {
 } from '@/pdf/proGateService';
 
 describe('proGateService', () => {
+  beforeEach(() => {
+    // Default: not in development mode (production behavior)
+    mockIsDevelopmentMode.mockReturnValue(false);
+  });
+
   afterEach(() => {
     resetProStatusOverride();
     jest.clearAllMocks();
@@ -103,6 +114,44 @@ describe('proGateService', () => {
       const result = await checkProStatus();
       expect(result.isPro).toBe(false);
       expect(result.reason).toBe('cache_missing');
+    });
+  });
+
+  describe('development mode bypass', () => {
+    it('returns isPro=true with reason=development_mode when in dev mode', async () => {
+      mockIsDevelopmentMode.mockReturnValue(true);
+
+      const result = await checkProStatus();
+
+      expect(result.isPro).toBe(true);
+      expect(result.reason).toBe('development_mode');
+      // Should not call subscription service when in development mode
+      expect(mockGetProStatus).not.toHaveBeenCalled();
+    });
+
+    it('uses real subscription service when not in dev mode', async () => {
+      mockIsDevelopmentMode.mockReturnValue(false);
+      mockGetProStatus.mockResolvedValue({
+        isProAllowed: false,
+        reason: 'entitlement_inactive',
+        requiresOnlineVerification: true,
+      });
+
+      const result = await checkProStatus();
+
+      expect(result.isPro).toBe(false);
+      expect(result.reason).toBe('entitlement_inactive');
+      expect(mockGetProStatus).toHaveBeenCalled();
+    });
+
+    it('test override takes precedence over development mode', async () => {
+      mockIsDevelopmentMode.mockReturnValue(true);
+      setProStatusOverride(false);
+
+      const result = await checkProStatus();
+
+      expect(result.isPro).toBe(false);
+      expect(result.reason).toBe('placeholder_always_false');
     });
   });
 });

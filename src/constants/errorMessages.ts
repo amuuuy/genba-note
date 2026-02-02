@@ -15,6 +15,7 @@ export const PRO_GATE_MESSAGES: Record<ProGateReason, string> = {
   // Success reasons
   online_verified: 'Proプランがアクティブです',
   offline_grace_period: 'オフラインモードでProプランを使用中です',
+  development_mode: '[DEV] Proプランがアクティブです（開発モード）',
 
   // Failure reasons
   cache_missing: 'サブスクリプション情報がありません。ネットワークに接続してください。',

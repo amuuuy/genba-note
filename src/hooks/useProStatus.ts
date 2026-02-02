@@ -37,6 +37,7 @@ function needsOnlineVerification(reason: ProGateReason): boolean {
     'online_verified',
     'offline_grace_period',
     'placeholder_always_true',
+    'development_mode',
   ];
   return !successReasons.includes(reason);
 }

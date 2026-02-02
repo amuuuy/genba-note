@@ -114,6 +114,7 @@ export type ProGateReason =
   // Success reasons
   | 'online_verified'
   | 'offline_grace_period'
+  | 'development_mode'
   // Failure reasons (from offlineValidationService)
   | 'cache_missing'
   | 'cache_invalid'

@@ -9,6 +9,7 @@
 
 import type { ProGateResult, ProGateReason } from './types';
 import { getProStatus } from '@/subscription/subscriptionService';
+import { isDevelopmentMode } from '@/utils/environment';
 
 // Internal state for test override
 let proStatusOverride: boolean | null = null;
@@ -18,7 +19,8 @@ let proStatusOverride: boolean | null = null;
  *
  * Flow:
  * 1. If test override is set, return override status
- * 2. Otherwise, use subscription service to check Pro status
+ * 2. If in development mode (__DEV__ or APP_ENV=development/staging), return Pro=true
+ * 3. Otherwise, use subscription service to check Pro status
  *    - Tries online verification first
  *    - Falls back to offline validation with 7-day grace period
  *
@@ -30,6 +32,15 @@ export async function checkProStatus(): Promise<ProGateResult> {
     return {
       isPro: proStatusOverride,
       reason: proStatusOverride ? 'placeholder_always_true' : 'placeholder_always_false',
+    };
+  }
+
+  // Development mode bypass
+  // SECURITY: isDevelopmentMode() returns false in production builds
+  if (isDevelopmentMode()) {
+    return {
+      isPro: true,
+      reason: 'development_mode',
     };
   }
 
