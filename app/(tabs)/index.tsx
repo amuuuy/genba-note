@@ -136,8 +136,6 @@ export default function DocumentListScreen() {
         showsVerticalScrollIndicator={false}
       >
         <CreationHubHeader
-          appName="GenBa Note"
-          subCopy="今日も一日ご安全に！"
           showSearchBar={showSearchBar}
           onSearchPress={handleSearchPress}
           searchText={filterState.searchText}
