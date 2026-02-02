@@ -9,6 +9,9 @@ import {
   validateUnit,
   validateDefaultPrice,
   validateDefaultTaxRate,
+  validatePackQty,
+  validatePackPrice,
+  validatePackConsistency,
   validateUnitPrice,
   normalizeOptionalString,
 } from '@/domain/unitPrice/validationService';
@@ -199,6 +202,133 @@ describe('validationService', () => {
     it('should preserve valid string without spaces', () => {
       const result = normalizeOptionalString('設備工事');
       expect(result).toBe('設備工事');
+    });
+  });
+
+  describe('validatePackQty', () => {
+    it('should return null for null value (optional field)', () => {
+      const result = validatePackQty(null);
+      expect(result).toBeNull();
+    });
+
+    it('should return null for undefined value (optional field)', () => {
+      const result = validatePackQty(undefined);
+      expect(result).toBeNull();
+    });
+
+    it('should return null for valid positive integer (1)', () => {
+      const result = validatePackQty(1);
+      expect(result).toBeNull();
+    });
+
+    it('should return null for valid positive integer (10)', () => {
+      const result = validatePackQty(10);
+      expect(result).toBeNull();
+    });
+
+    it('should return null for valid positive integer (100)', () => {
+      const result = validatePackQty(100);
+      expect(result).toBeNull();
+    });
+
+    it('should return error for zero', () => {
+      const result = validatePackQty(0);
+      expect(result).not.toBeNull();
+      expect(result?.code).toBe('INVALID_PACK_QTY');
+      expect(result?.field).toBe('packQty');
+    });
+
+    it('should return error for negative value', () => {
+      const result = validatePackQty(-1);
+      expect(result).not.toBeNull();
+      expect(result?.code).toBe('INVALID_PACK_QTY');
+    });
+
+    it('should return error for non-integer (decimal)', () => {
+      const result = validatePackQty(1.5);
+      expect(result).not.toBeNull();
+      expect(result?.code).toBe('INVALID_PACK_QTY');
+    });
+  });
+
+  describe('validatePackPrice', () => {
+    it('should return null for null value (optional field)', () => {
+      const result = validatePackPrice(null);
+      expect(result).toBeNull();
+    });
+
+    it('should return null for undefined value (optional field)', () => {
+      const result = validatePackPrice(undefined);
+      expect(result).toBeNull();
+    });
+
+    it('should return null for valid integer (0)', () => {
+      const result = validatePackPrice(0);
+      expect(result).toBeNull();
+    });
+
+    it('should return null for valid integer (3000)', () => {
+      const result = validatePackPrice(3000);
+      expect(result).toBeNull();
+    });
+
+    it('should return null for valid integer (MAX_UNIT_PRICE)', () => {
+      const result = validatePackPrice(MAX_UNIT_PRICE);
+      expect(result).toBeNull();
+    });
+
+    it('should return error for negative value', () => {
+      const result = validatePackPrice(-1);
+      expect(result).not.toBeNull();
+      expect(result?.code).toBe('INVALID_PACK_PRICE');
+      expect(result?.field).toBe('packPrice');
+    });
+
+    it('should return error for value exceeding MAX_UNIT_PRICE', () => {
+      const result = validatePackPrice(MAX_UNIT_PRICE + 1);
+      expect(result).not.toBeNull();
+      expect(result?.code).toBe('INVALID_PACK_PRICE');
+    });
+
+    it('should return error for non-integer (decimal)', () => {
+      const result = validatePackPrice(100.5);
+      expect(result).not.toBeNull();
+      expect(result?.code).toBe('INVALID_PACK_PRICE');
+    });
+  });
+
+  describe('validatePackConsistency', () => {
+    it('should return null when both packQty and packPrice are null', () => {
+      const result = validatePackConsistency(null, null);
+      expect(result).toBeNull();
+    });
+
+    it('should return null when both packQty and packPrice are undefined', () => {
+      const result = validatePackConsistency(undefined, undefined);
+      expect(result).toBeNull();
+    });
+
+    it('should return null when both packQty and packPrice are set', () => {
+      const result = validatePackConsistency(10, 3000);
+      expect(result).toBeNull();
+    });
+
+    it('should return error when only packQty is set', () => {
+      const result = validatePackConsistency(10, null);
+      expect(result).not.toBeNull();
+      expect(result?.code).toBe('INVALID_PACK_CONSISTENCY');
+    });
+
+    it('should return error when only packPrice is set', () => {
+      const result = validatePackConsistency(null, 3000);
+      expect(result).not.toBeNull();
+      expect(result?.code).toBe('INVALID_PACK_CONSISTENCY');
+    });
+
+    it('should return error when packQty is set and packPrice is undefined', () => {
+      const result = validatePackConsistency(10, undefined);
+      expect(result).not.toBeNull();
+      expect(result?.code).toBe('INVALID_PACK_CONSISTENCY');
     });
   });
 });

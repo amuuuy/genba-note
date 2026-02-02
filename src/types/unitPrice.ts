@@ -26,6 +26,12 @@ export interface UnitPrice {
   /** Additional notes (optional) */
   notes: string | null;
 
+  /** Pack quantity (optional): number of units per pack for bulk pricing */
+  packQty: number | null;
+
+  /** Pack price in yen (optional): price per pack for bulk pricing */
+  packPrice: number | null;
+
   /** Created timestamp (epoch ms) */
   createdAt: number;
 

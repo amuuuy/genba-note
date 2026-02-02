@@ -41,6 +41,8 @@ describe('useUnitPricePicker', () => {
       defaultTaxRate: 10,
       category: null,
       notes: null,
+      packQty: null,
+      packPrice: null,
       createdAt: Date.now(),
       updatedAt: Date.now(),
       ...overrides,

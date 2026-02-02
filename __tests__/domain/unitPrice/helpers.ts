@@ -21,6 +21,8 @@ export function createTestUnitPrice(overrides?: Partial<UnitPrice>): UnitPrice {
     defaultTaxRate: 10,
     category: '一般',
     notes: null,
+    packQty: null,
+    packPrice: null,
     createdAt: now,
     updatedAt: now,
     ...overrides,

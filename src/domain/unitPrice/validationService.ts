@@ -23,6 +23,8 @@ export interface UnitPriceInput {
   defaultTaxRate: TaxRate;
   category?: string | null;
   notes?: string | null;
+  packQty?: number | null;
+  packPrice?: number | null;
 }
 
 /**
@@ -106,6 +108,65 @@ export function validateDefaultTaxRate(
 }
 
 /**
+ * Validate packQty field (optional)
+ * @param packQty - Pack quantity to validate
+ * @returns UnitPriceValidationError if invalid, null if valid or not provided
+ */
+export function validatePackQty(
+  packQty: number | null | undefined
+): UnitPriceValidationError | null {
+  // Optional field - null or undefined is valid
+  if (packQty === null || packQty === undefined) {
+    return null;
+  }
+
+  if (!Number.isInteger(packQty) || packQty < 1) {
+    return createValidationError(
+      'INVALID_PACK_QTY',
+      'Pack quantity must be a positive integer (1 or greater)',
+      'packQty',
+      { value: packQty }
+    );
+  }
+
+  return null;
+}
+
+/**
+ * Validate packPrice field (optional)
+ * @param packPrice - Pack price to validate
+ * @returns UnitPriceValidationError if invalid, null if valid or not provided
+ */
+export function validatePackPrice(
+  packPrice: number | null | undefined
+): UnitPriceValidationError | null {
+  // Optional field - null or undefined is valid
+  if (packPrice === null || packPrice === undefined) {
+    return null;
+  }
+
+  if (!Number.isInteger(packPrice)) {
+    return createValidationError(
+      'INVALID_PACK_PRICE',
+      'Pack price must be an integer',
+      'packPrice',
+      { value: packPrice }
+    );
+  }
+
+  if (packPrice < MIN_UNIT_PRICE || packPrice > MAX_UNIT_PRICE) {
+    return createValidationError(
+      'INVALID_PACK_PRICE',
+      `Pack price must be between ${MIN_UNIT_PRICE} and ${MAX_UNIT_PRICE}`,
+      'packPrice',
+      { value: packPrice, min: MIN_UNIT_PRICE, max: MAX_UNIT_PRICE }
+    );
+  }
+
+  return null;
+}
+
+/**
  * Validate a complete UnitPrice object
  * @param unitPrice - UnitPrice or UnitPriceInput to validate
  * @returns Array of UnitPriceValidationErrors (empty if valid)
@@ -127,7 +188,48 @@ export function validateUnitPrice(
   const taxRateError = validateDefaultTaxRate(unitPrice.defaultTaxRate);
   if (taxRateError) errors.push(taxRateError);
 
+  // Validate optional pack fields
+  const packQtyError = validatePackQty(unitPrice.packQty);
+  if (packQtyError) errors.push(packQtyError);
+
+  const packPriceError = validatePackPrice(unitPrice.packPrice);
+  if (packPriceError) errors.push(packPriceError);
+
+  // Validate pack consistency: both must be set or both must be null/undefined
+  const packConsistencyError = validatePackConsistency(
+    unitPrice.packQty,
+    unitPrice.packPrice
+  );
+  if (packConsistencyError) errors.push(packConsistencyError);
+
   return errors;
+}
+
+/**
+ * Validate pack consistency: both packQty and packPrice must be set together or both null
+ * @param packQty - Pack quantity
+ * @param packPrice - Pack price
+ * @returns UnitPriceValidationError if inconsistent, null if valid
+ */
+export function validatePackConsistency(
+  packQty: number | null | undefined,
+  packPrice: number | null | undefined
+): UnitPriceValidationError | null {
+  const hasQty = packQty !== null && packQty !== undefined;
+  const hasPrice = packPrice !== null && packPrice !== undefined;
+
+  // Both set or both unset is valid
+  if (hasQty === hasPrice) {
+    return null;
+  }
+
+  // One set, one unset is invalid
+  return createValidationError(
+    'INVALID_PACK_CONSISTENCY',
+    'Pack quantity and pack price must both be set or both be null',
+    'packQty',
+    { packQty, packPrice }
+  );
 }
 
 /**

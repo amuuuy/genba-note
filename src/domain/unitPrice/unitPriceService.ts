@@ -42,6 +42,8 @@ export interface UpdateUnitPriceInput {
   defaultTaxRate?: TaxRate;
   category?: string | null;
   notes?: string | null;
+  packQty?: number | null;
+  packPrice?: number | null;
 }
 
 /**
@@ -66,6 +68,8 @@ export async function createUnitPrice(
     defaultTaxRate: input.defaultTaxRate,
     category: normalizedCategory,
     notes: normalizedNotes,
+    packQty: input.packQty ?? null,
+    packPrice: input.packPrice ?? null,
     createdAt: now,
     updatedAt: now,
   };
@@ -193,6 +197,10 @@ export async function updateUnitPrice(
       updates.notes !== undefined
         ? normalizeOptionalString(updates.notes)
         : existing.notes,
+    packQty:
+      updates.packQty !== undefined ? updates.packQty : (existing.packQty ?? null),
+    packPrice:
+      updates.packPrice !== undefined ? updates.packPrice : (existing.packPrice ?? null),
     createdAt: existing.createdAt,
     updatedAt: Date.now(),
   };
@@ -295,6 +303,8 @@ export async function duplicateUnitPrice(
     defaultTaxRate: original.defaultTaxRate,
     category: original.category,
     notes: original.notes,
+    packQty: original.packQty ?? null,
+    packPrice: original.packPrice ?? null,
     createdAt: now,
     updatedAt: now,
   };

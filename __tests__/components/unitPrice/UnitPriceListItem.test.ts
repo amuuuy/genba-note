@@ -18,6 +18,8 @@ describe('UnitPriceListItem', () => {
       defaultTaxRate: 10,
       category: '塗装',
       notes: 'テスト備考',
+      packQty: null,
+      packPrice: null,
       createdAt: Date.now(),
       updatedAt: Date.now(),
       ...overrides,

@@ -16,6 +16,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   TextInput,
+  Switch,
 } from 'react-native';
 import type { UnitPrice, TaxRate } from '@/types';
 import type { UnitPriceInput } from '@/domain/unitPrice';
@@ -41,12 +42,17 @@ interface FormState {
   defaultTaxRate: TaxRate;
   category: string;
   notes: string;
+  usePackInput: boolean;
+  packQty: string;
+  packPrice: string;
 }
 
 interface FormErrors {
   name?: string;
   unit?: string;
   defaultPrice?: string;
+  packQty?: string;
+  packPrice?: string;
 }
 
 /**
@@ -71,18 +77,47 @@ function validateForm(state: FormState): FormErrors {
     errors.unit = '単位を入力してください';
   }
 
-  // Validate price as integer string
-  const priceStr = state.defaultPrice.trim();
-  if (!priceStr) {
-    errors.defaultPrice = '単価を入力してください';
-  } else if (!isValidIntegerString(priceStr)) {
-    errors.defaultPrice = '単価は整数で入力してください（カンマや小数点は使用できません）';
+  // Validate pack input fields when pack input mode is ON
+  if (state.usePackInput) {
+    const qtyStr = state.packQty.trim();
+    if (!qtyStr) {
+      errors.packQty = 'パック数量を入力してください';
+    } else if (!isValidIntegerString(qtyStr)) {
+      errors.packQty = 'パック数量は整数で入力してください';
+    } else {
+      const qty = Number(qtyStr);
+      if (qty < 1) {
+        errors.packQty = 'パック数量は1以上で入力してください';
+      }
+    }
+
+    const packPriceStr = state.packPrice.trim();
+    if (!packPriceStr) {
+      errors.packPrice = 'パック価格を入力してください';
+    } else if (!isValidIntegerString(packPriceStr)) {
+      errors.packPrice = 'パック価格は整数で入力してください';
+    } else {
+      const packPrice = Number(packPriceStr);
+      if (packPrice < 0) {
+        errors.packPrice = 'パック価格は0以上で入力してください';
+      } else if (packPrice > 99999999) {
+        errors.packPrice = 'パック価格は99,999,999以下にしてください';
+      }
+    }
   } else {
-    const price = Number(priceStr);
-    if (!Number.isInteger(price) || price < 0) {
-      errors.defaultPrice = '単価を入力してください（0以上の整数）';
-    } else if (price > 99999999) {
-      errors.defaultPrice = '単価は99,999,999以下にしてください';
+    // Validate price as integer string (only when pack input is OFF)
+    const priceStr = state.defaultPrice.trim();
+    if (!priceStr) {
+      errors.defaultPrice = '単価を入力してください';
+    } else if (!isValidIntegerString(priceStr)) {
+      errors.defaultPrice = '単価は整数で入力してください（カンマや小数点は使用できません）';
+    } else {
+      const price = Number(priceStr);
+      if (!Number.isInteger(price) || price < 0) {
+        errors.defaultPrice = '単価を入力してください（0以上の整数）';
+      } else if (price > 99999999) {
+        errors.defaultPrice = '単価は99,999,999以下にしてください';
+      }
     }
   }
 
@@ -108,6 +143,9 @@ export const UnitPriceEditorModal: React.FC<UnitPriceEditorModalProps> = ({
     defaultTaxRate: 10,
     category: '',
     notes: '',
+    usePackInput: false,
+    packQty: '',
+    packPrice: '',
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
@@ -116,6 +154,9 @@ export const UnitPriceEditorModal: React.FC<UnitPriceEditorModalProps> = ({
   useEffect(() => {
     if (visible) {
       if (unitPrice) {
+        // Check for pack data using typeof to handle undefined from legacy data
+        const hasPackData =
+          typeof unitPrice.packQty === 'number' && typeof unitPrice.packPrice === 'number';
         setForm({
           name: unitPrice.name,
           unit: unitPrice.unit,
@@ -123,6 +164,9 @@ export const UnitPriceEditorModal: React.FC<UnitPriceEditorModalProps> = ({
           defaultTaxRate: unitPrice.defaultTaxRate,
           category: unitPrice.category ?? '',
           notes: unitPrice.notes ?? '',
+          usePackInput: hasPackData,
+          packQty: unitPrice.packQty?.toString() ?? '',
+          packPrice: unitPrice.packPrice?.toString() ?? '',
         });
       } else {
         setForm({
@@ -132,6 +176,9 @@ export const UnitPriceEditorModal: React.FC<UnitPriceEditorModalProps> = ({
           defaultTaxRate: 10,
           category: '',
           notes: '',
+          usePackInput: false,
+          packQty: '',
+          packPrice: '',
         });
       }
       setErrors({});
@@ -156,8 +203,18 @@ export const UnitPriceEditorModal: React.FC<UnitPriceEditorModalProps> = ({
       return;
     }
 
-    // Safe to parse as integer since validation passed
-    const defaultPrice = Number(form.defaultPrice.trim());
+    // Calculate defaultPrice from pack input if pack input mode is ON
+    let defaultPrice: number;
+    let packQty: number | null = null;
+    let packPrice: number | null = null;
+
+    if (form.usePackInput) {
+      packQty = Number(form.packQty.trim());
+      packPrice = Number(form.packPrice.trim());
+      defaultPrice = Math.floor(packPrice / packQty);
+    } else {
+      defaultPrice = Number(form.defaultPrice.trim());
+    }
 
     const input: UnitPriceInput = {
       name: form.name.trim(),
@@ -166,6 +223,8 @@ export const UnitPriceEditorModal: React.FC<UnitPriceEditorModalProps> = ({
       defaultTaxRate: form.defaultTaxRate,
       category: form.category.trim() || null,
       notes: form.notes.trim() || null,
+      packQty,
+      packPrice,
     };
 
     onSave(input);
@@ -226,16 +285,75 @@ export const UnitPriceEditorModal: React.FC<UnitPriceEditorModalProps> = ({
             testID="unit-price-name"
           />
 
-          <FormInput
-            label="単価（円）"
-            value={form.defaultPrice}
-            onChangeText={(text) => updateField('defaultPrice', text)}
-            error={errors.defaultPrice}
-            required
-            keyboardType="number-pad"
-            placeholder="0"
-            testID="unit-price-default-price"
-          />
+          {/* Pack input toggle */}
+          <View style={styles.packInputToggle}>
+            <Text style={styles.packInputLabel}>パック入力</Text>
+            <Switch
+              value={form.usePackInput}
+              onValueChange={(value) => {
+                updateField('usePackInput', value);
+                if (!value) {
+                  // When turning OFF, clear pack fields
+                  updateField('packQty', '');
+                  updateField('packPrice', '');
+                }
+              }}
+              accessibilityLabel="パック入力を使用"
+              testID="unit-price-pack-input-toggle"
+            />
+          </View>
+
+          {/* Pack input fields (shown when toggle is ON) */}
+          {form.usePackInput ? (
+            <View style={styles.packInputSection}>
+              <FormInput
+                label="パック数量"
+                value={form.packQty}
+                onChangeText={(text) => updateField('packQty', text)}
+                error={errors.packQty}
+                required
+                keyboardType="number-pad"
+                placeholder="10"
+                testID="unit-price-pack-qty"
+              />
+              <FormInput
+                label="パック価格（円）"
+                value={form.packPrice}
+                onChangeText={(text) => updateField('packPrice', text)}
+                error={errors.packPrice}
+                required
+                keyboardType="number-pad"
+                placeholder="3000"
+                testID="unit-price-pack-price"
+              />
+              {/* Calculated price preview */}
+              <View style={styles.calculatedPreview}>
+                <Text style={styles.calculatedLabel}>計算結果（単価）</Text>
+                <Text style={styles.calculatedValue}>
+                  {(() => {
+                    const qty = parseInt(form.packQty, 10);
+                    const price = parseInt(form.packPrice, 10);
+                    if (!isNaN(qty) && !isNaN(price) && qty > 0) {
+                      const calculated = Math.floor(price / qty);
+                      return `${calculated.toLocaleString()}円/${form.unit || '単位'}`;
+                    }
+                    return '---';
+                  })()}
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <FormInput
+              label="単価（円）"
+              value={form.defaultPrice}
+              onChangeText={(text) => updateField('defaultPrice', text)}
+              error={errors.defaultPrice}
+              required
+              keyboardType="number-pad"
+              placeholder="0"
+              testID="unit-price-default-price"
+            />
+          )}
 
           <FormInput
             label="単位"
@@ -396,6 +514,40 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
+  },
+  packInputToggle: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+  },
+  packInputLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+  },
+  packInputSection: {
+    marginBottom: 8,
+  },
+  calculatedPreview: {
+    backgroundColor: '#E8F5E9',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+  },
+  calculatedLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#666',
+    marginBottom: 4,
+  },
+  calculatedValue: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2E7D32',
   },
   taxRateContainer: {
     marginBottom: 16,

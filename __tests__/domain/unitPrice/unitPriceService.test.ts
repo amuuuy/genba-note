@@ -123,6 +123,74 @@ describe('unitPriceService', () => {
       expect(result.data!.notes).toBe('メモ');
     });
 
+    it('should save packQty and packPrice when provided', async () => {
+      mockedStorage.saveUnitPrice.mockImplementation(async (up) => ({
+        success: true,
+        data: up,
+      }));
+
+      const result = await createUnitPrice({
+        name: '塗料',
+        unit: '個',
+        defaultPrice: 300, // 3000 / 10 = 300
+        defaultTaxRate: 10,
+        packQty: 10,
+        packPrice: 3000,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.data!.packQty).toBe(10);
+      expect(result.data!.packPrice).toBe(3000);
+    });
+
+    it('should save null for packQty/packPrice when not provided', async () => {
+      mockedStorage.saveUnitPrice.mockImplementation(async (up) => ({
+        success: true,
+        data: up,
+      }));
+
+      const result = await createUnitPrice({
+        name: '塗装工事',
+        unit: '式',
+        defaultPrice: 10000,
+        defaultTaxRate: 10,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.data!.packQty).toBeNull();
+      expect(result.data!.packPrice).toBeNull();
+    });
+
+    it('should return validation error for invalid packQty (zero)', async () => {
+      const result = await createUnitPrice({
+        name: '塗料',
+        unit: '個',
+        defaultPrice: 300,
+        defaultTaxRate: 10,
+        packQty: 0,
+        packPrice: 3000,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('VALIDATION_ERROR');
+      expect(result.error?.validationErrors?.some((e) => e.code === 'INVALID_PACK_QTY')).toBe(true);
+    });
+
+    it('should return validation error for invalid packPrice (negative)', async () => {
+      const result = await createUnitPrice({
+        name: '塗料',
+        unit: '個',
+        defaultPrice: 300,
+        defaultTaxRate: 10,
+        packQty: 10,
+        packPrice: -1,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('VALIDATION_ERROR');
+      expect(result.error?.validationErrors?.some((e) => e.code === 'INVALID_PACK_PRICE')).toBe(true);
+    });
+
     it('should return error on storage failure', async () => {
       mockedStorage.saveUnitPrice.mockResolvedValue({
         success: false,
@@ -330,6 +398,56 @@ describe('unitPriceService', () => {
       expect(result.success).toBe(true);
       expect(result.data!.createdAt).toBe(oldTime); // preserved
       expect(result.data!.updatedAt).toBeGreaterThan(oldTime); // updated
+    });
+
+    it('should update packQty and packPrice', async () => {
+      const testUnitPrice = createTestUnitPrice({
+        id: 'test-id',
+        packQty: null,
+        packPrice: null,
+      });
+      mockedStorage.getUnitPriceById.mockResolvedValue({
+        success: true,
+        data: testUnitPrice,
+      });
+      mockedStorage.saveUnitPrice.mockImplementation(async (up) => ({
+        success: true,
+        data: up,
+      }));
+
+      const result = await updateUnitPrice('test-id', {
+        packQty: 10,
+        packPrice: 3000,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.data!.packQty).toBe(10);
+      expect(result.data!.packPrice).toBe(3000);
+    });
+
+    it('should clear pack data when set to null', async () => {
+      const testUnitPrice = createTestUnitPrice({
+        id: 'test-id',
+        packQty: 10,
+        packPrice: 3000,
+      });
+      mockedStorage.getUnitPriceById.mockResolvedValue({
+        success: true,
+        data: testUnitPrice,
+      });
+      mockedStorage.saveUnitPrice.mockImplementation(async (up) => ({
+        success: true,
+        data: up,
+      }));
+
+      const result = await updateUnitPrice('test-id', {
+        packQty: null,
+        packPrice: null,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.data!.packQty).toBeNull();
+      expect(result.data!.packPrice).toBeNull();
     });
   });
 

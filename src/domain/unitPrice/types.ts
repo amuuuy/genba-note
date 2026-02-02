@@ -11,7 +11,10 @@ export type UnitPriceValidationErrorCode =
   | 'INVALID_NAME' // name is empty or whitespace only
   | 'INVALID_UNIT' // unit is empty or whitespace only
   | 'INVALID_DEFAULT_PRICE' // defaultPrice out of range
-  | 'INVALID_DEFAULT_TAX_RATE'; // defaultTaxRate not 0 or 10
+  | 'INVALID_DEFAULT_TAX_RATE' // defaultTaxRate not 0 or 10
+  | 'INVALID_PACK_QTY' // packQty is not a positive integer
+  | 'INVALID_PACK_PRICE' // packPrice is out of range or not an integer
+  | 'INVALID_PACK_CONSISTENCY'; // packQty and packPrice must both be set or both be null
 
 // === UnitPrice Service Error Codes ===
 

@@ -83,6 +83,8 @@ function createTestUnitPrice(overrides?: Partial<UnitPrice>): UnitPrice {
     defaultTaxRate: 10,
     category: '塗装',
     notes: null,
+    packQty: null,
+    packPrice: null,
     createdAt: Date.now(),
     updatedAt: Date.now(),
     ...overrides,
