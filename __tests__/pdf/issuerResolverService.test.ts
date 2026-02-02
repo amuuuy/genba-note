@@ -42,6 +42,7 @@ describe('issuerResolverService', () => {
         representativeName: null,
         address: null,
         phone: null,
+        fax: null,
         sealImageBase64: null,
         contactPerson: null,
       };
@@ -54,6 +55,7 @@ describe('issuerResolverService', () => {
         representativeName: '山田太郎',
         address: null,
         phone: null,
+        fax: null,
         sealImageBase64: null,
         contactPerson: null,
       };
@@ -66,6 +68,7 @@ describe('issuerResolverService', () => {
         representativeName: null,
         address: '東京都渋谷区',
         phone: null,
+        fax: null,
         sealImageBase64: null,
         contactPerson: null,
       };
@@ -78,6 +81,7 @@ describe('issuerResolverService', () => {
         representativeName: null,
         address: null,
         phone: '03-1234-5678',
+        fax: null,
         sealImageBase64: null,
         contactPerson: null,
       };
@@ -90,6 +94,7 @@ describe('issuerResolverService', () => {
         representativeName: null,
         address: null,
         phone: null,
+        fax: null,
         sealImageBase64: null,
         contactPerson: null,
       };
@@ -102,6 +107,7 @@ describe('issuerResolverService', () => {
         representativeName: '' as unknown as string | null,
         address: '' as unknown as string | null,
         phone: '' as unknown as string | null,
+        fax: null,
         sealImageBase64: null,
         contactPerson: null,
       };
@@ -130,6 +136,7 @@ describe('issuerResolverService', () => {
               representativeName: null,
               address: null,
               phone: null,
+              fax: null,
               sealImageUri: null,
               contactPerson: null,
               showContactPerson: true,
@@ -196,6 +203,7 @@ describe('issuerResolverService', () => {
         representativeName: '山田太郎',
         address: '東京都渋谷区',
         phone: '03-1234-5678',
+        fax: null,
         sealImageBase64: null,
         contactPerson: null,
       };
@@ -206,6 +214,7 @@ describe('issuerResolverService', () => {
           representativeName: '設定の代表者',
           address: '設定の住所',
           phone: '設定の電話番号',
+          fax: null,
           sealImageUri: null,
           contactPerson: null,
           showContactPerson: true,
@@ -268,6 +277,7 @@ describe('issuerResolverService', () => {
           representativeName: '山田太郎',
           address: '東京都渋谷区',
           phone: '03-1234-5678',
+          fax: null,
           sealImageBase64: null,
           contactPerson: null,
         };
@@ -285,6 +295,7 @@ describe('issuerResolverService', () => {
         representativeName: null,
         address: null,
         phone: null,
+        fax: null,
         sealImageBase64: null,
         contactPerson: null,
       };
@@ -294,6 +305,7 @@ describe('issuerResolverService', () => {
         representativeName: '設定の代表者',
         address: '設定の住所',
         phone: '設定の電話番号',
+        fax: null,
         sealImageUri: null,
         contactPerson: null,
         showContactPerson: true,
@@ -347,6 +359,7 @@ describe('issuerResolverService', () => {
           representativeName: settingsIssuer.representativeName,
           address: settingsIssuer.address,
           phone: settingsIssuer.phone,
+          fax: null,
           sealImageBase64: null, // Mock returns null for seal image
           contactPerson: null, // showContactPerson is true but contactPerson is null in settings
         });
@@ -397,6 +410,7 @@ describe('issuerResolverService', () => {
         representativeName: null,
         address: null,
         phone: null,
+        fax: null,
         sealImageBase64: null,
         contactPerson: null,
       };
@@ -430,6 +444,7 @@ describe('issuerResolverService', () => {
               representativeName: null,
               address: null,
               phone: null,
+              fax: null,
               sealImageUri: null,
               contactPerson: null,
               showContactPerson: true,
@@ -482,6 +497,7 @@ describe('issuerResolverService', () => {
         representativeName: null,
         address: null,
         phone: null,
+        fax: null,
         sealImageBase64: null,
         contactPerson: null,
       };
@@ -492,6 +508,7 @@ describe('issuerResolverService', () => {
           representativeName: null,
           address: null,
           phone: null,
+          fax: null,
           sealImageUri: null,
           contactPerson: null,
           showContactPerson: true,
@@ -528,6 +545,7 @@ describe('issuerResolverService', () => {
           representativeName: null,
           address: null,
           phone: null,
+          fax: null,
           sealImageBase64: null,
           contactPerson: null,
         });
@@ -552,6 +570,7 @@ describe('issuerResolverService', () => {
         representativeName: null,
         address: null,
         phone: null,
+        fax: null,
         sealImageBase64: null,
         contactPerson: null,
       };
@@ -577,6 +596,7 @@ describe('issuerResolverService', () => {
           representativeName: null,
           address: null,
           phone: null,
+          fax: null,
           sealImageBase64: null,
           contactPerson: null,
         });
@@ -592,6 +612,7 @@ describe('issuerResolverService', () => {
               representativeName: null,
               address: null,
               phone: null,
+              fax: null,
               sealImageUri: null,
               contactPerson: null,
               showContactPerson: true,
@@ -639,6 +660,7 @@ describe('issuerResolverService', () => {
               representativeName: null,
               address: null,
               phone: null,
+              fax: null,
               sealImageUri: null,
               contactPerson: null,
               showContactPerson: true,

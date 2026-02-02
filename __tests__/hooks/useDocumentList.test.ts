@@ -67,6 +67,7 @@ describe('useDocumentList', () => {
         representativeName: null,
         address: null,
         phone: null,
+        fax: null,
         sealImageBase64: null,
         contactPerson: null,
       },

@@ -158,6 +158,7 @@ export async function resolveIssuerInfo(
           representativeName: settingsResult.data.issuer.representativeName,
           address: settingsResult.data.issuer.address,
           phone: settingsResult.data.issuer.phone,
+          fax: settingsResult.data.issuer.fax,
           sealImageBase64,
           // Only include contactPerson if showContactPerson is true
           contactPerson: settingsResult.data.issuer.showContactPerson
@@ -169,6 +170,7 @@ export async function resolveIssuerInfo(
           representativeName: null,
           address: null,
           phone: null,
+          fax: null,
           sealImageBase64: null,
           contactPerson: null,
         };

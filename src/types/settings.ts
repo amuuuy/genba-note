@@ -8,6 +8,8 @@ export interface AppSettings {
     representativeName: string | null;
     address: string | null;
     phone: string | null;
+    /** Fax number (optional) */
+    fax: string | null;
     /** Seal image URI (local file path for PDF) */
     sealImageUri: string | null;
     /** Contact person name (optional) */
@@ -59,6 +61,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     representativeName: null,
     address: null,
     phone: null,
+    fax: null,
     sealImageUri: null,
     contactPerson: null,
     showContactPerson: true,

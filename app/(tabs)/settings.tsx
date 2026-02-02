@@ -97,6 +97,7 @@ export default function SettingsScreen() {
           representativeName={state.values.representativeName}
           address={state.values.address}
           phone={state.values.phone}
+          fax={state.values.fax}
           invoiceNumber={state.values.invoiceNumber}
           contactPerson={state.values.contactPerson}
           showContactPerson={state.values.showContactPerson}

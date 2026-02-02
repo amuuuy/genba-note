@@ -342,6 +342,7 @@ describe('conversionService', () => {
               representativeName: 'New Representative',
               address: 'New Address',
               phone: '090-1234-5678',
+              fax: null,
               sealImageUri: null,
               contactPerson: null,
               showContactPerson: true,

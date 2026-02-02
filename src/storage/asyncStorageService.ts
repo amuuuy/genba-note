@@ -478,6 +478,7 @@ function mergeSettingsWithDefaults(stored: Partial<AppSettings>): AppSettings {
       representativeName: stored.issuer?.representativeName ?? DEFAULT_APP_SETTINGS.issuer.representativeName,
       address: stored.issuer?.address ?? DEFAULT_APP_SETTINGS.issuer.address,
       phone: stored.issuer?.phone ?? DEFAULT_APP_SETTINGS.issuer.phone,
+      fax: stored.issuer?.fax ?? DEFAULT_APP_SETTINGS.issuer.fax,
       sealImageUri: stored.issuer?.sealImageUri ?? DEFAULT_APP_SETTINGS.issuer.sealImageUri,
       contactPerson: stored.issuer?.contactPerson ?? DEFAULT_APP_SETTINGS.issuer.contactPerson,
       showContactPerson: stored.issuer?.showContactPerson ?? DEFAULT_APP_SETTINGS.issuer.showContactPerson,

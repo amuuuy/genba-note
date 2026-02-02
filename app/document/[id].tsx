@@ -205,6 +205,7 @@ export default function DocumentEditScreen() {
         representativeName: null,
         address: null,
         phone: null,
+        fax: null,
         sealImageBase64: null,
         contactPerson: null,
       },
@@ -257,6 +258,7 @@ export default function DocumentEditScreen() {
               null,
             address: resolvedIssuerSnapshot?.address ?? issuer.address ?? null,
             phone: resolvedIssuerSnapshot?.phone ?? issuer.phone ?? null,
+            fax: resolvedIssuerSnapshot?.fax ?? issuer.fax ?? null,
             sealImageBase64: null, // Will be resolved later in PDF generation
             contactPerson: issuer.showContactPerson
               ? (resolvedIssuerSnapshot?.contactPerson ?? issuer.contactPerson ?? null)

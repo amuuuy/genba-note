@@ -23,6 +23,8 @@ export interface SettingsFormValues {
   representativeName: string;
   address: string;
   phone: string;
+  /** Fax number */
+  fax: string;
   /** Contact person name */
   contactPerson: string;
   /** Whether to show contact person on documents */

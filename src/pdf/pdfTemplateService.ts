@@ -175,14 +175,22 @@ function renderIssuerSection(
   if (issuerSnapshot.address) {
     lines.push(`<div class="issuer-address">${escapeHtml(issuerSnapshot.address)}</div>`);
   }
+  // TEL / FAX on the same line
+  const telFaxParts: string[] = [];
   if (issuerSnapshot.phone) {
-    lines.push(`<div class="issuer-phone">TEL: ${escapeHtml(issuerSnapshot.phone)}</div>`);
+    telFaxParts.push(`TEL: ${escapeHtml(issuerSnapshot.phone)}`);
   }
-  if (issuerSnapshot.contactPerson) {
-    lines.push(`<div class="issuer-contact">担当: ${escapeHtml(issuerSnapshot.contactPerson)}</div>`);
+  if (issuerSnapshot.fax) {
+    telFaxParts.push(`FAX: ${escapeHtml(issuerSnapshot.fax)}`);
+  }
+  if (telFaxParts.length > 0) {
+    lines.push(`<div class="issuer-tel-fax">${telFaxParts.join(' / ')}</div>`);
   }
   if (sensitiveSnapshot?.invoiceNumber) {
     lines.push(`<div class="issuer-invoice-number">登録番号: ${escapeHtml(sensitiveSnapshot.invoiceNumber)}</div>`);
+  }
+  if (issuerSnapshot.contactPerson) {
+    lines.push(`<div class="issuer-contact">担当: ${escapeHtml(issuerSnapshot.contactPerson)}</div>`);
   }
 
   if (lines.length === 0) {
@@ -225,19 +233,27 @@ function renderFormalIssuerSection(
     }
   }
 
-  // Other issuer info (address, phone, contact person, invoice number) - not overlapped by seal
+  // Other issuer info (address, TEL/FAX, invoice number, contact person) - not overlapped by seal
   const otherLines: string[] = [];
   if (issuerSnapshot.address) {
     otherLines.push(`<div class="issuer-address">${escapeHtml(issuerSnapshot.address)}</div>`);
   }
+  // TEL / FAX on the same line
+  const telFaxParts: string[] = [];
   if (issuerSnapshot.phone) {
-    otherLines.push(`<div class="issuer-phone">TEL: ${escapeHtml(issuerSnapshot.phone)}</div>`);
+    telFaxParts.push(`TEL: ${escapeHtml(issuerSnapshot.phone)}`);
   }
-  if (issuerSnapshot.contactPerson) {
-    otherLines.push(`<div class="issuer-contact">担当: ${escapeHtml(issuerSnapshot.contactPerson)}</div>`);
+  if (issuerSnapshot.fax) {
+    telFaxParts.push(`FAX: ${escapeHtml(issuerSnapshot.fax)}`);
+  }
+  if (telFaxParts.length > 0) {
+    otherLines.push(`<div class="issuer-tel-fax">${telFaxParts.join(' / ')}</div>`);
   }
   if (sensitiveSnapshot?.invoiceNumber) {
     otherLines.push(`<div class="issuer-invoice-number">登録番号: ${escapeHtml(sensitiveSnapshot.invoiceNumber)}</div>`);
+  }
+  if (issuerSnapshot.contactPerson) {
+    otherLines.push(`<div class="issuer-contact">担当: ${escapeHtml(issuerSnapshot.contactPerson)}</div>`);
   }
 
   // Return empty string if no issuer info to display
@@ -715,6 +731,11 @@ function generateScreenTemplate(
       margin-bottom: 3px;
     }
 
+    .issuer-tel-fax {
+      font-size: 13px;
+      margin-bottom: 3px;
+    }
+
     .totals-row.carried-forward {
       background: #f9f9f9;
       color: #666;
@@ -970,6 +991,11 @@ function generateFormalPdfTemplate(
 
     .issuer-phone {
       font-size: 11px;
+    }
+
+    .issuer-tel-fax {
+      font-size: 11px;
+      margin-bottom: 2px;
     }
 
     .issuer-invoice-number,
