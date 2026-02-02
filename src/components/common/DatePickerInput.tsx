@@ -6,7 +6,7 @@
  * Displays formatted date and validates on blur.
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -56,6 +56,7 @@ export const DatePickerInput: React.FC<DatePickerInputProps> = ({
   // Use display mode to show formatted date, edit mode for raw input
   const [isEditing, setIsEditing] = useState(false);
   const [inputValue, setInputValue] = useState(value ?? '');
+  const inputRef = useRef<TextInput>(null);
 
   const handleFocus = useCallback(() => {
     setIsEditing(true);
@@ -86,6 +87,12 @@ export const DatePickerInput: React.FC<DatePickerInputProps> = ({
     setInputValue('');
   }, [disabled, onChange]);
 
+  const handleContainerPress = useCallback(() => {
+    if (!disabled) {
+      inputRef.current?.focus();
+    }
+  }, [disabled]);
+
   const displayValue = isEditing
     ? inputValue
     : value
@@ -100,7 +107,12 @@ export const DatePickerInput: React.FC<DatePickerInputProps> = ({
         </Text>
         {required && <Text style={styles.requiredIndicator}>必須</Text>}
       </View>
-      <View style={styles.inputContainer}>
+      <Pressable
+        style={styles.inputContainer}
+        onPress={handleContainerPress}
+        disabled={disabled}
+        accessible={false}
+      >
         <Ionicons
           name="calendar-outline"
           size={20}
@@ -108,6 +120,7 @@ export const DatePickerInput: React.FC<DatePickerInputProps> = ({
           style={styles.icon}
         />
         <TextInput
+          ref={inputRef}
           style={[
             styles.input,
             disabled && styles.inputDisabled,
@@ -147,7 +160,7 @@ export const DatePickerInput: React.FC<DatePickerInputProps> = ({
             )}
           </View>
         )}
-      </View>
+      </Pressable>
       {error && (
         <Text style={styles.errorText} accessibilityRole="alert">
           {error}
