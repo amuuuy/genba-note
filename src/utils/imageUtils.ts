@@ -7,7 +7,7 @@
  * - Deleting stored images
  */
 
-import { File, Paths } from 'expo-file-system';
+import { File, Paths, Directory } from 'expo-file-system';
 
 /** Subdirectory name for seal images */
 const SEAL_IMAGES_SUBDIR = 'seal_images';
@@ -42,11 +42,15 @@ export async function copyImageToPermanentStorage(sourceUri: string): Promise<st
     const extension = sourceUri.split('.').pop() || 'png';
     const filename = `seal_${timestamp}.${extension}`;
 
+    // Ensure destination directory exists
+    const destDir = new Directory(Paths.document, SEAL_IMAGES_SUBDIR);
+    destDir.create({ intermediates: true, idempotent: true });
+
     // Use document directory for permanent storage
     const sourceFile = new File(sourceUri);
-    const destFile = new File(Paths.document, SEAL_IMAGES_SUBDIR, filename);
+    const destFile = new File(destDir, filename);
 
-    await sourceFile.copy(destFile);
+    sourceFile.copy(destFile);
 
     return destFile.uri;
   } catch (error) {

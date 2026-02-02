@@ -31,10 +31,15 @@ import { DocumentEditForm, SaveActionSheet, PublishConfirmModal } from '@/compon
 import { WarningDialog } from '@/components/common';
 import { checkProStatus } from '@/pdf/proGateService';
 import { generateAndSharePdf } from '@/pdf/pdfGenerationService';
+import {
+  validateDocumentForPdf,
+  type PdfValidationResult,
+} from '@/pdf/pdfValidationService';
 import { enrichDocumentWithTotals } from '@/domain/lineItem/calculationService';
 import { resolveIssuerInfo } from '@/pdf/issuerResolverService';
 import { getPdfErrorMessage } from '@/constants/errorMessages';
 import { changeDocumentStatus } from '@/domain/document';
+import { getSettings } from '@/storage/asyncStorageService';
 
 /**
  * Get display name for document type
@@ -74,6 +79,7 @@ export default function DocumentEditScreen() {
   const [showPublishConfirm, setShowPublishConfirm] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isPro, setIsPro] = useState(true); // Default to true, update on mount
+  const [pdfValidation, setPdfValidation] = useState<PdfValidationResult | null>(null);
 
   // Check Pro status on mount
   useEffect(() => {
@@ -219,14 +225,66 @@ export default function DocumentEditScreen() {
   }, [handleSave]);
 
   // Handle PDF publish
-  const handlePublishPdf = useCallback(() => {
+  const handlePublishPdf = useCallback(async () => {
     setShowActionSheet(false);
     if (!isPro) {
       router.push('/paywall');
       return;
     }
+
+    // Pre-validate document for PDF generation before showing confirm modal
+    // Note: documentNo and companyName are auto-filled on save, so we use
+    // placeholder values to skip validation for these fields. Only user-input
+    // fields (dueDate, clientName, issueDate, lineItems) are effectively checked.
+    // The service layer performs full validation as a second defense.
+    let resolvedIssuerSnapshot = state.issuerSnapshot;
+
+    // For new documents or documents without companyName, try to get from settings
+    // This matches the fallback logic in resolveIssuerInfo which fills companyName
+    // from settings when the document's issuerSnapshot lacks it.
+    if (!resolvedIssuerSnapshot?.companyName?.trim()) {
+      try {
+        const settingsResult = await getSettings();
+        const issuer = settingsResult.data?.issuer;
+        if (settingsResult.success && issuer?.companyName?.trim()) {
+          resolvedIssuerSnapshot = {
+            companyName: issuer.companyName,
+            // Preserve existing values if present, otherwise use settings
+            representativeName:
+              resolvedIssuerSnapshot?.representativeName ??
+              issuer.representativeName ??
+              null,
+            address: resolvedIssuerSnapshot?.address ?? issuer.address ?? null,
+            phone: resolvedIssuerSnapshot?.phone ?? issuer.phone ?? null,
+            sealImageBase64: null, // Will be resolved later in PDF generation
+          };
+        }
+      } catch {
+        // Ignore settings fetch error, validation will catch it if needed
+      }
+    }
+
+    const currentDocument = {
+      // Use placeholder for documentNo (auto-assigned on save)
+      documentNo: state.documentNo || 'PLACEHOLDER',
+      type: state.values.type,
+      issueDate: state.values.issueDate,
+      dueDate: state.values.dueDate || null,
+      clientName: state.values.clientName,
+      lineItems: state.lineItems,
+      issuerSnapshot: resolvedIssuerSnapshot ?? {
+        companyName: null,
+        representativeName: null,
+        address: null,
+        phone: null,
+        sealImageBase64: null,
+      },
+    } as Document;
+
+    const validationResult = validateDocumentForPdf(currentDocument);
+    setPdfValidation(validationResult);
     setShowPublishConfirm(true);
-  }, [isPro]);
+  }, [isPro, state.documentNo, state.values, state.lineItems, state.issuerSnapshot]);
 
   // Handle PDF publish confirmation
   const handlePublishConfirm = useCallback(async () => {
@@ -492,6 +550,7 @@ export default function DocumentEditScreen() {
         currentStatus={state.status}
         onConfirm={handlePublishConfirm}
         onCancel={() => setShowPublishConfirm(false)}
+        validationResult={pdfValidation ?? undefined}
       />
     </GestureHandlerRootView>
   );

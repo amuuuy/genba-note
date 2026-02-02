@@ -103,6 +103,7 @@ function DocumentDatesSectionComponent({
             onChange={handleDueDateChange}
             error={errors.dueDate}
             disabled={disabled}
+            required
             testID="due-date-input"
           />
           {isPaid && paidAt && (
