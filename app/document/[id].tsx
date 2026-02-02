@@ -199,6 +199,7 @@ export default function DocumentEditScreen() {
         representativeName: null,
         address: null,
         phone: null,
+        sealImageBase64: null,
       },
       createdAt: Date.now(),
       updatedAt: Date.now(),

@@ -3,10 +3,14 @@
  *
  * Pure functions for generating HTML templates for document preview and PDF generation.
  * Follows SPEC 2.7 for PDF content and formatting requirements.
+ *
+ * Two output modes:
+ * - screen: Colorful preview (existing design)
+ * - pdf: Formal monochrome layout for official documents
  */
 
 import type { DocumentType, DocumentWithTotals, TaxRate, SensitiveIssuerSnapshot } from '@/types/document';
-import type { PdfTemplateInput, PdfTemplateResult, ColorScheme } from './types';
+import type { PdfTemplateInput, PdfTemplateResult, ColorScheme, TemplateMode } from './types';
 import { ESTIMATE_COLORS, INVOICE_COLORS, FORMAL_COLORS } from './types';
 import { getScreenThemeCss, getFormalThemeCss } from './themes';
 
@@ -63,11 +67,15 @@ export function formatDate(dateString: string): string {
 }
 
 /**
- * Generate document title based on type
+ * Generate document title based on type and mode
  * @param type - Document type
- * @returns "御見積書" or "御請求書"
+ * @param mode - Output mode (screen uses 御, pdf uses plain)
+ * @returns Document title string
  */
-export function generateDocumentTitle(type: DocumentType): string {
+export function generateDocumentTitle(type: DocumentType, mode: TemplateMode = 'screen'): string {
+  if (mode === 'pdf') {
+    return type === 'estimate' ? '見積書' : '請求書';
+  }
   return type === 'estimate' ? '御見積書' : '御請求書';
 }
 
@@ -83,6 +91,18 @@ export function generateFilenameTitle(documentNo: string, type: DocumentType): s
 }
 
 // === Section Renderers ===
+
+/**
+ * Escape HTML special characters
+ */
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
 /**
  * Check if bank info has any non-null values
@@ -173,9 +193,47 @@ function renderIssuerSection(
 }
 
 /**
+ * Render issuer section with seal image for formal PDF
+ */
+function renderFormalIssuerSection(
+  doc: DocumentWithTotals,
+  sensitiveSnapshot: SensitiveIssuerSnapshot | null
+): string {
+  const { issuerSnapshot } = doc;
+  const lines: string[] = [];
+
+  if (issuerSnapshot.companyName) {
+    lines.push(`<div class="issuer-company">${escapeHtml(issuerSnapshot.companyName)}</div>`);
+  }
+  if (issuerSnapshot.address) {
+    lines.push(`<div class="issuer-address">${escapeHtml(issuerSnapshot.address)}</div>`);
+  }
+  if (issuerSnapshot.phone) {
+    lines.push(`<div class="issuer-phone">TEL: ${escapeHtml(issuerSnapshot.phone)}</div>`);
+  }
+  if (sensitiveSnapshot?.invoiceNumber) {
+    lines.push(`<div class="issuer-invoice-number">登録番号: ${escapeHtml(sensitiveSnapshot.invoiceNumber)}</div>`);
+  }
+
+  // Seal image
+  const sealHtml = issuerSnapshot.sealImageBase64
+    ? `<div class="seal-container"><img src="data:image/png;base64,${issuerSnapshot.sealImageBase64}" alt="印影" class="seal-image" /></div>`
+    : '';
+
+  return `
+    <div class="formal-issuer-section">
+      <div class="issuer-info">
+        ${lines.join('\n        ')}
+      </div>
+      ${sealHtml}
+    </div>
+  `;
+}
+
+/**
  * Render line items table
  */
-function renderLineItemsTable(doc: DocumentWithTotals, colors: ColorScheme): string {
+function renderLineItemsTable(doc: DocumentWithTotals, _colors: ColorScheme): string {
   const rows = doc.lineItemsCalculated.map((item) => {
     const lineTotal = item.subtotal + item.tax;
     return `
@@ -198,6 +256,40 @@ function renderLineItemsTable(doc: DocumentWithTotals, colors: ColorScheme): str
           <th class="col-unit">単位</th>
           <th class="col-price">単価</th>
           <th class="col-tax">税率</th>
+          <th class="col-total">金額</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.join('\n')}
+      </tbody>
+    </table>
+  `;
+}
+
+/**
+ * Render formal line items table (without tax rate column for simplicity)
+ */
+function renderFormalLineItemsTable(doc: DocumentWithTotals): string {
+  const rows = doc.lineItemsCalculated.map((item) => {
+    const lineTotal = item.subtotal + item.tax;
+    return `
+        <tr>
+          <td class="item-name">${escapeHtml(item.name)}</td>
+          <td class="item-qty">${formatQuantity(item.quantityMilli)}</td>
+          <td class="item-unit">${escapeHtml(item.unit)}</td>
+          <td class="item-price">${formatCurrency(item.unitPrice)}</td>
+          <td class="item-total">${formatCurrency(lineTotal)}</td>
+        </tr>`;
+  });
+
+  return `
+    <table class="formal-items-table">
+      <thead>
+        <tr>
+          <th class="col-name">詳細</th>
+          <th class="col-qty">数量</th>
+          <th class="col-unit">単位</th>
+          <th class="col-price">単価</th>
           <th class="col-total">金額</th>
         </tr>
       </thead>
@@ -237,73 +329,92 @@ function renderTotalsSection(doc: DocumentWithTotals): string {
 }
 
 /**
- * Escape HTML special characters
+ * Render formal totals section
  */
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+function renderFormalTotalsSection(doc: DocumentWithTotals): string {
+  return `
+    <div class="formal-totals-section">
+      <table class="formal-totals-table">
+        <tr>
+          <td class="totals-label">小計</td>
+          <td class="totals-value">${formatCurrency(doc.subtotalYen)}円</td>
+        </tr>
+        <tr>
+          <td class="totals-label">消費税</td>
+          <td class="totals-value">${formatCurrency(doc.taxYen)}円</td>
+        </tr>
+        <tr class="total-final-row">
+          <td class="totals-label">合計金額</td>
+          <td class="totals-value">${formatCurrency(doc.totalYen)}円</td>
+        </tr>
+      </table>
+    </div>
+  `;
 }
 
-// === Main Template Generator ===
+/**
+ * Render formal bank section
+ */
+function renderFormalBankSection(
+  snapshot: SensitiveIssuerSnapshot | null,
+  isInvoice: boolean
+): string {
+  if (!isInvoice || !hasBankInfo(snapshot)) {
+    return '';
+  }
+
+  const parts: string[] = [];
+  if (snapshot!.bankName) parts.push(escapeHtml(snapshot!.bankName));
+  if (snapshot!.branchName) parts.push(`${escapeHtml(snapshot!.branchName)}支店`);
+  if (snapshot!.accountType) parts.push(escapeHtml(snapshot!.accountType));
+  if (snapshot!.accountNumber) parts.push(escapeHtml(snapshot!.accountNumber));
+  if (snapshot!.accountHolderName) parts.push(escapeHtml(snapshot!.accountHolderName));
+
+  return `
+    <div class="formal-bank-section">
+      <div class="bank-title">お振込先</div>
+      <div class="bank-details">${parts.join(' ')}</div>
+    </div>
+  `;
+}
+
+// === Screen Template (existing colorful design) ===
 
 /**
- * Generate HTML template for document preview/PDF
- *
- * @param input - Template input with document data and optional mode
- * @param input.mode - Output mode: 'screen' (colorful preview) or 'pdf' (formal print)
+ * Generate screen template HTML (colorful preview)
  */
-export function generateHtmlTemplate(input: PdfTemplateInput): PdfTemplateResult {
-  const { document: doc, sensitiveSnapshot, mode = 'screen' } = input;
-
-  // Select color scheme based on mode
-  // - screen: document-type specific colors (blue for estimate, orange for invoice)
-  // - pdf: formal monochrome colors for all document types
-  const colors = mode === 'pdf' ? FORMAL_COLORS : getColorScheme(doc.type);
-
-  // Get theme-specific CSS
-  const themeCss = mode === 'pdf' ? getFormalThemeCss(colors) : getScreenThemeCss(colors);
-
-  const title = generateDocumentTitle(doc.type);
+function generateScreenTemplate(
+  doc: DocumentWithTotals,
+  sensitiveSnapshot: SensitiveIssuerSnapshot | null,
+  colors: ColorScheme
+): string {
+  const themeCss = getScreenThemeCss(colors);
+  const title = generateDocumentTitle(doc.type, 'screen');
   const isInvoice = doc.type === 'invoice';
 
-  // Client section
   const clientAddressHtml = doc.clientAddress
     ? `<div class="client-address">${escapeHtml(doc.clientAddress)}</div>`
     : '';
 
-  // Subject section
   const subjectHtml = doc.subject
     ? `<div class="subject-section"><span class="label">件名:</span> ${escapeHtml(doc.subject)}</div>`
     : '';
 
-  // Due date section (invoice only)
   const dueDateHtml =
     isInvoice && doc.dueDate
       ? `<div class="due-date-section"><span class="label">お支払期限:</span> ${formatDate(doc.dueDate)}</div>`
       : '';
 
-  // Notes section
   const notesHtml = doc.notes
     ? `<div class="notes-section"><h3>備考</h3><p>${escapeHtml(doc.notes)}</p></div>`
     : '';
 
-  // Bank section (invoice only)
   const bankHtml = renderBankSection(sensitiveSnapshot, isInvoice);
-
-  // Issuer section
   const issuerHtml = renderIssuerSection(doc, sensitiveSnapshot);
-
-  // Line items table
   const lineItemsTableHtml = renderLineItemsTable(doc, colors);
-
-  // Totals section
   const totalsHtml = renderTotalsSection(doc);
 
-  const html = `<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
@@ -335,7 +446,6 @@ export function generateHtmlTemplate(input: PdfTemplateInput): PdfTemplateResult
       margin: 0 auto;
     }
 
-    /* Header */
     .header {
       background: var(--background);
       border-bottom: 4px solid var(--primary);
@@ -359,11 +469,8 @@ export function generateHtmlTemplate(input: PdfTemplateInput): PdfTemplateResult
       color: #666;
     }
 
-    .document-number {
-      font-weight: bold;
-    }
+    .document-number { font-weight: bold; }
 
-    /* Client Section */
     .client-section {
       margin-bottom: 20px;
       padding: 15px;
@@ -382,7 +489,6 @@ export function generateHtmlTemplate(input: PdfTemplateInput): PdfTemplateResult
       font-size: 13px;
     }
 
-    /* Subject */
     .subject-section {
       margin-bottom: 15px;
       padding: 10px;
@@ -395,7 +501,6 @@ export function generateHtmlTemplate(input: PdfTemplateInput): PdfTemplateResult
       color: #666;
     }
 
-    /* Due Date */
     .due-date-section {
       margin-bottom: 15px;
       padding: 10px;
@@ -409,7 +514,6 @@ export function generateHtmlTemplate(input: PdfTemplateInput): PdfTemplateResult
       color: #f57c00;
     }
 
-    /* Total Amount Box */
     .total-box {
       border: 3px solid var(--primary);
       background: var(--background);
@@ -431,7 +535,6 @@ export function generateHtmlTemplate(input: PdfTemplateInput): PdfTemplateResult
       color: var(--primary);
     }
 
-    /* Line Items Table */
     .items-table {
       width: 100%;
       border-collapse: collapse;
@@ -453,9 +556,7 @@ export function generateHtmlTemplate(input: PdfTemplateInput): PdfTemplateResult
       font-size: 13px;
     }
 
-    .items-table tr:nth-child(even) {
-      background: #f9f9f9;
-    }
+    .items-table tr:nth-child(even) { background: #f9f9f9; }
 
     .col-name { width: 35%; }
     .col-qty { width: 10%; text-align: right; }
@@ -467,7 +568,6 @@ export function generateHtmlTemplate(input: PdfTemplateInput): PdfTemplateResult
     .item-qty, .item-price, .item-total { text-align: right; }
     .item-unit, .item-tax { text-align: center; }
 
-    /* Totals Section */
     .totals-section {
       border: 1px solid #ddd;
       border-radius: 4px;
@@ -482,17 +582,9 @@ export function generateHtmlTemplate(input: PdfTemplateInput): PdfTemplateResult
       border-bottom: 1px solid #eee;
     }
 
-    .totals-row:last-child {
-      border-bottom: none;
-    }
-
-    .totals-row .label {
-      font-weight: bold;
-    }
-
-    .totals-row .value {
-      font-weight: bold;
-    }
+    .totals-row:last-child { border-bottom: none; }
+    .totals-row .label { font-weight: bold; }
+    .totals-row .value { font-weight: bold; }
 
     .total-final {
       font-size: 18px;
@@ -510,7 +602,6 @@ export function generateHtmlTemplate(input: PdfTemplateInput): PdfTemplateResult
       color: #666;
     }
 
-    /* Notes Section */
     .notes-section {
       margin-bottom: 25px;
       padding: 15px;
@@ -529,7 +620,6 @@ export function generateHtmlTemplate(input: PdfTemplateInput): PdfTemplateResult
       font-size: 13px;
     }
 
-    /* Bank Section */
     .bank-section {
       margin-bottom: 25px;
       padding: 15px;
@@ -550,7 +640,6 @@ export function generateHtmlTemplate(input: PdfTemplateInput): PdfTemplateResult
       font-size: 13px;
     }
 
-    /* Issuer Section */
     .issuer-section {
       padding: 15px;
       border-top: 2px solid #ddd;
@@ -575,24 +664,16 @@ export function generateHtmlTemplate(input: PdfTemplateInput): PdfTemplateResult
       margin-top: 5px;
     }
 
-    /* Theme-specific styles */
     ${themeCss}
 
-    /* Print styles */
     @media print {
-      body {
-        padding: 0;
-      }
-
-      .document-container {
-        max-width: none;
-      }
+      body { padding: 0; }
+      .document-container { max-width: none; }
     }
   </style>
 </head>
 <body>
   <div class="document-container">
-    <!-- Header -->
     <div class="header">
       <div class="document-title">${title}</div>
       <div class="document-meta">
@@ -601,23 +682,372 @@ export function generateHtmlTemplate(input: PdfTemplateInput): PdfTemplateResult
       </div>
     </div>
 
-    <!-- Client -->
     <div class="client-section">
       <div class="client-name">${escapeHtml(doc.clientName)} 様</div>
       ${clientAddressHtml}
     </div>
 
     ${subjectHtml}
-
     ${dueDateHtml}
 
-    <!-- Total Amount -->
     <div class="total-box">
       <div class="label">合計金額（税込）</div>
       <div class="amount">¥${formatCurrency(doc.totalYen)}</div>
     </div>
 
-    <!-- Line Items -->
+    ${lineItemsTableHtml}
+    ${totalsHtml}
+    ${notesHtml}
+    ${bankHtml}
+    ${issuerHtml}
+  </div>
+</body>
+</html>`;
+}
+
+// === Formal PDF Template (monochrome official layout) ===
+
+/**
+ * Generate formal PDF template HTML (official document layout)
+ */
+function generateFormalPdfTemplate(
+  doc: DocumentWithTotals,
+  sensitiveSnapshot: SensitiveIssuerSnapshot | null
+): string {
+  const themeCss = getFormalThemeCss(FORMAL_COLORS);
+  const title = generateDocumentTitle(doc.type, 'pdf');
+  const isInvoice = doc.type === 'invoice';
+
+  const clientAddressHtml = doc.clientAddress
+    ? `<div class="client-address">${escapeHtml(doc.clientAddress)}</div>`
+    : '';
+
+  const subjectHtml = doc.subject
+    ? `<div class="formal-subject">件名: ${escapeHtml(doc.subject)}</div>`
+    : '';
+
+  const dueDateHtml =
+    isInvoice && doc.dueDate
+      ? `<div class="formal-due-date">支払期限: ${formatDate(doc.dueDate)}</div>`
+      : '';
+
+  const notesHtml = doc.notes
+    ? `<div class="formal-notes-section"><div class="notes-title">備考欄</div><div class="notes-content">${escapeHtml(doc.notes)}</div></div>`
+    : '<div class="formal-notes-section"><div class="notes-title">備考欄</div><div class="notes-content"></div></div>';
+
+  const bankHtml = renderFormalBankSection(sensitiveSnapshot, isInvoice);
+  const issuerHtml = renderFormalIssuerSection(doc, sensitiveSnapshot);
+  const lineItemsTableHtml = renderFormalLineItemsTable(doc);
+  const totalsHtml = renderFormalTotalsSection(doc);
+
+  return `<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', sans-serif;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #000;
+      padding: 30px 40px;
+      background: #fff;
+    }
+
+    .document-container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    /* Title */
+    .formal-title {
+      font-size: 26px;
+      font-weight: bold;
+      text-align: center;
+      letter-spacing: 0.3em;
+      border-bottom: 2px solid #000;
+      padding-bottom: 8px;
+      margin-bottom: 30px;
+    }
+
+    /* Two-column header */
+    .formal-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .header-left {
+      flex: 1;
+    }
+
+    .header-right {
+      text-align: right;
+      font-size: 12px;
+    }
+
+    .header-right div {
+      margin-bottom: 4px;
+    }
+
+    /* Client section */
+    .formal-client-name {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+
+    .formal-client-name::after {
+      content: ' 御中';
+      font-weight: normal;
+    }
+
+    .client-address {
+      font-size: 12px;
+      color: #333;
+    }
+
+    /* Subject and due date */
+    .formal-subject {
+      margin: 15px 0;
+      font-size: 13px;
+    }
+
+    .formal-due-date {
+      margin: 10px 0;
+      font-size: 13px;
+    }
+
+    .formal-intro {
+      margin: 15px 0;
+      font-size: 12px;
+    }
+
+    /* Total amount box */
+    .formal-total-box {
+      border: 2px solid #000;
+      padding: 12px 20px;
+      margin: 20px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .formal-total-box .total-label {
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .formal-total-box .total-amount {
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    /* Issuer section with seal */
+    .formal-issuer-section {
+      display: flex;
+      justify-content: flex-end;
+      align-items: flex-start;
+      margin: 20px 0;
+      gap: 15px;
+    }
+
+    .issuer-info {
+      text-align: right;
+    }
+
+    .issuer-company {
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+
+    .issuer-info > div {
+      font-size: 11px;
+      margin-bottom: 2px;
+    }
+
+    .issuer-invoice-number {
+      font-size: 10px;
+      color: #333;
+    }
+
+    .seal-container {
+      width: 70px;
+      height: 70px;
+      flex-shrink: 0;
+    }
+
+    .seal-image {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    /* Line items table */
+    .formal-items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+    }
+
+    .formal-items-table th {
+      background: #000;
+      color: #fff;
+      padding: 8px 10px;
+      text-align: left;
+      font-weight: bold;
+      font-size: 11px;
+    }
+
+    .formal-items-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #ccc;
+      font-size: 11px;
+    }
+
+    .formal-items-table tr:nth-child(even) {
+      background: #f5f5f5;
+    }
+
+    .formal-items-table .col-name { width: 45%; }
+    .formal-items-table .col-qty { width: 10%; text-align: right; }
+    .formal-items-table .col-unit { width: 10%; text-align: center; }
+    .formal-items-table .col-price { width: 15%; text-align: right; }
+    .formal-items-table .col-total { width: 20%; text-align: right; }
+
+    .formal-items-table .item-qty,
+    .formal-items-table .item-price,
+    .formal-items-table .item-total { text-align: right; }
+    .formal-items-table .item-unit { text-align: center; }
+
+    /* Totals section */
+    .formal-totals-section {
+      display: flex;
+      justify-content: flex-end;
+      margin: 20px 0;
+    }
+
+    .formal-totals-table {
+      border-collapse: collapse;
+      min-width: 250px;
+    }
+
+    .formal-totals-table td {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    .formal-totals-table .totals-label {
+      text-align: left;
+      border-right: 1px solid #ccc;
+    }
+
+    .formal-totals-table .totals-value {
+      text-align: right;
+    }
+
+    .formal-totals-table tr {
+      border-bottom: 1px dotted #999;
+    }
+
+    .formal-totals-table .total-final-row {
+      border-top: 2px solid #000;
+      border-bottom: none;
+    }
+
+    .formal-totals-table .total-final-row td {
+      font-weight: bold;
+      font-size: 13px;
+      padding-top: 10px;
+    }
+
+    /* Notes section */
+    .formal-notes-section {
+      margin: 25px 0;
+      border: 1px solid #999;
+      min-height: 60px;
+    }
+
+    .notes-title {
+      background: #f0f0f0;
+      padding: 6px 10px;
+      font-size: 11px;
+      font-weight: bold;
+      border-bottom: 1px solid #999;
+    }
+
+    .notes-content {
+      padding: 10px;
+      font-size: 11px;
+      white-space: pre-wrap;
+      min-height: 40px;
+    }
+
+    /* Bank section */
+    .formal-bank-section {
+      margin: 20px 0;
+      padding: 10px;
+      border: 1px solid #999;
+    }
+
+    .bank-title {
+      font-weight: bold;
+      font-size: 11px;
+      margin-bottom: 5px;
+    }
+
+    .bank-details {
+      font-size: 12px;
+    }
+
+    ${themeCss}
+
+    @media print {
+      body { padding: 20px; }
+      .document-container { max-width: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="document-container">
+    <!-- Title -->
+    <div class="formal-title">${title}</div>
+
+    <!-- Two-column header -->
+    <div class="formal-header">
+      <div class="header-left">
+        <div class="formal-client-name">${escapeHtml(doc.clientName)}</div>
+        ${clientAddressHtml}
+      </div>
+      <div class="header-right">
+        <div>発行日: ${formatDate(doc.issueDate)}</div>
+        <div>請求書番号: ${escapeHtml(doc.documentNo)}</div>
+      </div>
+    </div>
+
+    ${subjectHtml}
+    ${dueDateHtml}
+
+    <div class="formal-intro">下記のとおりご請求申し上げます。</div>
+
+    <!-- Total amount -->
+    <div class="formal-total-box">
+      <span class="total-label">合計金額</span>
+      <span class="total-amount">${formatCurrency(doc.totalYen)}円</span>
+    </div>
+
+    <!-- Issuer with seal -->
+    ${issuerHtml}
+
+    <!-- Line items -->
     ${lineItemsTableHtml}
 
     <!-- Totals -->
@@ -626,14 +1056,34 @@ export function generateHtmlTemplate(input: PdfTemplateInput): PdfTemplateResult
     <!-- Notes -->
     ${notesHtml}
 
-    <!-- Bank Info (Invoice only) -->
+    <!-- Bank info -->
     ${bankHtml}
-
-    <!-- Issuer Info -->
-    ${issuerHtml}
   </div>
 </body>
 </html>`;
+}
+
+// === Main Template Generator ===
+
+/**
+ * Generate HTML template for document preview/PDF
+ *
+ * @param input - Template input with document data and optional mode
+ * @param input.mode - Output mode: 'screen' (colorful preview) or 'pdf' (formal print)
+ */
+export function generateHtmlTemplate(input: PdfTemplateInput): PdfTemplateResult {
+  const { document: doc, sensitiveSnapshot, mode = 'screen' } = input;
+
+  let html: string;
+
+  if (mode === 'pdf') {
+    // Use formal PDF template for official documents
+    html = generateFormalPdfTemplate(doc, sensitiveSnapshot);
+  } else {
+    // Use colorful screen template for preview
+    const colors = getColorScheme(doc.type);
+    html = generateScreenTemplate(doc, sensitiveSnapshot, colors);
+  }
 
   return {
     html,

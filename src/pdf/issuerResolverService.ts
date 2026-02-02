@@ -22,6 +22,7 @@ import type { IssuerSnapshot, SensitiveIssuerSnapshot } from '@/types/document';
 import type { SensitiveIssuerSettings } from '@/types/settings';
 import { getIssuerSnapshot, getSensitiveIssuerInfo } from '@/storage/secureStorageService';
 import { getSettings } from '@/storage/asyncStorageService';
+import { imageUriToBase64 } from '@/utils/imageUtils';
 
 /**
  * Result of issuer info resolution
@@ -37,6 +38,7 @@ export interface ResolvedIssuerInfo {
 
 /**
  * Check if issuer snapshot has any meaningful data
+ * Note: sealImageBase64 is excluded from this check as it's optional decoration
  */
 export function hasIssuerSnapshotData(snapshot: IssuerSnapshot): boolean {
   return !!(
@@ -45,6 +47,21 @@ export function hasIssuerSnapshotData(snapshot: IssuerSnapshot): boolean {
     snapshot.address ||
     snapshot.phone
   );
+}
+
+/**
+ * Load and convert seal image from URI to base64
+ */
+async function loadSealImageBase64(sealImageUri: string | null): Promise<string | null> {
+  if (!sealImageUri) {
+    return null;
+  }
+  try {
+    return await imageUriToBase64(sealImageUri);
+  } catch (error) {
+    console.error('Failed to load seal image:', error);
+    return null;
+  }
 }
 
 /**
@@ -85,8 +102,21 @@ export async function resolveIssuerInfo(
         ? sensitiveResult.data
         : null;
 
+    // If document snapshot has seal image, use it; otherwise try to load from settings
+    let sealImageBase64 = documentIssuerSnapshot.sealImageBase64;
+    if (!sealImageBase64) {
+      // Try to load from current settings
+      const settingsResult = await getSettings();
+      if (settingsResult.success && settingsResult.data?.issuer.sealImageUri) {
+        sealImageBase64 = await loadSealImageBase64(settingsResult.data.issuer.sealImageUri);
+      }
+    }
+
     return {
-      issuerSnapshot: documentIssuerSnapshot,
+      issuerSnapshot: {
+        ...documentIssuerSnapshot,
+        sealImageBase64,
+      },
       sensitiveSnapshot,
       source: 'snapshot',
     };
@@ -100,6 +130,12 @@ export async function resolveIssuerInfo(
     getSensitiveIssuerInfo(),
   ]);
 
+  // Load seal image from settings
+  const sealImageUri = settingsResult.success && settingsResult.data
+    ? settingsResult.data.issuer.sealImageUri
+    : null;
+  const sealImageBase64 = await loadSealImageBase64(sealImageUri);
+
   // Extract issuer info from settings
   const issuerSnapshot: IssuerSnapshot =
     settingsResult.success && settingsResult.data
@@ -108,12 +144,14 @@ export async function resolveIssuerInfo(
           representativeName: settingsResult.data.issuer.representativeName,
           address: settingsResult.data.issuer.address,
           phone: settingsResult.data.issuer.phone,
+          sealImageBase64,
         }
       : {
           companyName: null,
           representativeName: null,
           address: null,
           phone: null,
+          sealImageBase64: null,
         };
 
   // For sensitive data: prefer document-specific snapshot, fallback to global settings

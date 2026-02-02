@@ -42,6 +42,7 @@ describe('issuerResolverService', () => {
         representativeName: null,
         address: null,
         phone: null,
+        sealImageBase64: null,
       };
       expect(hasIssuerSnapshotData(snapshot)).toBe(true);
     });
@@ -52,6 +53,7 @@ describe('issuerResolverService', () => {
         representativeName: '山田太郎',
         address: null,
         phone: null,
+        sealImageBase64: null,
       };
       expect(hasIssuerSnapshotData(snapshot)).toBe(true);
     });
@@ -62,6 +64,7 @@ describe('issuerResolverService', () => {
         representativeName: null,
         address: '東京都渋谷区',
         phone: null,
+        sealImageBase64: null,
       };
       expect(hasIssuerSnapshotData(snapshot)).toBe(true);
     });
@@ -72,6 +75,7 @@ describe('issuerResolverService', () => {
         representativeName: null,
         address: null,
         phone: '03-1234-5678',
+        sealImageBase64: null,
       };
       expect(hasIssuerSnapshotData(snapshot)).toBe(true);
     });
@@ -82,6 +86,7 @@ describe('issuerResolverService', () => {
         representativeName: null,
         address: null,
         phone: null,
+        sealImageBase64: null,
       };
       expect(hasIssuerSnapshotData(snapshot)).toBe(false);
     });
@@ -92,6 +97,7 @@ describe('issuerResolverService', () => {
         representativeName: '' as unknown as string | null,
         address: '' as unknown as string | null,
         phone: '' as unknown as string | null,
+        sealImageBase64: null,
       };
       expect(hasIssuerSnapshotData(snapshot)).toBe(false);
     });
@@ -108,6 +114,26 @@ describe('issuerResolverService', () => {
         mockGetIssuerSnapshot.mockResolvedValue({
           success: true,
           data: sensitivSnapshot,
+        });
+        // Mock getSettings for seal image loading fallback
+        mockGetSettings.mockResolvedValue({
+          success: true,
+          data: {
+            issuer: {
+              companyName: null,
+              representativeName: null,
+              address: null,
+              phone: null,
+              sealImageUri: null,
+            },
+            numbering: {
+              estimatePrefix: 'EST-',
+              invoicePrefix: 'INV-',
+              nextEstimateNumber: 1,
+              nextInvoiceNumber: 1,
+            },
+            schemaVersion: 1,
+          },
         });
       });
 
@@ -162,6 +188,7 @@ describe('issuerResolverService', () => {
         representativeName: null,
         address: null,
         phone: null,
+        sealImageBase64: null,
       };
 
       const settingsIssuer = {
@@ -169,6 +196,7 @@ describe('issuerResolverService', () => {
         representativeName: '設定の代表者',
         address: '設定の住所',
         phone: '設定の電話番号',
+        sealImageUri: null,
       };
 
       const mockAppSettings: AppSettings = {
@@ -213,7 +241,14 @@ describe('issuerResolverService', () => {
         const result = await resolveIssuerInfo(documentId, emptySnapshot);
 
         expect(result.source).toBe('settings');
-        expect(result.issuerSnapshot).toEqual(settingsIssuer);
+        // Result should convert settings to IssuerSnapshot format (sealImageUri -> sealImageBase64)
+        expect(result.issuerSnapshot).toEqual({
+          companyName: settingsIssuer.companyName,
+          representativeName: settingsIssuer.representativeName,
+          address: settingsIssuer.address,
+          phone: settingsIssuer.phone,
+          sealImageBase64: null, // Mock returns null for seal image
+        });
       });
 
       it('fetches issuer info from settings for non-sensitive data', async () => {
@@ -261,6 +296,7 @@ describe('issuerResolverService', () => {
         representativeName: null,
         address: null,
         phone: null,
+        sealImageBase64: null,
       };
 
       const docSensitiveSnapshot: SensitiveIssuerSnapshot = {
@@ -292,6 +328,7 @@ describe('issuerResolverService', () => {
               representativeName: null,
               address: null,
               phone: null,
+              sealImageUri: null,
             },
             numbering: {
               estimatePrefix: 'EST-',
@@ -341,6 +378,7 @@ describe('issuerResolverService', () => {
         representativeName: null,
         address: null,
         phone: null,
+        sealImageBase64: null,
       };
 
       const emptySettings: AppSettings = {
@@ -349,6 +387,7 @@ describe('issuerResolverService', () => {
           representativeName: null,
           address: null,
           phone: null,
+          sealImageUri: null,
         },
         numbering: {
           estimatePrefix: 'EST-',
@@ -382,6 +421,7 @@ describe('issuerResolverService', () => {
           representativeName: null,
           address: null,
           phone: null,
+          sealImageBase64: null,
         });
       });
 
@@ -404,6 +444,7 @@ describe('issuerResolverService', () => {
         representativeName: null,
         address: null,
         phone: null,
+        sealImageBase64: null,
       };
 
       it('returns empty data when getSettings fails', async () => {
@@ -427,6 +468,7 @@ describe('issuerResolverService', () => {
           representativeName: null,
           address: null,
           phone: null,
+          sealImageBase64: null,
         });
         expect(result.source).toBe('settings');
       });
@@ -440,6 +482,7 @@ describe('issuerResolverService', () => {
               representativeName: null,
               address: null,
               phone: null,
+              sealImageUri: null,
             },
             numbering: {
               estimatePrefix: 'EST-',
@@ -484,6 +527,7 @@ describe('issuerResolverService', () => {
               representativeName: null,
               address: null,
               phone: null,
+              sealImageUri: null,
             },
             numbering: {
               estimatePrefix: 'EST-',

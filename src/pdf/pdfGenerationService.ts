@@ -15,6 +15,7 @@ import * as FileSystem from 'expo-file-system';
 import type { PdfTemplateInput, PdfGenerationResult } from './types';
 import { generateHtmlTemplate } from './pdfTemplateService';
 import { checkProStatus } from './proGateService';
+import { validateDocumentForPdf, formatValidationError } from './pdfValidationService';
 
 /**
  * Generate PDF from HTML (internal function)
@@ -132,13 +133,25 @@ export async function generateAndSharePdf(
     };
   }
 
-  // 2. Generate HTML template with formal PDF theme
+  // 2. Validate required fields for PDF generation
+  const validationResult = validateDocumentForPdf(input.document);
+  if (!validationResult.isValid) {
+    return {
+      success: false,
+      error: {
+        code: 'VALIDATION_FAILED',
+        message: formatValidationError(validationResult),
+      },
+    };
+  }
+
+  // 3. Generate HTML template with formal PDF theme
   const { html } = generateHtmlTemplate({
     ...input,
     mode: 'pdf',
   });
 
-  // 3. Generate PDF
+  // 4. Generate PDF
   const pdfResult = await generatePdf(html);
   if (!pdfResult.success) {
     return pdfResult;
@@ -146,12 +159,12 @@ export async function generateAndSharePdf(
 
   const fileUri = pdfResult.fileUri!;
 
-  // 4. Share PDF and cleanup
+  // 5. Share PDF and cleanup
   try {
     const shareResult = await sharePdf(fileUri);
     return shareResult;
   } finally {
-    // 5. Always cleanup temporary PDF file (security: remove sensitive data)
+    // 6. Always cleanup temporary PDF file (security: remove sensitive data)
     await cleanupPdfFile(fileUri);
   }
 }

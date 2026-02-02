@@ -68,6 +68,7 @@ export const PDF_ERROR_MESSAGES: Record<PdfGenerationErrorCode, string> = {
   PRO_REQUIRED: 'Proプランが必要です。',
   DOCUMENT_NOT_FOUND: '書類が見つかりません。',
   TEMPLATE_ERROR: 'テンプレートエラーが発生しました。',
+  VALIDATION_FAILED: '必須項目が入力されていません。',
 };
 
 /**

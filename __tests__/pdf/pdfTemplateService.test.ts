@@ -572,6 +572,7 @@ describe('pdfTemplateService', () => {
               representativeName: '佐藤一郎',
               address: '愛知県名古屋市中区1-1',
               phone: '052-123-4567',
+              sealImageBase64: null,
             },
           },
         });
@@ -614,6 +615,7 @@ describe('pdfTemplateService', () => {
               representativeName: null,
               address: null,
               phone: '090-1234-5678',
+              sealImageBase64: null,
             },
           },
         });
@@ -631,6 +633,7 @@ describe('pdfTemplateService', () => {
               representativeName: null,
               address: null,
               phone: null,
+              sealImageBase64: null,
             },
           },
           sensitiveSnapshot: null,
@@ -648,6 +651,7 @@ describe('pdfTemplateService', () => {
               representativeName: null,
               address: null,
               phone: null,
+              sealImageBase64: null,
             },
           },
           sensitiveSnapshot: createTestSensitiveSnapshot({
@@ -674,6 +678,7 @@ describe('pdfTemplateService', () => {
               representativeName: null,
               address: null,
               phone: null,
+              sealImageBase64: null,
             },
           },
           sensitiveSnapshot: null,

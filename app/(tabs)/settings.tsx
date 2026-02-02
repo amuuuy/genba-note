@@ -23,12 +23,15 @@ import {
   IssuerInfoSection,
   BankAccountSection,
   NumberingSettingsSection,
+  SealImageSection,
 } from '@/components/settings';
+import type { SettingsFormValues } from '@/domain/settings/types';
 
 export default function SettingsScreen() {
   const {
     state,
     updateField,
+    updateSealImage,
     save,
     getFormattedNextNumber,
     reload,
@@ -97,7 +100,14 @@ export default function SettingsScreen() {
           errors={{
             invoiceNumber: state.errors.invoiceNumber,
           }}
-          onChange={(field, value) => updateField(field, value)}
+          onChange={(field, value) => updateField(field as keyof SettingsFormValues, value)}
+          disabled={isFormDisabled}
+        />
+
+        {/* Seal Image Section */}
+        <SealImageSection
+          sealImageUri={state.values.sealImageUri}
+          onImageChange={updateSealImage}
           disabled={isFormDisabled}
         />
 
@@ -111,7 +121,7 @@ export default function SettingsScreen() {
           errors={{
             accountNumber: state.errors.accountNumber,
           }}
-          onChange={(field, value) => updateField(field, value)}
+          onChange={(field, value) => updateField(field as keyof SettingsFormValues, value)}
           disabled={isFormDisabled}
         />
 

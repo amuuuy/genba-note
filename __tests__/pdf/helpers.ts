@@ -76,6 +76,7 @@ export function createTestIssuerSnapshot(
     representativeName: '山田太郎',
     address: '東京都渋谷区テスト1-2-3',
     phone: '03-1234-5678',
+    sealImageBase64: null,
     ...overrides,
   };
 }

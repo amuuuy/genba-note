@@ -16,6 +16,7 @@ export function createValidSettingsFormValues(
     representativeName: '山田太郎',
     address: '東京都渋谷区1-2-3',
     phone: '03-1234-5678',
+    sealImageUri: null,
     estimatePrefix: 'EST-',
     invoicePrefix: 'INV-',
     // SecureStore fields
@@ -38,6 +39,7 @@ export function createEmptySettingsFormValues(): SettingsFormValues {
     representativeName: '',
     address: '',
     phone: '',
+    sealImageUri: null,
     estimatePrefix: 'EST-',
     invoicePrefix: 'INV-',
     invoiceNumber: '',

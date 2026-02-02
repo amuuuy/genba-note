@@ -65,6 +65,7 @@ async function getIssuerSnapshotFromSettings(): Promise<IssuerSnapshot> {
       representativeName: settingsResult.data.issuer.representativeName,
       address: settingsResult.data.issuer.address,
       phone: settingsResult.data.issuer.phone,
+      sealImageBase64: null, // Seal image is resolved dynamically for PDF generation
     };
   }
   return {
@@ -72,6 +73,7 @@ async function getIssuerSnapshotFromSettings(): Promise<IssuerSnapshot> {
     representativeName: null,
     address: null,
     phone: null,
+    sealImageBase64: null,
   };
 }
 

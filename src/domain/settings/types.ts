@@ -25,6 +25,8 @@ export interface SettingsFormValues {
   phone: string;
   estimatePrefix: string;
   invoicePrefix: string;
+  /** Seal image URI (local file path) */
+  sealImageUri: string | null;
 
   // SecureStore fields (sensitive)
   invoiceNumber: string;

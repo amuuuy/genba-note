@@ -8,6 +8,8 @@ export interface AppSettings {
     representativeName: string | null;
     address: string | null;
     phone: string | null;
+    /** Seal image URI (local file path for PDF) */
+    sealImageUri: string | null;
   };
 
   /** Document numbering settings */
@@ -53,6 +55,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     representativeName: null,
     address: null,
     phone: null,
+    sealImageUri: null,
   },
   numbering: {
     estimatePrefix: 'EST-',

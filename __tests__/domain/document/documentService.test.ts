@@ -207,6 +207,7 @@ describe('documentService', () => {
           representativeName: 'Test Rep',
           address: 'Test Address',
           phone: '123-456-7890',
+          sealImageUri: null,
         },
       };
       mockedNumbering.generateDocumentNumber.mockResolvedValue({

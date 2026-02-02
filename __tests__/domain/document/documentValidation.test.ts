@@ -60,6 +60,7 @@ function createTestDocument(overrides?: Partial<Document>): Document {
       representativeName: null,
       address: null,
       phone: null,
+      sealImageBase64: null,
     },
     createdAt: Date.now(),
     updatedAt: Date.now(),

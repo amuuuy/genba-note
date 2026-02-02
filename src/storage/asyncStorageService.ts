@@ -478,6 +478,7 @@ function mergeSettingsWithDefaults(stored: Partial<AppSettings>): AppSettings {
       representativeName: stored.issuer?.representativeName ?? DEFAULT_APP_SETTINGS.issuer.representativeName,
       address: stored.issuer?.address ?? DEFAULT_APP_SETTINGS.issuer.address,
       phone: stored.issuer?.phone ?? DEFAULT_APP_SETTINGS.issuer.phone,
+      sealImageUri: stored.issuer?.sealImageUri ?? DEFAULT_APP_SETTINGS.issuer.sealImageUri,
     },
     numbering: {
       estimatePrefix: stored.numbering?.estimatePrefix ?? DEFAULT_APP_SETTINGS.numbering.estimatePrefix,

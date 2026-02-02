@@ -105,7 +105,8 @@ export type PdfGenerationErrorCode =
   | 'SHARE_FAILED'
   | 'PRO_REQUIRED'
   | 'DOCUMENT_NOT_FOUND'
-  | 'TEMPLATE_ERROR';
+  | 'TEMPLATE_ERROR'
+  | 'VALIDATION_FAILED';
 
 /**
  * PDF generation error

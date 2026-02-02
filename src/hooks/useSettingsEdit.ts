@@ -45,6 +45,7 @@ export type SettingsEditAction =
     }
   | { type: 'LOAD_ERROR'; message: string }
   | { type: 'UPDATE_FIELD'; field: keyof SettingsFormValues; value: string }
+  | { type: 'UPDATE_SEAL_IMAGE'; uri: string | null }
   | { type: 'SET_ERRORS'; errors: SettingsFormErrors }
   | { type: 'CLEAR_ERRORS' }
   | { type: 'START_SAVING' }
@@ -61,6 +62,7 @@ const initialFormValues: SettingsFormValues = {
   phone: '',
   estimatePrefix: 'EST-',
   invoicePrefix: 'INV-',
+  sealImageUri: null,
   invoiceNumber: '',
   bankName: '',
   branchName: '',
@@ -101,6 +103,7 @@ export function createInitialFormValues(
     phone: issuer.phone ?? '',
     estimatePrefix: numbering.estimatePrefix,
     invoicePrefix: numbering.invoicePrefix,
+    sealImageUri: issuer.sealImageUri ?? null,
     // SecureStore fields
     invoiceNumber: sensitiveSettings?.invoiceNumber ?? '',
     bankName: bankAccount?.bankName ?? '',
@@ -164,6 +167,16 @@ export function settingsEditReducer(
       };
     }
 
+    case 'UPDATE_SEAL_IMAGE':
+      return {
+        ...state,
+        values: {
+          ...state.values,
+          sealImageUri: action.uri,
+        },
+        isDirty: true,
+      };
+
     case 'SET_ERRORS':
       return {
         ...state,
@@ -209,6 +222,7 @@ export function settingsEditReducer(
 export interface UseSettingsEditReturn {
   state: SettingsEditState;
   updateField: (field: keyof SettingsFormValues, value: string) => void;
+  updateSealImage: (uri: string | null) => void;
   save: () => Promise<boolean>;
   validate: () => boolean;
   getFormattedNextNumber: (type: 'estimate' | 'invoice') => string;
@@ -291,6 +305,11 @@ export function useSettingsEdit(): UseSettingsEditReturn {
     []
   );
 
+  // Update seal image URI
+  const updateSealImage = useCallback((uri: string | null) => {
+    dispatch({ type: 'UPDATE_SEAL_IMAGE', uri });
+  }, []);
+
   // Validate the form
   const validate = useCallback((): boolean => {
     const errors = validateSettingsForm(state.values);
@@ -324,6 +343,7 @@ export function useSettingsEdit(): UseSettingsEditReturn {
           representativeName: state.values.representativeName || null,
           address: state.values.address || null,
           phone: state.values.phone || null,
+          sealImageUri: state.values.sealImageUri,
         },
         // Only update prefixes, NOT next numbers (managed by autoNumberingService)
         numbering: {
@@ -392,6 +412,7 @@ export function useSettingsEdit(): UseSettingsEditReturn {
   return {
     state,
     updateField,
+    updateSealImage,
     save,
     validate,
     getFormattedNextNumber,

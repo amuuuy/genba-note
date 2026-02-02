@@ -87,6 +87,9 @@ export interface IssuerSnapshot {
 
   /** Phone number (optional) */
   phone: string | null;
+
+  /** Seal image as base64 string for PDF embedding (optional) */
+  sealImageBase64: string | null;
 }
 
 /**

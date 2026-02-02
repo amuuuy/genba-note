@@ -342,6 +342,7 @@ describe('conversionService', () => {
               representativeName: 'New Representative',
               address: 'New Address',
               phone: '090-1234-5678',
+              sealImageUri: null,
             },
           },
         });
