@@ -50,6 +50,14 @@ interface FormErrors {
 }
 
 /**
+ * Check if a string represents a valid integer (digits only, no decimals or commas)
+ */
+function isValidIntegerString(value: string): boolean {
+  // Must be non-empty and contain only digits (optionally with leading zeros)
+  return /^[0-9]+$/.test(value);
+}
+
+/**
  * Validate form state and return errors
  */
 function validateForm(state: FormState): FormErrors {
@@ -63,11 +71,19 @@ function validateForm(state: FormState): FormErrors {
     errors.unit = '単位を入力してください';
   }
 
-  const price = parseInt(state.defaultPrice, 10);
-  if (!state.defaultPrice || isNaN(price) || price < 0) {
-    errors.defaultPrice = '単価を入力してください（0以上の整数）';
-  } else if (price > 99999999) {
-    errors.defaultPrice = '単価は99,999,999以下にしてください';
+  // Validate price as integer string
+  const priceStr = state.defaultPrice.trim();
+  if (!priceStr) {
+    errors.defaultPrice = '単価を入力してください';
+  } else if (!isValidIntegerString(priceStr)) {
+    errors.defaultPrice = '単価は整数で入力してください（カンマや小数点は使用できません）';
+  } else {
+    const price = Number(priceStr);
+    if (!Number.isInteger(price) || price < 0) {
+      errors.defaultPrice = '単価を入力してください（0以上の整数）';
+    } else if (price > 99999999) {
+      errors.defaultPrice = '単価は99,999,999以下にしてください';
+    }
   }
 
   return errors;
@@ -140,7 +156,8 @@ export const UnitPriceEditorModal: React.FC<UnitPriceEditorModalProps> = ({
       return;
     }
 
-    const defaultPrice = parseInt(form.defaultPrice, 10);
+    // Safe to parse as integer since validation passed
+    const defaultPrice = Number(form.defaultPrice.trim());
 
     const input: UnitPriceInput = {
       name: form.name.trim(),
@@ -288,7 +305,8 @@ export const UnitPriceEditorModal: React.FC<UnitPriceEditorModalProps> = ({
                   ]}
                   onPress={() => updateField('unit', unit)}
                   accessibilityLabel={unit}
-                  accessibilityRole="button"
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: form.unit === unit }}
                 >
                   <Text
                     style={[
@@ -325,6 +343,7 @@ export const UnitPriceEditorModal: React.FC<UnitPriceEditorModalProps> = ({
                 multiline
                 numberOfLines={3}
                 textAlignVertical="top"
+                accessibilityLabel="備考"
                 testID="unit-price-notes"
               />
             </View>
