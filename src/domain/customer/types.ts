@@ -11,7 +11,9 @@ export type CustomerServiceErrorCode =
   | 'VALIDATION_ERROR'
   | 'CUSTOMER_NOT_FOUND'
   | 'STORAGE_ERROR'
-  | 'DUPLICATE_NAME';
+  | 'DUPLICATE_NAME'
+  | 'PHOTO_COUNT_LIMIT_EXCEEDED'
+  | 'PHOTO_SIZE_LIMIT_EXCEEDED';
 
 /**
  * Customer service error

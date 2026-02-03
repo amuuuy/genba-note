@@ -189,3 +189,37 @@ export async function deleteCustomerPhotosDirectory(
     console.error('Failed to delete customer photos directory:', error);
   }
 }
+
+/**
+ * Result of file size check
+ */
+export interface FileSizeResult {
+  success: boolean;
+  size?: number;
+  error?: string;
+}
+
+/**
+ * Get file size in bytes (fail-closed)
+ *
+ * @param uri - File URI
+ * @returns FileSizeResult with size on success, error on failure
+ */
+export async function getFileSize(uri: string): Promise<FileSizeResult> {
+  try {
+    const file = new File(uri);
+    if (!file.exists) {
+      return { success: false, error: 'File does not exist' };
+    }
+    const size = file.size;
+    if (size === null || size === undefined) {
+      return { success: false, error: 'Unable to determine file size' };
+    }
+    return { success: true, size };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error reading file size',
+    };
+  }
+}

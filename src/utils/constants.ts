@@ -27,6 +27,16 @@ export const MIN_UNIT_PRICE = 0;
 /** Maximum line items per document */
 export const MAX_LINE_ITEMS = 100;
 
+// Photo limits (app-wide)
+/** Maximum total photos in the app */
+export const MAX_TOTAL_PHOTOS = 1000;
+
+/** Maximum photo file size when adding (4.5MB) */
+export const MAX_PHOTO_SIZE_ACTIVE_BYTES = 4_718_592; // 4.5 * 1024 * 1024
+
+/** Maximum photo file size after storing (5.5MB) */
+export const MAX_PHOTO_SIZE_STORE_BYTES = 5_767_168; // 5.5 * 1024 * 1024
+
 /** Maximum document total in yen (9,999,999,999 = ~10 billion) */
 export const MAX_TOTAL_YEN = 9999999999;
 

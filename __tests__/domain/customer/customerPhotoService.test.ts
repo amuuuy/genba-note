@@ -10,9 +10,16 @@ import {
   deletePhoto,
   deletePhotosByCustomer,
   getPhotoDataUrlsForPdf,
+  getTotalPhotoCount,
+  validatePhotoLimits,
 } from '@/domain/customer/customerPhotoService';
 import type { CustomerPhoto, AddPhotoInput } from '@/types/customerPhoto';
-import { STORAGE_KEYS } from '@/utils/constants';
+import {
+  STORAGE_KEYS,
+  MAX_TOTAL_PHOTOS,
+  MAX_PHOTO_SIZE_ACTIVE_BYTES,
+  MAX_PHOTO_SIZE_STORE_BYTES,
+} from '@/utils/constants';
 import * as imageUtils from '@/utils/imageUtils';
 
 // Mock AsyncStorage
@@ -32,6 +39,7 @@ jest.mock('@/utils/imageUtils', () => ({
   deleteStoredImage: jest.fn(),
   deleteCustomerPhotosDirectory: jest.fn(),
   imageUriToDataUrl: jest.fn(),
+  getFileSize: jest.fn(),
 }));
 
 const mockedAsyncStorage = jest.mocked(AsyncStorage);
@@ -63,6 +71,9 @@ describe('customerPhotoService', () => {
       );
       mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify([]));
       mockedAsyncStorage.setItem.mockResolvedValue(undefined);
+      mockedImageUtils.getFileSize
+        .mockResolvedValueOnce({ success: true, size: 1_000_000 }) // Source check
+        .mockResolvedValueOnce({ success: true, size: 1_000_000 }); // Stored check
 
       const input: AddPhotoInput = {
         customerId: 'customer-1',
@@ -81,6 +92,8 @@ describe('customerPhotoService', () => {
     });
 
     it('should fail if photo copy fails', async () => {
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify([]));
+      mockedImageUtils.getFileSize.mockResolvedValue({ success: true, size: 1_000_000 });
       mockedImageUtils.copyCustomerPhotoToPermanentStorage.mockResolvedValue(null);
 
       const input: AddPhotoInput = {
@@ -244,6 +257,206 @@ describe('customerPhotoService', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0]).toBe('data:image/jpeg;base64,abc123');
+    });
+  });
+
+  // ==========================================
+  // Photo Limits Tests (TDD - RED phase)
+  // ==========================================
+
+  describe('getTotalPhotoCount', () => {
+    it('should return 0 for empty storage', async () => {
+      mockedAsyncStorage.getItem.mockResolvedValue(null);
+
+      const result = await getTotalPhotoCount();
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(0);
+    });
+
+    it('should return correct count of all photos', async () => {
+      const photos = [
+        createTestPhoto({ id: 'photo-1', customerId: 'customer-1' }),
+        createTestPhoto({ id: 'photo-2', customerId: 'customer-1' }),
+        createTestPhoto({ id: 'photo-3', customerId: 'customer-2' }),
+        createTestPhoto({ id: 'photo-4', customerId: 'customer-3' }),
+        createTestPhoto({ id: 'photo-5', customerId: 'customer-1' }),
+      ];
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify(photos));
+
+      const result = await getTotalPhotoCount();
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(5);
+    });
+
+    it('should return error on storage failure', async () => {
+      mockedAsyncStorage.getItem.mockRejectedValue(new Error('Storage error'));
+
+      const result = await getTotalPhotoCount();
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('STORAGE_ERROR');
+    });
+  });
+
+  describe('validatePhotoLimits', () => {
+    it('should allow when under count limit and size OK', async () => {
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify([]));
+      mockedImageUtils.getFileSize.mockResolvedValue({ success: true, size: 1_000_000 }); // 1MB
+
+      const result = await validatePhotoLimits('file:///test.jpg');
+
+      expect(result.success).toBe(true);
+      expect(result.data?.allowed).toBe(true);
+    });
+
+    it('should reject when count limit reached', async () => {
+      // Create 1000 photos to hit the limit
+      const photos = Array(MAX_TOTAL_PHOTOS)
+        .fill(null)
+        .map((_, i) => createTestPhoto({ id: `photo-${i}` }));
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify(photos));
+      mockedImageUtils.getFileSize.mockResolvedValue({ success: true, size: 1_000_000 }); // 1MB
+
+      const result = await validatePhotoLimits('file:///test.jpg');
+
+      expect(result.success).toBe(true);
+      expect(result.data?.allowed).toBe(false);
+      expect(result.data?.errorCode).toBe('PHOTO_COUNT_LIMIT_EXCEEDED');
+      expect(result.data?.message).toContain('上限');
+    });
+
+    it('should reject when file size exceeds active limit', async () => {
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify([]));
+      mockedImageUtils.getFileSize.mockResolvedValue({ success: true, size: MAX_PHOTO_SIZE_ACTIVE_BYTES + 1 }); // Exceeds 4.5MB
+
+      const result = await validatePhotoLimits('file:///test.jpg');
+
+      expect(result.success).toBe(true);
+      expect(result.data?.allowed).toBe(false);
+      expect(result.data?.errorCode).toBe('PHOTO_SIZE_LIMIT_EXCEEDED');
+      expect(result.data?.message).toContain('サイズ');
+    });
+
+    it('should allow when exactly at count limit - 1', async () => {
+      const photos = Array(MAX_TOTAL_PHOTOS - 1)
+        .fill(null)
+        .map((_, i) => createTestPhoto({ id: `photo-${i}` }));
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify(photos));
+      mockedImageUtils.getFileSize.mockResolvedValue({ success: true, size: 1_000_000 }); // 1MB
+
+      const result = await validatePhotoLimits('file:///test.jpg');
+
+      expect(result.success).toBe(true);
+      expect(result.data?.allowed).toBe(true);
+    });
+
+    it('should fail when file size check fails (fail-closed)', async () => {
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify([]));
+      mockedImageUtils.getFileSize.mockResolvedValue({ success: false, error: 'File does not exist' });
+
+      const result = await validatePhotoLimits('file:///test.jpg');
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('STORAGE_ERROR');
+    });
+
+    it('should allow when exactly at active size limit', async () => {
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify([]));
+      mockedImageUtils.getFileSize.mockResolvedValue({ success: true, size: MAX_PHOTO_SIZE_ACTIVE_BYTES }); // Exactly 4.5MB
+
+      const result = await validatePhotoLimits('file:///test.jpg');
+
+      expect(result.success).toBe(true);
+      expect(result.data?.allowed).toBe(true);
+    });
+  });
+
+  describe('addPhoto with limits', () => {
+    it('should fail with PHOTO_COUNT_LIMIT_EXCEEDED when limit reached', async () => {
+      const photos = Array(MAX_TOTAL_PHOTOS)
+        .fill(null)
+        .map((_, i) => createTestPhoto({ id: `photo-${i}` }));
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify(photos));
+      mockedImageUtils.getFileSize.mockResolvedValue({ success: true, size: 1_000_000 }); // 1MB
+
+      const input: AddPhotoInput = {
+        customerId: 'customer-1',
+        type: 'before',
+        sourceUri: 'file:///temp/photo.jpg',
+      };
+
+      const result = await addPhoto(input);
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('PHOTO_COUNT_LIMIT_EXCEEDED');
+    });
+
+    it('should fail with PHOTO_SIZE_LIMIT_EXCEEDED when source file too large', async () => {
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify([]));
+      mockedImageUtils.getFileSize.mockResolvedValue({ success: true, size: MAX_PHOTO_SIZE_ACTIVE_BYTES + 1 }); // Exceeds 4.5MB
+
+      const input: AddPhotoInput = {
+        customerId: 'customer-1',
+        type: 'before',
+        sourceUri: 'file:///temp/photo.jpg',
+      };
+
+      const result = await addPhoto(input);
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('PHOTO_SIZE_LIMIT_EXCEEDED');
+    });
+
+    it('should fail with PHOTO_SIZE_LIMIT_EXCEEDED when stored file exceeds store limit', async () => {
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify([]));
+      // Source file is within active limit
+      mockedImageUtils.getFileSize
+        .mockResolvedValueOnce({ success: true, size: MAX_PHOTO_SIZE_ACTIVE_BYTES }) // Source check
+        .mockResolvedValueOnce({ success: true, size: MAX_PHOTO_SIZE_STORE_BYTES + 1 }); // Stored file check - exceeds store limit
+      mockedImageUtils.copyCustomerPhotoToPermanentStorage.mockResolvedValue(
+        'file:///permanent/path/photo.jpg'
+      );
+      mockedImageUtils.deleteStoredImage.mockResolvedValue(undefined);
+
+      const input: AddPhotoInput = {
+        customerId: 'customer-1',
+        type: 'before',
+        sourceUri: 'file:///temp/photo.jpg',
+      };
+
+      const result = await addPhoto(input);
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('PHOTO_SIZE_LIMIT_EXCEEDED');
+      // Should clean up the copied file
+      expect(mockedImageUtils.deleteStoredImage).toHaveBeenCalledWith(
+        'file:///permanent/path/photo.jpg'
+      );
+    });
+
+    it('should succeed when within all limits', async () => {
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify([]));
+      mockedImageUtils.getFileSize
+        .mockResolvedValueOnce({ success: true, size: 1_000_000 }) // Source check - 1MB
+        .mockResolvedValueOnce({ success: true, size: 1_000_000 }); // Stored check - 1MB
+      mockedImageUtils.copyCustomerPhotoToPermanentStorage.mockResolvedValue(
+        'file:///permanent/path/photo.jpg'
+      );
+      mockedAsyncStorage.setItem.mockResolvedValue(undefined);
+
+      const input: AddPhotoInput = {
+        customerId: 'customer-1',
+        type: 'before',
+        sourceUri: 'file:///temp/photo.jpg',
+        originalFilename: 'photo.jpg',
+      };
+
+      const result = await addPhoto(input);
+
+      expect(result.success).toBe(true);
+      expect(result.data?.customerId).toBe('customer-1');
     });
   });
 });
