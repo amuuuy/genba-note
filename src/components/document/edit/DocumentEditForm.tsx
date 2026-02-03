@@ -10,6 +10,7 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import type { DocumentType, DocumentStatus, LineItem } from '@/types/document';
 import type { LineItemInput } from '@/domain/lineItem/lineItemService';
 import type { DocumentFormValues } from '@/hooks/useDocumentEdit';
+import type { Customer } from '@/types/customer';
 import { FormInput, FormSection } from '@/components/common';
 import { ClientInfoSection } from './ClientInfoSection';
 import { DocumentDatesSection } from './DocumentDatesSection';
@@ -25,12 +26,16 @@ export interface DocumentEditFormProps {
   lineItems: LineItem[];
   /** Current status */
   status: DocumentStatus;
+  /** Selected customer ID (null if not linked) */
+  customerId: string | null;
   /** Validation errors by field */
   errors: Record<string, string>;
   /** Whether the document is saved (has ID) */
   isSaved: boolean;
   /** Callback when a form field changes */
   onFieldChange: (field: keyof DocumentFormValues, value: string) => void;
+  /** Callback when a customer is selected from master */
+  onCustomerSelect: (customer: Customer | null) => void;
   /** Callback to add a line item */
   onLineItemAdd: (input: LineItemInput) => boolean;
   /** Callback to update a line item */
@@ -52,9 +57,11 @@ function DocumentEditFormComponent({
   values,
   lineItems,
   status,
+  customerId,
   errors,
   isSaved,
   onFieldChange,
+  onCustomerSelect,
   onLineItemAdd,
   onLineItemUpdate,
   onLineItemRemove,
@@ -140,11 +147,13 @@ function DocumentEditFormComponent({
       <ClientInfoSection
         clientName={values.clientName}
         clientAddress={values.clientAddress}
+        customerId={customerId}
         errors={{
           clientName: errors.clientName,
           clientAddress: errors.clientAddress,
         }}
         onChange={handleClientFieldChange}
+        onCustomerSelect={onCustomerSelect}
         disabled={isFieldsDisabled}
       />
 

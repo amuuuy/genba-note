@@ -24,6 +24,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import type { DocumentType, DocumentStatus, Document } from '@/types/document';
+import type { Customer } from '@/types/customer';
 import { useDocumentEdit } from '@/hooks/useDocumentEdit';
 import { useLineItemEditor } from '@/hooks/useLineItemEditor';
 import { useReadOnlyMode } from '@/hooks/useReadOnlyMode';
@@ -61,6 +62,7 @@ export default function DocumentEditScreen() {
   const {
     state,
     updateField,
+    updateCustomerId,
     updateLineItems,
     save,
     changeStatus,
@@ -369,6 +371,14 @@ export default function DocumentEditScreen() {
     setShowActionSheet(true);
   }, []);
 
+  // Handle customer selection
+  const handleCustomerSelect = useCallback(
+    (customer: Customer | null) => {
+      updateCustomerId(customer?.id ?? null);
+    },
+    [updateCustomerId]
+  );
+
   // Handle status transition
   const handleStatusTransition = useCallback(
     async (newStatus: DocumentStatus, paidAt?: string) => {
@@ -525,9 +535,11 @@ export default function DocumentEditScreen() {
           values={state.values}
           lineItems={lineItemEditor.lineItems}
           status={state.status}
+          customerId={state.customerId}
           errors={state.errors}
           isSaved={!!state.documentId}
           onFieldChange={updateField}
+          onCustomerSelect={handleCustomerSelect}
           onLineItemAdd={lineItemEditor.addItem}
           onLineItemUpdate={lineItemEditor.updateItem}
           onLineItemRemove={lineItemEditor.removeItem}

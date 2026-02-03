@@ -342,6 +342,10 @@ export async function updateDocument(
       updates.clientAddress !== undefined
         ? updates.clientAddress
         : existing.clientAddress,
+    customerId:
+      updates.customerId !== undefined
+        ? updates.customerId
+        : existing.customerId,
     subject: updates.subject !== undefined ? updates.subject : existing.subject,
     issueDate: updates.issueDate ?? existing.issueDate,
     validUntil:

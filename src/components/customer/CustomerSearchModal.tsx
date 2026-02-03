@@ -1,8 +1,8 @@
 /**
- * UnitPricePickerModal Component
+ * CustomerSearchModal Component
  *
- * Modal for selecting a unit price from the master data.
- * Provides search/filter functionality.
+ * Modal for selecting a customer from the master data.
+ * Provides search functionality.
  */
 
 import React, { useCallback } from 'react';
@@ -16,66 +16,54 @@ import {
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { Ionicons } from '@expo/vector-icons';
-import type { UnitPrice } from '@/types/unitPrice';
-import { SearchBar, FilterChipGroup, type FilterOption } from '@/components/common';
-import { useUnitPricePicker } from '@/hooks';
+import type { Customer } from '@/types/customer';
+import { SearchBar } from '@/components/common';
+import { useCustomerList } from '@/hooks';
 
-export interface UnitPricePickerModalProps {
+export interface CustomerSearchModalProps {
   /** Whether the modal is visible */
   visible: boolean;
-  /** Callback when a unit price is selected */
-  onSelect: (unitPrice: UnitPrice) => void;
+  /** Callback when a customer is selected */
+  onSelect: (customer: Customer) => void;
   /** Callback when modal is closed */
   onCancel: () => void;
+  /** Callback when "Create New" is pressed (optional) */
+  onCreateNew?: () => void;
   /** Test ID */
   testID?: string;
 }
 
 /**
- * Format price as currency
+ * Customer list item
  */
-function formatCurrency(value: number): string {
-  return value.toLocaleString('ja-JP');
-}
-
-/**
- * Unit price list item
- */
-const UnitPriceItem = React.memo(function UnitPriceItem({
-  unitPrice,
+const CustomerItem = React.memo(function CustomerItem({
+  customer,
   onPress,
 }: {
-  unitPrice: UnitPrice;
+  customer: Customer;
   onPress: () => void;
 }) {
+  const secondaryText = customer.address || customer.contact.phone || '';
+
   return (
     <Pressable
       style={styles.item}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${unitPrice.name}、${formatCurrency(unitPrice.defaultPrice)}円、${unitPrice.unit}`}
+      accessibilityLabel={`${customer.name}${secondaryText ? `、${secondaryText}` : ''}`}
     >
+      <View style={styles.iconContainer}>
+        <Ionicons name="person-outline" size={20} color="#666" />
+      </View>
       <View style={styles.itemMain}>
         <Text style={styles.itemName} numberOfLines={1}>
-          {unitPrice.name}
+          {customer.name}
         </Text>
-        <View style={styles.itemDetails}>
-          <Text style={styles.itemUnit}>{unitPrice.unit}</Text>
-          {unitPrice.category && (
-            <>
-              <Text style={styles.itemDot}>・</Text>
-              <Text style={styles.itemCategory}>{unitPrice.category}</Text>
-            </>
-          )}
-        </View>
-      </View>
-      <View style={styles.itemPrice}>
-        <Text style={styles.itemPriceText}>
-          ¥{formatCurrency(unitPrice.defaultPrice)}
-        </Text>
-        <Text style={styles.itemTaxRate}>
-          {unitPrice.defaultTaxRate === 10 ? '10%' : '非課税'}
-        </Text>
+        {secondaryText ? (
+          <Text style={styles.itemSecondary} numberOfLines={1}>
+            {secondaryText}
+          </Text>
+        ) : null}
       </View>
       <Ionicons name="add-circle-outline" size={24} color="#007AFF" />
     </Pressable>
@@ -83,50 +71,42 @@ const UnitPriceItem = React.memo(function UnitPriceItem({
 });
 
 /**
- * Modal for selecting from unit prices
+ * Modal for selecting from customers
  */
-export const UnitPricePickerModal: React.FC<UnitPricePickerModalProps> = ({
+export const CustomerSearchModal: React.FC<CustomerSearchModalProps> = ({
   visible,
   onSelect,
   onCancel,
+  onCreateNew,
   testID,
 }) => {
   const {
-    unitPrices,
+    customers,
     isLoading,
     error,
     searchText,
-    categories,
-    selectedCategory,
     setSearchText,
-    setCategory,
     refresh,
-  } = useUnitPricePicker();
+  } = useCustomerList();
 
   const handleItemPress = useCallback(
-    (unitPrice: UnitPrice) => {
-      onSelect(unitPrice);
+    (customer: Customer) => {
+      onSelect(customer);
     },
     [onSelect]
   );
 
-  // Build category filter options
-  const categoryOptions: FilterOption<string>[] = [
-    { value: '', label: 'すべて' },
-    ...categories.map((cat) => ({ value: cat, label: cat })),
-  ];
-
   const renderItem = useCallback(
-    ({ item }: { item: UnitPrice }) => (
-      <UnitPriceItem
-        unitPrice={item}
+    ({ item }: { item: Customer }) => (
+      <CustomerItem
+        customer={item}
         onPress={() => handleItemPress(item)}
       />
     ),
     [handleItemPress]
   );
 
-  const keyExtractor = useCallback((item: UnitPrice) => item.id, []);
+  const keyExtractor = useCallback((item: Customer) => item.id, []);
 
   const ListEmptyComponent = useCallback(() => {
     if (isLoading) {
@@ -152,13 +132,37 @@ export const UnitPricePickerModal: React.FC<UnitPricePickerModalProps> = ({
       <View style={styles.emptyContainer}>
         <Ionicons name="search-outline" size={48} color="#C7C7CC" />
         <Text style={styles.emptyText}>
-          {searchText || selectedCategory
-            ? '該当する単価表がありません'
-            : '単価表が登録されていません'}
+          {searchText
+            ? '該当する顧客がありません'
+            : '顧客が登録されていません'}
         </Text>
+        {onCreateNew && !searchText && (
+          <Pressable style={styles.createButton} onPress={onCreateNew}>
+            <Ionicons name="add-circle-outline" size={20} color="#fff" />
+            <Text style={styles.createText}>新規顧客を作成</Text>
+          </Pressable>
+        )}
       </View>
     );
-  }, [isLoading, error, searchText, selectedCategory, refresh]);
+  }, [isLoading, error, searchText, refresh, onCreateNew]);
+
+  const ListFooterComponent = useCallback(() => {
+    if (customers.length === 0 || !onCreateNew) return null;
+
+    return (
+      <View style={styles.footer}>
+        <Pressable
+          style={styles.footerButton}
+          onPress={onCreateNew}
+          accessibilityRole="button"
+          accessibilityLabel="新規顧客を作成"
+        >
+          <Ionicons name="add-circle-outline" size={20} color="#007AFF" />
+          <Text style={styles.footerText}>新規顧客を作成</Text>
+        </Pressable>
+      </View>
+    );
+  }, [customers.length, onCreateNew]);
 
   return (
     <Modal
@@ -179,7 +183,7 @@ export const UnitPricePickerModal: React.FC<UnitPricePickerModalProps> = ({
           >
             <Ionicons name="close" size={28} color="#000" />
           </Pressable>
-          <Text style={styles.headerTitle}>単価表から選択</Text>
+          <Text style={styles.headerTitle}>顧客を選択</Text>
           <View style={styles.closeButton} />
         </View>
 
@@ -188,31 +192,21 @@ export const UnitPricePickerModal: React.FC<UnitPricePickerModalProps> = ({
           <SearchBar
             value={searchText}
             onChangeText={setSearchText}
-            placeholder="品名で検索..."
+            placeholder="顧客名・住所で検索..."
           />
         </View>
 
-        {/* Category filter */}
-        {categories.length > 0 && (
-          <View style={styles.filterContainer}>
-            <FilterChipGroup
-              options={categoryOptions}
-              selectedValue={selectedCategory ?? ''}
-              onSelect={(value) => setCategory(value || null)}
-            />
-          </View>
-        )}
-
         {/* List */}
         <FlashList
-          data={unitPrices}
+          data={customers}
           renderItem={renderItem}
           keyExtractor={keyExtractor}
           ListEmptyComponent={ListEmptyComponent}
+          ListFooterComponent={ListFooterComponent}
           keyboardShouldPersistTaps="handled"
           style={styles.list}
           contentContainerStyle={
-            unitPrices.length === 0 ? styles.listEmptyContent : undefined
+            customers.length === 0 ? styles.listEmptyContent : undefined
           }
         />
       </View>
@@ -220,7 +214,7 @@ export const UnitPricePickerModal: React.FC<UnitPricePickerModalProps> = ({
   );
 };
 
-UnitPricePickerModal.displayName = 'UnitPricePickerModal';
+CustomerSearchModal.displayName = 'CustomerSearchModal';
 
 const styles = StyleSheet.create({
   container: {
@@ -252,11 +246,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     backgroundColor: '#fff',
-  },
-  filterContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#fff',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#C6C6C8',
   },
@@ -275,46 +264,28 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#E5E5E5',
   },
+  iconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F2F2F7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
   itemMain: {
     flex: 1,
     marginRight: 12,
   },
   itemName: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '500',
     color: '#000',
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  itemDetails: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  itemUnit: {
+  itemSecondary: {
     fontSize: 13,
     color: '#666',
-  },
-  itemDot: {
-    fontSize: 13,
-    color: '#999',
-    marginHorizontal: 4,
-  },
-  itemCategory: {
-    fontSize: 13,
-    color: '#666',
-  },
-  itemPrice: {
-    alignItems: 'flex-end',
-    marginRight: 12,
-  },
-  itemPriceText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#000',
-  },
-  itemTaxRate: {
-    fontSize: 11,
-    color: '#999',
-    marginTop: 2,
   },
   emptyContainer: {
     flex: 1,
@@ -345,5 +316,39 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#fff',
+  },
+  createButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    gap: 8,
+  },
+  createText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  footer: {
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E5E5E5',
+    backgroundColor: '#fff',
+  },
+  footerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 8,
+  },
+  footerText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#007AFF',
   },
 });

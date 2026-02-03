@@ -63,6 +63,8 @@ export interface DocumentEditState {
   documentNo: string | null;
   /** Current status */
   status: DocumentStatus;
+  /** Selected customer ID from master (null if not linked) */
+  customerId: string | null;
   /** Form field values */
   values: DocumentFormValues;
   /** Line items (managed separately by useLineItemEditor) */
@@ -90,6 +92,7 @@ type DocumentEditAction =
   | { type: 'LOAD_NEW'; docType: DocumentType }
   | { type: 'LOAD_ERROR'; message: string }
   | { type: 'UPDATE_FIELD'; field: keyof DocumentFormValues; value: string }
+  | { type: 'UPDATE_CUSTOMER_ID'; customerId: string | null }
   | { type: 'UPDATE_LINE_ITEMS'; lineItems: LineItem[] }
   | { type: 'SET_ERRORS'; errors: Record<string, string> }
   | { type: 'CLEAR_ERRORS' }
@@ -118,6 +121,7 @@ const initialState: DocumentEditState = {
   documentId: null,
   documentNo: null,
   status: 'draft',
+  customerId: null,
   values: initialFormValues,
   lineItems: [],
   issuerSnapshot: null,
@@ -149,6 +153,7 @@ function documentEditReducer(
         documentId: action.document.id,
         documentNo: action.document.documentNo,
         status: action.document.status,
+        customerId: (action.document as Document & { customerId?: string | null }).customerId ?? null,
         values: {
           type: action.document.type,
           clientName: action.document.clientName,
@@ -198,6 +203,13 @@ function documentEditReducer(
           ...state.errors,
           [action.field]: '', // Clear error for this field
         },
+      };
+
+    case 'UPDATE_CUSTOMER_ID':
+      return {
+        ...state,
+        customerId: action.customerId,
+        isDirty: true,
       };
 
     case 'UPDATE_LINE_ITEMS':
@@ -346,6 +358,8 @@ export interface UseDocumentEditReturn {
   state: DocumentEditState;
   /** Update a form field */
   updateField: (field: keyof DocumentFormValues, value: string) => void;
+  /** Update customer ID (set to null to unlink) */
+  updateCustomerId: (customerId: string | null) => void;
   /** Update line items from useLineItemEditor */
   updateLineItems: (items: LineItem[]) => void;
   /** Save the document (create or update) */
@@ -424,6 +438,10 @@ export function useDocumentEdit(
     []
   );
 
+  const updateCustomerId = useCallback((customerId: string | null) => {
+    dispatch({ type: 'UPDATE_CUSTOMER_ID', customerId });
+  }, []);
+
   const updateLineItems = useCallback((items: LineItem[]) => {
     dispatch({ type: 'UPDATE_LINE_ITEMS', lineItems: items });
   }, []);
@@ -454,6 +472,7 @@ export function useDocumentEdit(
           type: state.values.type,
           clientName: state.values.clientName,
           clientAddress: state.values.clientAddress || null,
+          customerId: state.customerId,
           subject: state.values.subject || null,
           issueDate: state.values.issueDate,
           validUntil:
@@ -491,6 +510,7 @@ export function useDocumentEdit(
         const input: UpdateDocumentInput = {
           clientName: state.values.clientName,
           clientAddress: state.values.clientAddress || null,
+          customerId: state.customerId,
           subject: state.values.subject || null,
           issueDate: state.values.issueDate,
           validUntil:
@@ -599,6 +619,7 @@ export function useDocumentEdit(
   return {
     state,
     updateField,
+    updateCustomerId,
     updateLineItems,
     save,
     changeStatus,

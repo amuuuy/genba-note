@@ -1,9 +1,9 @@
 /**
- * Unit Price List Screen
+ * Customer List Screen
  *
- * Screen for managing unit price master data:
+ * Screen for managing customer master data:
  * - FlashList for high-performance scrolling
- * - Search and category filter
+ * - Search functionality
  * - Create/Edit/Delete operations
  * - FAB for quick creation
  */
@@ -18,71 +18,57 @@ import {
   Alert,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
+import { router, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import type { UnitPrice } from '../../src/types/unitPrice';
-import type { UnitPriceInput } from '../../src/domain/unitPrice';
-import { useUnitPriceList } from '../../src/hooks/useUnitPriceList';
+import type { Customer } from '../../src/types/customer';
+import { useCustomerList } from '../../src/hooks/useCustomerList';
 import { useReadOnlyMode } from '../../src/hooks/useReadOnlyMode';
 import {
-  EmptyUnitPriceList,
-  UnitPriceListItem,
-  UnitPriceEditorModal,
-} from '../../src/components/unitPrice';
+  EmptyCustomerList,
+  CustomerListItem,
+} from '../../src/components/customer';
 import {
   SearchBar,
-  FilterChipGroup,
   ConfirmDialog,
-  type FilterOption,
 } from '../../src/components/common';
 
 /**
- * Main unit price list screen
+ * Main customer list screen
  */
-export default function UnitPricesScreen() {
-  // Unit price list state
+export default function CustomersScreen() {
+  // Customer list state
   const {
-    unitPrices,
+    customers,
     isLoading,
     error,
     searchText,
-    categories,
-    selectedCategory,
     setSearchText,
-    setCategory,
     refresh,
-    createItem,
-    updateItem,
     deleteItem,
-  } = useUnitPriceList();
+  } = useCustomerList();
 
   // Read-only mode state
   const { isReadOnlyMode } = useReadOnlyMode();
-
-  // Editor modal state
-  const [editorVisible, setEditorVisible] = useState(false);
-  const [editingUnitPrice, setEditingUnitPrice] = useState<UnitPrice | null>(null);
 
   // Delete confirmation state
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
 
   // Determine if list is filtered
-  const isFiltered = Boolean(searchText || selectedCategory);
+  const isFiltered = Boolean(searchText);
 
   // Handle create button press
   const handleCreatePress = useCallback(() => {
-    setEditingUnitPrice(null);
-    setEditorVisible(true);
+    router.push('/customer/new' as Href);
   }, []);
 
   // Handle item press (edit)
-  const handleItemPress = useCallback((unitPrice: UnitPrice) => {
-    setEditingUnitPrice(unitPrice);
-    setEditorVisible(true);
+  const handleItemPress = useCallback((id: string) => {
+    router.push(`/customer/${id}` as Href);
   }, []);
 
   // Handle delete trigger
-  const handleDeletePress = useCallback((unitPrice: UnitPrice) => {
-    setDeleteConfirm({ id: unitPrice.id, name: unitPrice.name });
+  const handleDeletePress = useCallback((id: string, name: string) => {
+    setDeleteConfirm({ id, name });
   }, []);
 
   // Handle delete confirmation
@@ -101,45 +87,14 @@ export default function UnitPricesScreen() {
     setDeleteConfirm(null);
   }, []);
 
-  // Handle editor save
-  const handleEditorSave = useCallback(async (input: UnitPriceInput) => {
-    let success: boolean;
-    if (editingUnitPrice) {
-      // Update existing
-      success = await updateItem(editingUnitPrice.id, input);
-    } else {
-      // Create new
-      success = await createItem(input);
-    }
-
-    if (success) {
-      setEditorVisible(false);
-      setEditingUnitPrice(null);
-    } else {
-      Alert.alert('エラー', '保存に失敗しました');
-    }
-  }, [editingUnitPrice, createItem, updateItem]);
-
-  // Handle editor cancel
-  const handleEditorCancel = useCallback(() => {
-    setEditorVisible(false);
-    setEditingUnitPrice(null);
-  }, []);
-
-  // Build category filter options
-  const categoryOptions: FilterOption<string>[] = [
-    { value: '', label: 'すべて' },
-    ...categories.map((cat) => ({ value: cat, label: cat })),
-  ];
-
   // Render list item
   const renderItem = useCallback(
-    ({ item }: { item: UnitPrice }) => (
-      <UnitPriceListItem
-        unitPrice={item}
-        onPress={() => handleItemPress(item)}
-        onDelete={isReadOnlyMode ? undefined : () => handleDeletePress(item)}
-        testID={`unit-price-item-${item.id}`}
+    ({ item }: { item: Customer }) => (
+      <CustomerListItem
+        customer={item}
+        onPress={handleItemPress}
+        onDelete={isReadOnlyMode ? undefined : handleDeletePress}
+        testID={`customer-item-${item.id}`}
       />
     ),
     [handleItemPress, handleDeletePress, isReadOnlyMode]
@@ -147,35 +102,26 @@ export default function UnitPricesScreen() {
 
   // Render empty state
   const renderEmpty = useCallback(() => (
-    <EmptyUnitPriceList
+    <EmptyCustomerList
       isFiltered={isFiltered}
       onCreatePress={isReadOnlyMode ? undefined : handleCreatePress}
-      testID="empty-unit-price-list"
+      testID="empty-customer-list"
     />
   ), [isFiltered, isReadOnlyMode, handleCreatePress]);
 
-  // Render header with search and filters
+  // Render header with search
   const renderHeader = useCallback(() => (
     <View style={styles.header}>
       <SearchBar
         value={searchText}
         onChangeText={setSearchText}
-        placeholder="品名で検索..."
+        placeholder="顧客名・住所で検索..."
       />
-      {categories.length > 0 && (
-        <View style={styles.filterContainer}>
-          <FilterChipGroup
-            options={categoryOptions}
-            selectedValue={selectedCategory ?? ''}
-            onSelect={(value) => setCategory(value || null)}
-          />
-        </View>
-      )}
     </View>
-  ), [searchText, setSearchText, categories, categoryOptions, selectedCategory, setCategory]);
+  ), [searchText, setSearchText]);
 
   // Show error state
-  if (error && unitPrices.length === 0) {
+  if (error && customers.length === 0) {
     return (
       <View style={styles.container}>
         {renderHeader()}
@@ -193,13 +139,13 @@ export default function UnitPricesScreen() {
     <View style={styles.container}>
       {renderHeader()}
 
-      {isLoading && unitPrices.length === 0 ? (
+      {isLoading && customers.length === 0 ? (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
         </View>
       ) : (
         <FlashList
-          data={unitPrices}
+          data={customers}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
           ListEmptyComponent={renderEmpty}
@@ -209,7 +155,7 @@ export default function UnitPricesScreen() {
         />
       )}
 
-      {/* FAB for creating new unit price */}
+      {/* FAB for creating new customer */}
       <Pressable
         style={({ pressed }) => [
           styles.fab,
@@ -225,20 +171,11 @@ export default function UnitPricesScreen() {
         <Ionicons name="add" size={28} color="#fff" />
       </Pressable>
 
-      {/* Editor modal */}
-      <UnitPriceEditorModal
-        visible={editorVisible}
-        unitPrice={editingUnitPrice}
-        onSave={handleEditorSave}
-        onCancel={handleEditorCancel}
-        testID="unit-price-editor-modal"
-      />
-
       {/* Delete confirmation dialog */}
       <ConfirmDialog
         visible={deleteConfirm !== null}
-        title="単価を削除"
-        message={`「${deleteConfirm?.name ?? ''}」を削除しますか？\nこの操作は取り消せません。`}
+        title="顧客を削除"
+        message={`「${deleteConfirm?.name ?? ''}」を削除しますか？\nこの操作は取り消せません。\n※関連する写真も削除されます。`}
         confirmText="削除"
         cancelText="キャンセル"
         destructive
@@ -261,9 +198,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#E5E5EA',
-  },
-  filterContainer: {
-    marginTop: 12,
   },
   listContent: {
     paddingBottom: 100, // Space for FAB
