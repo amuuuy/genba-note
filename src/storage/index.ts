@@ -43,6 +43,7 @@ export {
   // Sensitive issuer info
   getSensitiveIssuerInfo,
   saveSensitiveIssuerInfo,
+  deleteSensitiveIssuerInfo,
   // Document-specific snapshots
   getIssuerSnapshot,
   saveIssuerSnapshot,

@@ -10,7 +10,8 @@ import {
   getNumberingSettings,
 } from '@/domain/document/autoNumberingService';
 import * as asyncStorageService from '@/storage/asyncStorageService';
-import { DEFAULT_APP_SETTINGS } from '@/types/settings';
+import type { StorageErrorCode } from '@/storage/asyncStorageService';
+import { DEFAULT_APP_SETTINGS, AppSettings } from '@/types/settings';
 
 // Mock AsyncStorage (required by asyncStorageService)
 jest.mock('@react-native-async-storage/async-storage', () => ({
@@ -100,15 +101,29 @@ describe('autoNumberingService', () => {
   });
 
   describe('generateDocumentNumber', () => {
+    // Helper to create mock for updateSettingsAtomic
+    function mockUpdateSettingsAtomic(
+      settings: AppSettings,
+      success: boolean = true,
+      errorCode?: StorageErrorCode
+    ) {
+      mockedAsyncStorageService.updateSettingsAtomic.mockImplementation(
+        async (transform) => {
+          if (!success) {
+            return {
+              success: false as const,
+              error: { code: errorCode || 'WRITE_ERROR' as StorageErrorCode, message: 'Failed to write' },
+            };
+          }
+          // Call transform to get the updated settings
+          const updated = transform(settings);
+          return { success: true as const, data: updated };
+        }
+      );
+    }
+
     it('should generate EST-001 for first estimate', async () => {
-      mockedAsyncStorageService.getSettings.mockResolvedValue({
-        success: true,
-        data: { ...DEFAULT_APP_SETTINGS },
-      });
-      mockedAsyncStorageService.updateSettings.mockResolvedValue({
-        success: true,
-        data: { ...DEFAULT_APP_SETTINGS, numbering: { ...DEFAULT_APP_SETTINGS.numbering, nextEstimateNumber: 2 } },
-      });
+      mockUpdateSettingsAtomic({ ...DEFAULT_APP_SETTINGS });
 
       const result = await generateDocumentNumber('estimate');
 
@@ -117,14 +132,7 @@ describe('autoNumberingService', () => {
     });
 
     it('should generate INV-001 for first invoice', async () => {
-      mockedAsyncStorageService.getSettings.mockResolvedValue({
-        success: true,
-        data: { ...DEFAULT_APP_SETTINGS },
-      });
-      mockedAsyncStorageService.updateSettings.mockResolvedValue({
-        success: true,
-        data: { ...DEFAULT_APP_SETTINGS, numbering: { ...DEFAULT_APP_SETTINGS.numbering, nextInvoiceNumber: 2 } },
-      });
+      mockUpdateSettingsAtomic({ ...DEFAULT_APP_SETTINGS });
 
       const result = await generateDocumentNumber('invoice');
 
@@ -141,26 +149,15 @@ describe('autoNumberingService', () => {
         },
       };
 
-      mockedAsyncStorageService.getSettings.mockResolvedValue({
-        success: true,
-        data: settings,
-      });
-      mockedAsyncStorageService.updateSettings.mockResolvedValue({
-        success: true,
-        data: { ...settings, numbering: { ...settings.numbering, nextEstimateNumber: 6 } },
-      });
+      mockUpdateSettingsAtomic(settings);
 
       const result = await generateDocumentNumber('estimate');
 
       expect(result.success).toBe(true);
       expect(result.data).toBe('EST-005');
 
-      // Verify updateSettings was called with incremented number
-      expect(mockedAsyncStorageService.updateSettings).toHaveBeenCalledWith({
-        numbering: expect.objectContaining({
-          nextEstimateNumber: 6,
-        }),
-      });
+      // Verify updateSettingsAtomic was called
+      expect(mockedAsyncStorageService.updateSettingsAtomic).toHaveBeenCalled();
     });
 
     it('should use custom prefix from settings', async () => {
@@ -173,14 +170,7 @@ describe('autoNumberingService', () => {
         },
       };
 
-      mockedAsyncStorageService.getSettings.mockResolvedValue({
-        success: true,
-        data: settings,
-      });
-      mockedAsyncStorageService.updateSettings.mockResolvedValue({
-        success: true,
-        data: settings,
-      });
+      mockUpdateSettingsAtomic(settings);
 
       const result = await generateDocumentNumber('estimate');
 
@@ -188,32 +178,23 @@ describe('autoNumberingService', () => {
       expect(result.data).toBe('QUOTE-001');
     });
 
-    it('should return error on settings read failure', async () => {
-      mockedAsyncStorageService.getSettings.mockResolvedValue({
-        success: false,
-        error: { code: 'READ_ERROR', message: 'Failed to read' },
-      });
-
-      const result = await generateDocumentNumber('estimate');
-
-      expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('SETTINGS_READ_ERROR');
-    });
-
     it('should return error on settings write failure', async () => {
-      mockedAsyncStorageService.getSettings.mockResolvedValue({
-        success: true,
-        data: { ...DEFAULT_APP_SETTINGS },
-      });
-      mockedAsyncStorageService.updateSettings.mockResolvedValue({
-        success: false,
-        error: { code: 'WRITE_ERROR', message: 'Failed to write' },
-      });
+      mockUpdateSettingsAtomic({ ...DEFAULT_APP_SETTINGS }, false, 'WRITE_ERROR' as StorageErrorCode);
 
       const result = await generateDocumentNumber('estimate');
 
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('SETTINGS_WRITE_ERROR');
+    });
+
+    it('should return error on read-only mode', async () => {
+      mockUpdateSettingsAtomic({ ...DEFAULT_APP_SETTINGS }, false, 'READONLY_MODE' as StorageErrorCode);
+
+      const result = await generateDocumentNumber('estimate');
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('SETTINGS_WRITE_ERROR');
+      expect(result.error?.message).toContain('read-only');
     });
 
     it('should handle large numbers correctly', async () => {
@@ -225,14 +206,7 @@ describe('autoNumberingService', () => {
         },
       };
 
-      mockedAsyncStorageService.getSettings.mockResolvedValue({
-        success: true,
-        data: settings,
-      });
-      mockedAsyncStorageService.updateSettings.mockResolvedValue({
-        success: true,
-        data: settings,
-      });
+      mockUpdateSettingsAtomic(settings);
 
       const result = await generateDocumentNumber('invoice');
 

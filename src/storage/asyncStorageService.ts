@@ -15,6 +15,11 @@ import { UnitPrice, UnitPriceFilter } from '@/types/unitPrice';
 import { AppSettings, DEFAULT_APP_SETTINGS } from '@/types/settings';
 import { STORAGE_KEYS } from '@/utils/constants';
 import { deleteIssuerSnapshot } from './secureStorageService';
+import {
+  documentsQueue,
+  unitPricesQueue,
+  settingsQueue,
+} from '@/utils/writeQueue';
 
 // === Result Types ===
 
@@ -122,6 +127,7 @@ export async function getDocumentById(
 
 /**
  * Save document (create or update)
+ * Serialized via documentsQueue to prevent RMW race conditions.
  */
 export async function saveDocument(
   document: Document
@@ -130,89 +136,104 @@ export async function saveDocument(
     return readOnlyError();
   }
 
-  try {
-    const result = await getAllDocuments();
-
-    if (!result.success) {
-      return errorResult(result.error!);
+  return documentsQueue.enqueue(async () => {
+    // Re-check read-only mode inside queue to handle mode changes during wait
+    if (getReadOnlyMode()) {
+      return readOnlyError();
     }
 
-    const documents = result.data ?? [];
-    const existingIndex = documents.findIndex((d) => d.id === document.id);
+    try {
+      const result = await getAllDocuments();
 
-    const now = Date.now();
-    const updatedDocument = {
-      ...document,
-      updatedAt: now,
-      createdAt: existingIndex === -1 ? now : document.createdAt,
-    };
+      if (!result.success) {
+        return errorResult<Document>(result.error!);
+      }
 
-    if (existingIndex !== -1) {
-      documents[existingIndex] = updatedDocument;
-    } else {
-      documents.push(updatedDocument);
+      const documents = result.data ?? [];
+      const existingIndex = documents.findIndex((d) => d.id === document.id);
+
+      const now = Date.now();
+      const updatedDocument = {
+        ...document,
+        updatedAt: now,
+        createdAt: existingIndex === -1 ? now : document.createdAt,
+      };
+
+      if (existingIndex !== -1) {
+        documents[existingIndex] = updatedDocument;
+      } else {
+        documents.push(updatedDocument);
+      }
+
+      await AsyncStorage.setItem(STORAGE_KEYS.DOCUMENTS, JSON.stringify(documents));
+      return successResult(updatedDocument);
+    } catch (error) {
+      return errorResult<Document>(
+        createError(
+          'WRITE_ERROR',
+          'Failed to save document',
+          error instanceof Error ? error : undefined
+        )
+      );
     }
-
-    await AsyncStorage.setItem(STORAGE_KEYS.DOCUMENTS, JSON.stringify(documents));
-    return successResult(updatedDocument);
-  } catch (error) {
-    return errorResult(
-      createError(
-        'WRITE_ERROR',
-        'Failed to save document',
-        error instanceof Error ? error : undefined
-      )
-    );
-  }
+  });
 }
 
 /**
  * Delete document and its sensitive snapshot
+ * Serialized via documentsQueue to prevent RMW race conditions.
  */
 export async function deleteDocument(id: string): Promise<StorageResult<void>> {
   if (getReadOnlyMode()) {
     return readOnlyError();
   }
 
-  try {
-    const result = await getAllDocuments();
-
-    if (!result.success) {
-      return errorResult(result.error!);
+  return documentsQueue.enqueue(async () => {
+    // Re-check read-only mode inside queue to handle mode changes during wait
+    if (getReadOnlyMode()) {
+      return readOnlyError();
     }
 
-    const documents = result.data ?? [];
-    const filteredDocuments = documents.filter((d) => d.id !== id);
+    try {
+      const result = await getAllDocuments();
 
-    await AsyncStorage.setItem(
-      STORAGE_KEYS.DOCUMENTS,
-      JSON.stringify(filteredDocuments)
-    );
+      if (!result.success) {
+        return errorResult<void>(result.error!);
+      }
 
-    // Also delete the sensitive issuer snapshot
-    const snapshotResult = await deleteIssuerSnapshot(id);
-    if (!snapshotResult.success) {
-      // Snapshot deletion failed - document is already deleted but sensitive data remains
-      // Return error to notify caller that cleanup was incomplete
-      return errorResult(
+      const documents = result.data ?? [];
+      const filteredDocuments = documents.filter((d) => d.id !== id);
+
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.DOCUMENTS,
+        JSON.stringify(filteredDocuments)
+      );
+
+      // Also delete the sensitive issuer snapshot
+      const snapshotResult = await deleteIssuerSnapshot(id);
+      if (!snapshotResult.success) {
+        // Snapshot deletion failed - document is already deleted but sensitive data remains
+        // Return error to notify caller that cleanup was incomplete
+        return errorResult<void>(
+          createError(
+            'WRITE_ERROR',
+            `Document deleted but failed to delete sensitive snapshot: ${snapshotResult.error?.message}`,
+            snapshotResult.error?.originalError
+          )
+        );
+      }
+
+      return successResult(undefined);
+    } catch (error) {
+      return errorResult<void>(
         createError(
           'WRITE_ERROR',
-          `Document deleted but failed to delete sensitive snapshot: ${snapshotResult.error?.message}`,
-          snapshotResult.error?.originalError
+          'Failed to delete document',
+          error instanceof Error ? error : undefined
         )
       );
     }
-
-    return successResult(undefined);
-  } catch (error) {
-    return errorResult(
-      createError(
-        'WRITE_ERROR',
-        'Failed to delete document',
-        error instanceof Error ? error : undefined
-      )
-    );
-  }
+  });
 }
 
 /**
@@ -350,6 +371,7 @@ export async function getUnitPriceById(
 
 /**
  * Save unit price (create or update)
+ * Serialized via unitPricesQueue to prevent RMW race conditions.
  */
 export async function saveUnitPrice(
   unitPrice: UnitPrice
@@ -358,77 +380,92 @@ export async function saveUnitPrice(
     return readOnlyError();
   }
 
-  try {
-    const result = await getAllUnitPrices();
-
-    if (!result.success) {
-      return errorResult(result.error!);
+  return unitPricesQueue.enqueue(async () => {
+    // Re-check read-only mode inside queue to handle mode changes during wait
+    if (getReadOnlyMode()) {
+      return readOnlyError();
     }
 
-    const unitPrices = result.data ?? [];
-    const existingIndex = unitPrices.findIndex((up) => up.id === unitPrice.id);
+    try {
+      const result = await getAllUnitPrices();
 
-    const now = Date.now();
-    const updatedUnitPrice = {
-      ...unitPrice,
-      updatedAt: now,
-      createdAt: existingIndex === -1 ? now : unitPrice.createdAt,
-    };
+      if (!result.success) {
+        return errorResult<UnitPrice>(result.error!);
+      }
 
-    if (existingIndex !== -1) {
-      unitPrices[existingIndex] = updatedUnitPrice;
-    } else {
-      unitPrices.push(updatedUnitPrice);
+      const unitPrices = result.data ?? [];
+      const existingIndex = unitPrices.findIndex((up) => up.id === unitPrice.id);
+
+      const now = Date.now();
+      const updatedUnitPrice = {
+        ...unitPrice,
+        updatedAt: now,
+        createdAt: existingIndex === -1 ? now : unitPrice.createdAt,
+      };
+
+      if (existingIndex !== -1) {
+        unitPrices[existingIndex] = updatedUnitPrice;
+      } else {
+        unitPrices.push(updatedUnitPrice);
+      }
+
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.UNIT_PRICES,
+        JSON.stringify(unitPrices)
+      );
+      return successResult(updatedUnitPrice);
+    } catch (error) {
+      return errorResult<UnitPrice>(
+        createError(
+          'WRITE_ERROR',
+          'Failed to save unit price',
+          error instanceof Error ? error : undefined
+        )
+      );
     }
-
-    await AsyncStorage.setItem(
-      STORAGE_KEYS.UNIT_PRICES,
-      JSON.stringify(unitPrices)
-    );
-    return successResult(updatedUnitPrice);
-  } catch (error) {
-    return errorResult(
-      createError(
-        'WRITE_ERROR',
-        'Failed to save unit price',
-        error instanceof Error ? error : undefined
-      )
-    );
-  }
+  });
 }
 
 /**
  * Delete unit price
+ * Serialized via unitPricesQueue to prevent RMW race conditions.
  */
 export async function deleteUnitPrice(id: string): Promise<StorageResult<void>> {
   if (getReadOnlyMode()) {
     return readOnlyError();
   }
 
-  try {
-    const result = await getAllUnitPrices();
-
-    if (!result.success) {
-      return errorResult(result.error!);
+  return unitPricesQueue.enqueue(async () => {
+    // Re-check read-only mode inside queue to handle mode changes during wait
+    if (getReadOnlyMode()) {
+      return readOnlyError();
     }
 
-    const unitPrices = result.data ?? [];
-    const filteredUnitPrices = unitPrices.filter((up) => up.id !== id);
+    try {
+      const result = await getAllUnitPrices();
 
-    await AsyncStorage.setItem(
-      STORAGE_KEYS.UNIT_PRICES,
-      JSON.stringify(filteredUnitPrices)
-    );
-    return successResult(undefined);
-  } catch (error) {
-    return errorResult(
-      createError(
-        'WRITE_ERROR',
-        'Failed to delete unit price',
-        error instanceof Error ? error : undefined
-      )
-    );
-  }
+      if (!result.success) {
+        return errorResult<void>(result.error!);
+      }
+
+      const unitPrices = result.data ?? [];
+      const filteredUnitPrices = unitPrices.filter((up) => up.id !== id);
+
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.UNIT_PRICES,
+        JSON.stringify(filteredUnitPrices)
+      );
+      return successResult(undefined);
+    } catch (error) {
+      return errorResult<void>(
+        createError(
+          'WRITE_ERROR',
+          'Failed to delete unit price',
+          error instanceof Error ? error : undefined
+        )
+      );
+    }
+  });
 }
 
 /**
@@ -527,11 +564,15 @@ export async function getSettings(): Promise<StorageResult<AppSettings>> {
 }
 
 /**
- * Save app settings
+ * Internal function to save settings without queue.
+ * Used by updateSettings and updateSettingsAtomic which already hold the queue lock.
+ * IMPORTANT: Only call this if you've already acquired settingsQueue lock.
+ * Note: This function still checks read-only mode for safety.
  */
-export async function saveSettings(
+async function _saveSettingsInternal(
   settings: AppSettings
 ): Promise<StorageResult<AppSettings>> {
+  // Always check read-only mode for safety
   if (getReadOnlyMode()) {
     return readOnlyError();
   }
@@ -540,7 +581,7 @@ export async function saveSettings(
     await AsyncStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
     return successResult(settings);
   } catch (error) {
-    return errorResult(
+    return errorResult<AppSettings>(
       createError(
         'WRITE_ERROR',
         'Failed to save settings',
@@ -551,8 +592,60 @@ export async function saveSettings(
 }
 
 /**
+ * Atomically update settings with a transform function.
+ * Serialized via settingsQueue to prevent RMW race conditions.
+ * Use this for operations that need to read, modify, and write settings atomically.
+ *
+ * @param transform - Function that receives current settings and returns updated settings
+ * @returns Result containing the updated settings
+ */
+export async function updateSettingsAtomic(
+  transform: (current: AppSettings) => AppSettings
+): Promise<StorageResult<AppSettings>> {
+  if (getReadOnlyMode()) {
+    return readOnlyError();
+  }
+
+  return settingsQueue.enqueue(async () => {
+    try {
+      const result = await getSettings();
+
+      if (!result.success) {
+        return errorResult<AppSettings>(result.error!);
+      }
+
+      const updatedSettings = transform(result.data!);
+      return _saveSettingsInternal(updatedSettings);
+    } catch (error) {
+      return errorResult<AppSettings>(
+        createError(
+          'WRITE_ERROR',
+          'Failed to update settings atomically',
+          error instanceof Error ? error : undefined
+        )
+      );
+    }
+  });
+}
+
+/**
+ * Save app settings
+ * Serialized via settingsQueue to prevent RMW race conditions.
+ */
+export async function saveSettings(
+  settings: AppSettings
+): Promise<StorageResult<AppSettings>> {
+  if (getReadOnlyMode()) {
+    return readOnlyError();
+  }
+
+  return settingsQueue.enqueue(() => _saveSettingsInternal(settings));
+}
+
+/**
  * Update app settings (partial update)
- * Merges provided fields with existing settings
+ * Merges provided fields with existing settings.
+ * Serialized via settingsQueue to prevent RMW race conditions.
  */
 export async function updateSettings(
   partial: Partial<AppSettings>
@@ -561,38 +654,40 @@ export async function updateSettings(
     return readOnlyError();
   }
 
-  try {
-    const result = await getSettings();
+  return settingsQueue.enqueue(async () => {
+    try {
+      const result = await getSettings();
 
-    if (!result.success) {
-      return errorResult(result.error!);
+      if (!result.success) {
+        return errorResult<AppSettings>(result.error!);
+      }
+
+      const existingSettings = result.data!;
+      const updatedSettings: AppSettings = {
+        ...existingSettings,
+        ...partial,
+        // Deep merge for nested objects
+        issuer: {
+          ...existingSettings.issuer,
+          ...partial.issuer,
+        },
+        numbering: {
+          ...existingSettings.numbering,
+          ...partial.numbering,
+        },
+      };
+
+      return _saveSettingsInternal(updatedSettings);
+    } catch (error) {
+      return errorResult<AppSettings>(
+        createError(
+          'WRITE_ERROR',
+          'Failed to update settings',
+          error instanceof Error ? error : undefined
+        )
+      );
     }
-
-    const existingSettings = result.data!;
-    const updatedSettings: AppSettings = {
-      ...existingSettings,
-      ...partial,
-      // Deep merge for nested objects
-      issuer: {
-        ...existingSettings.issuer,
-        ...partial.issuer,
-      },
-      numbering: {
-        ...existingSettings.numbering,
-        ...partial.numbering,
-      },
-    };
-
-    return saveSettings(updatedSettings);
-  } catch (error) {
-    return errorResult(
-      createError(
-        'WRITE_ERROR',
-        'Failed to update settings',
-        error instanceof Error ? error : undefined
-      )
-    );
-  }
+  });
 }
 
 // === Schema Version Operations ===

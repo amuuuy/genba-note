@@ -20,6 +20,7 @@ import {
 } from './types';
 import { generateUUID } from '@/utils/uuid';
 import { STORAGE_KEYS } from '@/utils/constants';
+import { customersQueue } from '@/utils/writeQueue';
 
 // === Helper Functions ===
 
@@ -77,45 +78,48 @@ function matchesSearchText(customer: Customer, searchText: string): boolean {
 
 /**
  * Create a new customer
+ * Serialized via customersQueue to prevent RMW race conditions.
  */
 export async function createCustomer(
   input: CreateCustomerInput
 ): Promise<CustomerDomainResult<Customer>> {
-  // Validate name
+  // Validate name before acquiring queue lock (fast fail)
   const nameError = validateName(input.name);
   if (nameError) {
     return errorResult(nameError);
   }
 
-  try {
-    const customers = await getAllCustomersFromStorage();
+  return customersQueue.enqueue(async () => {
+    try {
+      const customers = await getAllCustomersFromStorage();
 
-    const now = Date.now();
-    const customer: Customer = {
-      id: generateUUID(),
-      name: input.name.trim(),
-      address: input.address ?? null,
-      contact: {
-        phone: input.phone ?? null,
-        email: input.email ?? null,
-      },
-      createdAt: now,
-      updatedAt: now,
-    };
+      const now = Date.now();
+      const customer: Customer = {
+        id: generateUUID(),
+        name: input.name.trim(),
+        address: input.address ?? null,
+        contact: {
+          phone: input.phone ?? null,
+          email: input.email ?? null,
+        },
+        createdAt: now,
+        updatedAt: now,
+      };
 
-    customers.push(customer);
-    await saveAllCustomersToStorage(customers);
+      customers.push(customer);
+      await saveAllCustomersToStorage(customers);
 
-    return successResult(customer);
-  } catch (error) {
-    return errorResult(
-      createCustomerServiceError(
-        'STORAGE_ERROR',
-        'Failed to create customer',
-        { originalError: error instanceof Error ? error.message : String(error) }
-      )
-    );
-  }
+      return successResult(customer);
+    } catch (error) {
+      return errorResult(
+        createCustomerServiceError(
+          'STORAGE_ERROR',
+          'Failed to create customer',
+          { originalError: error instanceof Error ? error.message : String(error) }
+        )
+      );
+    }
+  });
 }
 
 /**
@@ -172,12 +176,13 @@ export async function listCustomers(
 
 /**
  * Update an existing customer
+ * Serialized via customersQueue to prevent RMW race conditions.
  */
 export async function updateCustomer(
   id: string,
   input: UpdateCustomerInput
 ): Promise<CustomerDomainResult<Customer>> {
-  // Validate name if provided
+  // Validate name if provided (fast fail before queue)
   if (input.name !== undefined) {
     const nameError = validateName(input.name);
     if (nameError) {
@@ -185,80 +190,85 @@ export async function updateCustomer(
     }
   }
 
-  try {
-    const customers = await getAllCustomersFromStorage();
-    const index = customers.findIndex((c) => c.id === id);
+  return customersQueue.enqueue(async () => {
+    try {
+      const customers = await getAllCustomersFromStorage();
+      const index = customers.findIndex((c) => c.id === id);
 
-    if (index === -1) {
+      if (index === -1) {
+        return errorResult(
+          createCustomerServiceError(
+            'CUSTOMER_NOT_FOUND',
+            `Customer with ID ${id} not found`
+          )
+        );
+      }
+
+      const existing = customers[index];
+      const now = Date.now();
+
+      const updated: Customer = {
+        ...existing,
+        name: input.name !== undefined ? input.name.trim() : existing.name,
+        address: input.address !== undefined ? input.address : existing.address,
+        contact: {
+          phone: input.phone !== undefined ? input.phone : existing.contact.phone,
+          email: input.email !== undefined ? input.email : existing.contact.email,
+        },
+        updatedAt: now,
+      };
+
+      customers[index] = updated;
+      await saveAllCustomersToStorage(customers);
+
+      return successResult(updated);
+    } catch (error) {
       return errorResult(
         createCustomerServiceError(
-          'CUSTOMER_NOT_FOUND',
-          `Customer with ID ${id} not found`
+          'STORAGE_ERROR',
+          'Failed to update customer',
+          { originalError: error instanceof Error ? error.message : String(error) }
         )
       );
     }
-
-    const existing = customers[index];
-    const now = Date.now();
-
-    const updated: Customer = {
-      ...existing,
-      name: input.name !== undefined ? input.name.trim() : existing.name,
-      address: input.address !== undefined ? input.address : existing.address,
-      contact: {
-        phone: input.phone !== undefined ? input.phone : existing.contact.phone,
-        email: input.email !== undefined ? input.email : existing.contact.email,
-      },
-      updatedAt: now,
-    };
-
-    customers[index] = updated;
-    await saveAllCustomersToStorage(customers);
-
-    return successResult(updated);
-  } catch (error) {
-    return errorResult(
-      createCustomerServiceError(
-        'STORAGE_ERROR',
-        'Failed to update customer',
-        { originalError: error instanceof Error ? error.message : String(error) }
-      )
-    );
-  }
+  });
 }
 
 /**
  * Delete a customer by ID
+ * Serialized via customersQueue to prevent RMW race conditions.
  */
 export async function deleteCustomer(
   id: string
 ): Promise<CustomerDomainResult<void>> {
-  try {
-    const customers = await getAllCustomersFromStorage();
-    const index = customers.findIndex((c) => c.id === id);
+  return customersQueue.enqueue(async () => {
+    try {
+      const customers = await getAllCustomersFromStorage();
+      const index = customers.findIndex((c) => c.id === id);
 
-    if (index === -1) {
+      if (index === -1) {
+        return errorResult(
+          createCustomerServiceError(
+            'CUSTOMER_NOT_FOUND',
+            `Customer with ID ${id} not found`
+          )
+        );
+      }
+
+      customers.splice(index, 1);
+      await saveAllCustomersToStorage(customers);
+
+      return successResult(undefined);
+    } catch (error) {
       return errorResult(
         createCustomerServiceError(
-          'CUSTOMER_NOT_FOUND',
-          `Customer with ID ${id} not found`
+          'STORAGE_ERROR',
+          'Failed to delete customer',
+          { originalError: error instanceof Error ? error.message : String(error) }
         )
       );
     }
-
-    customers.splice(index, 1);
-    await saveAllCustomersToStorage(customers);
-
-    return successResult(undefined);
-  } catch (error) {
-    return errorResult(
-      createCustomerServiceError(
-        'STORAGE_ERROR',
-        'Failed to delete customer',
-        { originalError: error instanceof Error ? error.message : String(error) }
-      )
-    );
-  }
+  });
 }
 
 /**

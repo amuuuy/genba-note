@@ -103,6 +103,45 @@ describe('secureStorageService', () => {
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('PARSE_ERROR');
     });
+
+    it('should reject data exceeding 2KB size limit', async () => {
+      // Create data that exceeds 2048 bytes when JSON-serialized
+      const largeIssuerInfo: SensitiveIssuerSettings = {
+        invoiceNumber: 'T1234567890123',
+        bankAccount: {
+          bankName: 'あ'.repeat(500), // 500 chars × 3 bytes = 1500 bytes
+          branchName: 'い'.repeat(500), // 500 chars × 3 bytes = 1500 bytes
+          accountType: '普通',
+          accountNumber: '1234567',
+          accountHolderName: '山田太郎',
+        },
+      };
+
+      const result = await saveSensitiveIssuerInfo(largeIssuerInfo);
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('SIZE_LIMIT_EXCEEDED');
+      expect(mockedSecureStore.setItemAsync).not.toHaveBeenCalled();
+    });
+
+    it('should accept data within 2KB size limit', async () => {
+      mockedSecureStore.setItemAsync.mockResolvedValue();
+
+      // Normal sized data should succeed
+      const normalIssuerInfo: SensitiveIssuerSettings = {
+        invoiceNumber: 'T1234567890123',
+        bankAccount: {
+          bankName: '三菱UFJ銀行',
+          branchName: '渋谷支店',
+          accountType: '普通',
+          accountNumber: '1234567',
+          accountHolderName: '山田太郎',
+        },
+      };
+
+      const result = await saveSensitiveIssuerInfo(normalIssuerInfo);
+      expect(result.success).toBe(true);
+      expect(mockedSecureStore.setItemAsync).toHaveBeenCalled();
+    });
   });
 
   // === Document Snapshot Tests ===
@@ -157,6 +196,31 @@ describe('secureStorageService', () => {
       const result = await deleteIssuerSnapshot(testDocumentId);
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('DELETE_ERROR');
+    });
+
+    it('should reject snapshot exceeding 2KB size limit', async () => {
+      // Create snapshot that exceeds 2048 bytes when JSON-serialized
+      const largeSnapshot: SensitiveIssuerSnapshot = {
+        invoiceNumber: 'T1234567890123',
+        bankName: 'あ'.repeat(500), // 500 chars × 3 bytes = 1500 bytes
+        branchName: 'い'.repeat(500), // 500 chars × 3 bytes = 1500 bytes
+        accountType: '普通',
+        accountNumber: '1234567',
+        accountHolderName: '山田太郎',
+      };
+
+      const result = await saveIssuerSnapshot(testDocumentId, largeSnapshot);
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('SIZE_LIMIT_EXCEEDED');
+      expect(mockedSecureStore.setItemAsync).not.toHaveBeenCalled();
+    });
+
+    it('should accept snapshot within 2KB size limit', async () => {
+      mockedSecureStore.setItemAsync.mockResolvedValue();
+
+      const result = await saveIssuerSnapshot(testDocumentId, testSnapshot);
+      expect(result.success).toBe(true);
+      expect(mockedSecureStore.setItemAsync).toHaveBeenCalled();
     });
   });
 

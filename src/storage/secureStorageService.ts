@@ -13,6 +13,10 @@ import { SensitiveIssuerSnapshot } from '@/types/document';
 import { SubscriptionCache, SUBSCRIPTION_STORE_KEYS } from '@/types/subscription';
 import { SECURE_STORAGE_KEYS } from '@/utils/constants';
 import { getReadOnlyMode } from './readOnlyModeState';
+import { getByteLength } from '@/utils/stringBytes';
+
+// expo-secure-store value size limit (2KB)
+const SECURE_STORE_VALUE_LIMIT = 2048;
 
 // === Result Types ===
 
@@ -22,7 +26,8 @@ export type SecureStorageErrorCode =
   | 'DELETE_ERROR'
   | 'PARSE_ERROR'
   | 'UNAVAILABLE'
-  | 'READONLY_MODE';
+  | 'READONLY_MODE'
+  | 'SIZE_LIMIT_EXCEEDED';
 
 export interface SecureStorageError {
   code: SecureStorageErrorCode;
@@ -112,9 +117,22 @@ export async function saveSensitiveIssuerInfo(
   if (readOnlyError) return readOnlyError;
 
   try {
+    const jsonString = JSON.stringify(info);
+
+    // Validate byte length before saving
+    const byteLength = getByteLength(jsonString);
+    if (byteLength > SECURE_STORE_VALUE_LIMIT) {
+      return errorResult(
+        createError(
+          'SIZE_LIMIT_EXCEEDED',
+          `データサイズ(${byteLength}バイト)が制限(${SECURE_STORE_VALUE_LIMIT}バイト)を超えています`
+        )
+      );
+    }
+
     await SecureStore.setItemAsync(
       SECURE_STORAGE_KEYS.SENSITIVE_ISSUER_INFO,
-      JSON.stringify(info)
+      jsonString
     );
     return successResult(undefined);
   } catch (error) {
@@ -122,6 +140,28 @@ export async function saveSensitiveIssuerInfo(
       createError(
         'WRITE_ERROR',
         'Failed to save sensitive issuer info',
+        error instanceof Error ? error : undefined
+      )
+    );
+  }
+}
+
+/**
+ * Delete sensitive issuer information
+ * Used for rollback when initial save fails
+ */
+export async function deleteSensitiveIssuerInfo(): Promise<SecureStorageResult<void>> {
+  const readOnlyError = checkReadOnlyMode();
+  if (readOnlyError) return readOnlyError;
+
+  try {
+    await SecureStore.deleteItemAsync(SECURE_STORAGE_KEYS.SENSITIVE_ISSUER_INFO);
+    return successResult(undefined);
+  } catch (error) {
+    return errorResult(
+      createError(
+        'DELETE_ERROR',
+        'Failed to delete sensitive issuer info',
         error instanceof Error ? error : undefined
       )
     );
@@ -174,8 +214,21 @@ export async function saveIssuerSnapshot(
   if (readOnlyError) return readOnlyError;
 
   try {
+    const jsonString = JSON.stringify(snapshot);
+
+    // Validate byte length before saving
+    const byteLength = getByteLength(jsonString);
+    if (byteLength > SECURE_STORE_VALUE_LIMIT) {
+      return errorResult(
+        createError(
+          'SIZE_LIMIT_EXCEEDED',
+          `スナップショットサイズ(${byteLength}バイト)が制限(${SECURE_STORE_VALUE_LIMIT}バイト)を超えています`
+        )
+      );
+    }
+
     const key = `${SECURE_STORAGE_KEYS.ISSUER_SNAPSHOT_PREFIX}${documentId}`;
-    await SecureStore.setItemAsync(key, JSON.stringify(snapshot));
+    await SecureStore.setItemAsync(key, jsonString);
     return successResult(undefined);
   } catch (error) {
     return errorResult(

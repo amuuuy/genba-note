@@ -13,6 +13,7 @@ import { getSettings, updateSettings } from '@/storage/asyncStorageService';
 import {
   getSensitiveIssuerInfo,
   saveSensitiveIssuerInfo,
+  deleteSensitiveIssuerInfo,
 } from '@/storage/secureStorageService';
 import { formatDocumentNumber } from '@/domain/document/autoNumberingService';
 import type { InvoiceTemplateType } from '@/pdf/types';
@@ -377,7 +378,42 @@ export function useSettingsEdit(): UseSettingsEditReturn {
     dispatch({ type: 'START_SAVING' });
 
     try {
-      // Save to AsyncStorage (non-sensitive data)
+      // 1. Get current SecureStore values for potential rollback
+      const previousSensitiveResult = await getSensitiveIssuerInfo();
+
+      // If we can't read current state, abort to prevent inconsistency on rollback
+      if (!previousSensitiveResult.success) {
+        throw new Error(
+          previousSensitiveResult.error?.message ??
+            '現在の設定を取得できませんでした。保存を中断します。'
+        );
+      }
+      const previousSensitive = previousSensitiveResult.data; // Can be null (first time)
+
+      // 2. Prepare new sensitive data
+      const newSensitiveData: SensitiveIssuerSettings = {
+        invoiceNumber: state.values.invoiceNumber || null,
+        bankAccount: {
+          bankName: state.values.bankName || null,
+          branchName: state.values.branchName || null,
+          accountType:
+            state.values.accountType === '' ? null : state.values.accountType,
+          accountNumber: state.values.accountNumber || null,
+          accountHolderName: state.values.accountHolderName || null,
+        },
+      };
+
+      // 3. Save to SecureStore FIRST (has stricter constraints - 2KB limit)
+      // If this fails, AsyncStorage remains unchanged, avoiding partial save state
+      const sensitiveResult = await saveSensitiveIssuerInfo(newSensitiveData);
+
+      if (!sensitiveResult.success) {
+        throw new Error(
+          sensitiveResult.error?.message ?? 'SecureStore保存に失敗しました'
+        );
+      }
+
+      // 4. Save to AsyncStorage AFTER SecureStore success
       // IMPORTANT: Do NOT include nextEstimateNumber/nextInvoiceNumber here!
       // Those are managed exclusively by autoNumberingService to prevent race conditions.
       // updateSettings performs deep merge, so omitting next* fields preserves existing values.
@@ -401,27 +437,29 @@ export function useSettingsEdit(): UseSettingsEditReturn {
       });
 
       if (!appSettingsResult.success) {
+        // 5. Rollback SecureStore on AsyncStorage failure to maintain consistency
+        // Handle both existing data (restore) and no previous data (delete)
+        if (previousSensitive !== null && previousSensitive !== undefined) {
+          // Restore previous values
+          const rollbackResult = await saveSensitiveIssuerInfo(previousSensitive);
+          if (!rollbackResult.success) {
+            // Critical: both storages are now inconsistent
+            throw new Error(
+              'AsyncStorage保存に失敗し、SecureStoreのロールバックにも失敗しました。データの整合性が保てない可能性があります。'
+            );
+          }
+        } else {
+          // First save case: delete the newly saved data to restore original state (no data)
+          const deleteResult = await deleteSensitiveIssuerInfo();
+          if (!deleteResult.success) {
+            // Critical: SecureStore has orphaned data
+            throw new Error(
+              'AsyncStorage保存に失敗し、SecureStoreの削除にも失敗しました。データの整合性が保てない可能性があります。'
+            );
+          }
+        }
         throw new Error(
           appSettingsResult.error?.message ?? 'AsyncStorage保存に失敗しました'
-        );
-      }
-
-      // Save to SecureStore (sensitive data)
-      const sensitiveResult = await saveSensitiveIssuerInfo({
-        invoiceNumber: state.values.invoiceNumber || null,
-        bankAccount: {
-          bankName: state.values.bankName || null,
-          branchName: state.values.branchName || null,
-          accountType:
-            state.values.accountType === '' ? null : state.values.accountType,
-          accountNumber: state.values.accountNumber || null,
-          accountHolderName: state.values.accountHolderName || null,
-        },
-      });
-
-      if (!sensitiveResult.success) {
-        throw new Error(
-          sensitiveResult.error?.message ?? 'SecureStore保存に失敗しました'
         );
       }
 

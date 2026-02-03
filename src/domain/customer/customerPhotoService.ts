@@ -25,6 +25,7 @@ import {
   deleteCustomerPhotosDirectory,
   imageUriToDataUrl,
 } from '@/utils/imageUtils';
+import { photosQueue } from '@/utils/writeQueue';
 
 // === Helper Functions ===
 
@@ -82,9 +83,12 @@ export async function addPhoto(
       createdAt: now,
     };
 
-    const photos = await getAllPhotosFromStorage();
-    photos.push(photo);
-    await saveAllPhotosToStorage(photos);
+    // Use queue to prevent RMW race conditions
+    await photosQueue.enqueue(async () => {
+      const photos = await getAllPhotosFromStorage();
+      photos.push(photo);
+      await saveAllPhotosToStorage(photos);
+    });
 
     return successResult(photo);
   } catch (error) {
@@ -136,10 +140,26 @@ export async function deletePhoto(
   photoId: string
 ): Promise<CustomerDomainResult<void>> {
   try {
-    const photos = await getAllPhotosFromStorage();
-    const index = photos.findIndex((p) => p.id === photoId);
+    // Use queue to prevent RMW race conditions
+    const result = await photosQueue.enqueue(async () => {
+      const photos = await getAllPhotosFromStorage();
+      const index = photos.findIndex((p) => p.id === photoId);
 
-    if (index === -1) {
+      if (index === -1) {
+        return { found: false as const };
+      }
+
+      // Get photo info before removing
+      const photo = photos[index];
+
+      // Remove from storage first (metadata)
+      photos.splice(index, 1);
+      await saveAllPhotosToStorage(photos);
+
+      return { found: true as const, uri: photo.uri };
+    });
+
+    if (!result.found) {
       return errorResult(
         createCustomerServiceError(
           'CUSTOMER_NOT_FOUND',
@@ -148,13 +168,8 @@ export async function deletePhoto(
       );
     }
 
-    // Delete the actual file
-    const photo = photos[index];
-    await deleteStoredImage(photo.uri);
-
-    // Remove from storage
-    photos.splice(index, 1);
-    await saveAllPhotosToStorage(photos);
+    // Delete the actual file (outside queue - file ops are independent)
+    await deleteStoredImage(result.uri);
 
     return successResult(undefined);
   } catch (error) {
@@ -175,16 +190,19 @@ export async function deletePhotosByCustomer(
   customerId: string
 ): Promise<CustomerDomainResult<void>> {
   try {
-    const photos = await getAllPhotosFromStorage();
+    // Use queue to prevent RMW race conditions
+    await photosQueue.enqueue(async () => {
+      const photos = await getAllPhotosFromStorage();
 
-    // Filter out photos for this customer
-    const remaining = photos.filter((p) => p.customerId !== customerId);
+      // Filter out photos for this customer
+      const remaining = photos.filter((p) => p.customerId !== customerId);
 
-    // Delete the customer's photo directory
+      // Update storage
+      await saveAllPhotosToStorage(remaining);
+    });
+
+    // Delete the customer's photo directory (outside queue - file ops are independent)
     await deleteCustomerPhotosDirectory(customerId);
-
-    // Update storage
-    await saveAllPhotosToStorage(remaining);
 
     return successResult(undefined);
   } catch (error) {
