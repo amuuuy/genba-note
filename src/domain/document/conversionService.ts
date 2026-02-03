@@ -210,6 +210,7 @@ export async function convertEstimateToInvoice(
     // Copied from estimate
     clientName: estimate.clientName,
     clientAddress: estimate.clientAddress,
+    customerId: estimate.customerId, // Preserve customer reference
     subject: estimate.subject,
     lineItems: regenerateLineItemIds(estimate.lineItems),
     notes: estimate.notes,

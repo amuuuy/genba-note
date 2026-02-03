@@ -157,6 +157,12 @@ export interface Document {
   /** Client address (optional) */
   clientAddress: string | null;
 
+  /**
+   * Reference to customer master (optional)
+   * null = legacy document without customer reference, or manually entered client
+   */
+  customerId: string | null;
+
   /** Project/subject name (optional) */
   subject: string | null;
 

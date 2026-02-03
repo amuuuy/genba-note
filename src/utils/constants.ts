@@ -72,6 +72,8 @@ export const STORAGE_KEYS = {
   UNIT_PRICES: '@genba_unitPrices',
   SETTINGS: '@genba_settings',
   SCHEMA_VERSION: '@genba_schemaVersion',
+  CUSTOMERS: '@genba_customers',
+  CUSTOMER_PHOTOS: '@genba_customerPhotos',
 } as const;
 
 /**

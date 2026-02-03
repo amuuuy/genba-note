@@ -55,6 +55,7 @@ export function createTestInvoice(overrides?: Partial<Document>): Document {
     status: 'sent', // Default to 'sent' for revenue tests
     clientName: 'Test Client',
     clientAddress: null,
+    customerId: null,
     subject: 'Test Project',
     issueDate: '2026-01-15', // Mid-month default
     validUntil: null,
@@ -84,6 +85,7 @@ export function createTestEstimate(overrides?: Partial<Document>): Document {
     status: 'sent',
     clientName: 'Test Client',
     clientAddress: null,
+    customerId: null,
     subject: 'Test Project',
     issueDate: '2026-01-15',
     validUntil: '2026-02-15',

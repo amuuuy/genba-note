@@ -59,8 +59,8 @@ describe('migrationRunner', () => {
   });
 
   describe('CURRENT_SCHEMA_VERSION', () => {
-    it('should be defined and be 2 for current release', () => {
-      expect(CURRENT_SCHEMA_VERSION).toBe(2);
+    it('should be defined and be 4 for current release', () => {
+      expect(CURRENT_SCHEMA_VERSION).toBe(4);
     });
   });
 
@@ -179,6 +179,8 @@ describe('migrationRunner', () => {
     it('should run migrations from version 0 to current', async () => {
       const migrateFn1 = jest.fn().mockResolvedValue({ success: true });
       const migrateFn2 = jest.fn().mockResolvedValue({ success: true });
+      const migrateFn3 = jest.fn().mockResolvedValue({ success: true });
+      const migrateFn4 = jest.fn().mockResolvedValue({ success: true });
       registerMigration({
         fromVersion: 0,
         toVersion: 1,
@@ -191,6 +193,18 @@ describe('migrationRunner', () => {
         description: 'Migration 1->2',
         migrate: migrateFn2,
       });
+      registerMigration({
+        fromVersion: 2,
+        toVersion: 3,
+        description: 'Migration 2->3',
+        migrate: migrateFn3,
+      });
+      registerMigration({
+        fromVersion: 3,
+        toVersion: 4,
+        description: 'Migration 3->4',
+        migrate: migrateFn4,
+      });
 
       mockedGetSchemaVersion.mockResolvedValue({ success: true, data: 0 });
       mockedSetSchemaVersion.mockResolvedValue({ success: true });
@@ -199,11 +213,13 @@ describe('migrationRunner', () => {
 
       expect(result.success).toBe(true);
       expect(result.startVersion).toBe(0);
-      expect(result.endVersion).toBe(2);
-      expect(result.migrationsRun).toBe(2);
+      expect(result.endVersion).toBe(4);
+      expect(result.migrationsRun).toBe(4);
       expect(result.readOnlyMode).toBe(false);
       expect(migrateFn1).toHaveBeenCalledTimes(1);
       expect(migrateFn2).toHaveBeenCalledTimes(1);
+      expect(migrateFn3).toHaveBeenCalledTimes(1);
+      expect(migrateFn4).toHaveBeenCalledTimes(1);
     });
 
     it('should skip migrations if already at current version', async () => {
@@ -262,6 +278,18 @@ describe('migrationRunner', () => {
         description: 'Migration 1->2',
         migrate: async () => ({ success: true }),
       });
+      registerMigration({
+        fromVersion: 2,
+        toVersion: 3,
+        description: 'Migration 2->3',
+        migrate: async () => ({ success: true }),
+      });
+      registerMigration({
+        fromVersion: 3,
+        toVersion: 4,
+        description: 'Migration 3->4',
+        migrate: async () => ({ success: true }),
+      });
 
       mockedGetSchemaVersion.mockResolvedValue({ success: true, data: 0 });
       mockedSetSchemaVersion.mockResolvedValue({ success: true });
@@ -270,6 +298,8 @@ describe('migrationRunner', () => {
 
       expect(mockedSetSchemaVersion).toHaveBeenCalledWith(1);
       expect(mockedSetSchemaVersion).toHaveBeenCalledWith(2);
+      expect(mockedSetSchemaVersion).toHaveBeenCalledWith(3);
+      expect(mockedSetSchemaVersion).toHaveBeenCalledWith(4);
     });
   });
 
@@ -361,6 +391,18 @@ describe('migrationRunner', () => {
         description: 'Migration 1->2',
         migrate: async () => ({ success: true }),
       });
+      registerMigration({
+        fromVersion: 2,
+        toVersion: 3,
+        description: 'Migration 2->3',
+        migrate: async () => ({ success: true }),
+      });
+      registerMigration({
+        fromVersion: 3,
+        toVersion: 4,
+        description: 'Migration 3->4',
+        migrate: async () => ({ success: true }),
+      });
 
       mockedGetSchemaVersion.mockResolvedValue({ success: true, data: 0 });
 
@@ -402,6 +444,18 @@ describe('migrationRunner', () => {
         description: 'Migration 1->2',
         migrate: async () => ({ success: true }),
       });
+      registerMigration({
+        fromVersion: 2,
+        toVersion: 3,
+        description: 'Migration 2->3',
+        migrate: async () => ({ success: true }),
+      });
+      registerMigration({
+        fromVersion: 3,
+        toVersion: 4,
+        description: 'Migration 3->4',
+        migrate: async () => ({ success: true }),
+      });
 
       mockedGetSchemaVersion.mockResolvedValue({ success: true, data: 0 });
       mockedSetSchemaVersion.mockResolvedValue({ success: true });
@@ -428,6 +482,18 @@ describe('migrationRunner', () => {
         fromVersion: 1,
         toVersion: 2,
         description: 'Migration 1->2',
+        migrate: async () => ({ success: true }),
+      });
+      registerMigration({
+        fromVersion: 2,
+        toVersion: 3,
+        description: 'Migration 2->3',
+        migrate: async () => ({ success: true }),
+      });
+      registerMigration({
+        fromVersion: 3,
+        toVersion: 4,
+        description: 'Migration 3->4',
         migrate: async () => ({ success: true }),
       });
 

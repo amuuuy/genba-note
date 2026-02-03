@@ -16,8 +16,14 @@ import {
 /**
  * Current schema version for the application.
  * Increment this when adding new migrations.
+ *
+ * Version history:
+ * - v1: Initial schema
+ * - v2: Add carriedForwardAmount and contactPerson
+ * - v3: Add fax field
+ * - v4: Add customer master and customer photos
  */
-export const CURRENT_SCHEMA_VERSION = 2;
+export const CURRENT_SCHEMA_VERSION = 4;
 
 // === Migrations Initialization Flag ===
 let migrationsInitialized = false;

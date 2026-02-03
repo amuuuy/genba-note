@@ -55,6 +55,7 @@ function createTestDocument(overrides?: Partial<Document>): Document {
     status: 'draft',
     clientName: 'Test Client',
     clientAddress: null,
+    customerId: null,
     subject: 'Test Project',
     issueDate: '2026-01-30',
     validUntil: '2026-02-28',

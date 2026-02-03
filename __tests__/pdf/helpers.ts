@@ -116,6 +116,7 @@ export function createTestDocument(
     status: 'draft',
     clientName: 'テスト顧客',
     clientAddress: '大阪府大阪市テスト町1-1',
+    customerId: null,
     subject: 'テスト工事案件',
     issueDate: '2026-01-30',
     validUntil: type === 'estimate' ? '2026-02-28' : null,

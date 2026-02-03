@@ -45,6 +45,7 @@ describe('useDocumentList', () => {
       status: 'draft',
       clientName: 'テスト株式会社',
       clientAddress: null,
+      customerId: null,
       subject: null,
       issueDate: '2026-01-31',
       validUntil: null,

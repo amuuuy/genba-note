@@ -47,6 +47,7 @@ export interface CreateDocumentInput {
   type: DocumentType;
   clientName: string;
   clientAddress?: string | null;
+  customerId?: string | null;
   subject?: string | null;
   issueDate: string;
   validUntil?: string | null;
@@ -62,6 +63,7 @@ export interface CreateDocumentInput {
 export interface UpdateDocumentInput {
   clientName?: string;
   clientAddress?: string | null;
+  customerId?: string | null;
   subject?: string | null;
   issueDate?: string;
   validUntil?: string | null;
@@ -211,6 +213,7 @@ export async function createDocument(
     status: 'draft',
     clientName: input.clientName,
     clientAddress: input.clientAddress ?? null,
+    customerId: input.customerId ?? null,
     subject: input.subject ?? null,
     issueDate: input.issueDate,
     validUntil: input.type === 'estimate' ? (input.validUntil ?? null) : null,
