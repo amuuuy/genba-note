@@ -74,8 +74,9 @@ export function formatDate(dateString: string): string {
  */
 export function generateDocumentTitle(type: DocumentType, mode: TemplateMode = 'screen'): string {
   if (mode === 'pdf') {
-    // Use full-width spaces between characters for formal appearance
-    return type === 'estimate' ? '見　積　書' : '請　求　書';
+    // Estimate: Use full-width spaces for formal appearance
+    // Invoice: No spaces for accounting-style layout
+    return type === 'estimate' ? '見　積　書' : '請求書';
   }
   return type === 'estimate' ? '御見積書' : '御請求書';
 }
@@ -408,28 +409,139 @@ function renderFormalTotalsSection(doc: DocumentWithTotals): string {
   `;
 }
 
+// === Invoice PDF Helpers (Accounting Layout) ===
+
 /**
- * Render formal bank section
+ * Render info block with black-background labels for invoice PDF
+ * Contains: subject, due date, bank info
  */
-function renderFormalBankSection(
-  snapshot: SensitiveIssuerSnapshot | null,
-  isInvoice: boolean
+function renderInfoBlock(
+  doc: DocumentWithTotals,
+  sensitiveSnapshot: SensitiveIssuerSnapshot | null
 ): string {
-  if (!isInvoice || !hasBankInfo(snapshot)) {
+  const rows: string[] = [];
+
+  // Subject
+  if (doc.subject) {
+    rows.push(`
+      <div class="info-row">
+        <div class="info-label">件名</div>
+        <div class="info-value">${escapeHtml(doc.subject)}</div>
+      </div>`);
+  }
+
+  // Due date
+  if (doc.dueDate) {
+    rows.push(`
+      <div class="info-row">
+        <div class="info-label">支払期限</div>
+        <div class="info-value">${formatDate(doc.dueDate)}</div>
+      </div>`);
+  }
+
+  // Bank info
+  if (hasBankInfo(sensitiveSnapshot)) {
+    const parts: string[] = [];
+    if (sensitiveSnapshot!.bankName) parts.push(escapeHtml(sensitiveSnapshot!.bankName));
+    if (sensitiveSnapshot!.branchName) parts.push(`${escapeHtml(sensitiveSnapshot!.branchName)}支店`);
+    if (sensitiveSnapshot!.accountType) parts.push(escapeHtml(sensitiveSnapshot!.accountType));
+    if (sensitiveSnapshot!.accountNumber) parts.push(escapeHtml(sensitiveSnapshot!.accountNumber));
+    if (sensitiveSnapshot!.accountHolderName) parts.push(escapeHtml(sensitiveSnapshot!.accountHolderName));
+
+    rows.push(`
+      <div class="info-row">
+        <div class="info-label">振込先</div>
+        <div class="info-value">${parts.join(' ')}</div>
+      </div>`);
+  }
+
+  if (rows.length === 0) {
     return '';
   }
 
-  const parts: string[] = [];
-  if (snapshot!.bankName) parts.push(escapeHtml(snapshot!.bankName));
-  if (snapshot!.branchName) parts.push(`${escapeHtml(snapshot!.branchName)}支店`);
-  if (snapshot!.accountType) parts.push(escapeHtml(snapshot!.accountType));
-  if (snapshot!.accountNumber) parts.push(escapeHtml(snapshot!.accountNumber));
-  if (snapshot!.accountHolderName) parts.push(escapeHtml(snapshot!.accountHolderName));
+  return `
+    <div class="info-block">
+      ${rows.join('')}
+    </div>
+  `;
+}
+
+/**
+ * Render carried forward block for invoice PDF
+ * Only displays when amount > 0
+ */
+function renderCarriedForwardBlock(doc: DocumentWithTotals): string {
+  const carriedForward = doc.carriedForwardAmount ?? 0;
+  if (carriedForward <= 0) {
+    return '';
+  }
 
   return `
-    <div class="formal-bank-section">
-      <div class="bank-title">お振込先</div>
-      <div class="bank-details">${parts.join(' ')}</div>
+    <div class="carried-forward-block">
+      <span class="cf-label">繰越金額</span>
+      <span class="cf-value">${formatCurrency(carriedForward)}円</span>
+    </div>
+  `;
+}
+
+/**
+ * Render grand total block with black-background label for invoice PDF
+ */
+function renderGrandTotalBlock(doc: DocumentWithTotals): string {
+  return `
+    <div class="grand-total-block">
+      <div class="grand-total-label">合計</div>
+      <div class="grand-total-value">${formatCurrency(doc.totalYen)}円(税込)</div>
+    </div>
+  `;
+}
+
+/**
+ * Render issuer block for invoice PDF (vertical stack layout)
+ * Seal image is positioned to the right of issuer info
+ */
+function renderInvoiceIssuerBlock(
+  doc: DocumentWithTotals,
+  sensitiveSnapshot: SensitiveIssuerSnapshot | null
+): string {
+  const { issuerSnapshot } = doc;
+  const hasSeal = !!issuerSnapshot.sealImageBase64;
+
+  const infoLines: string[] = [];
+
+  if (issuerSnapshot.companyName) {
+    infoLines.push(`<div class="issuer-company">${escapeHtml(issuerSnapshot.companyName)}</div>`);
+  }
+  if (issuerSnapshot.address) {
+    infoLines.push(`<div class="issuer-address">${escapeHtml(issuerSnapshot.address)}</div>`);
+  }
+  if (issuerSnapshot.phone) {
+    infoLines.push(`<div class="issuer-tel">TEL: ${escapeHtml(issuerSnapshot.phone)}</div>`);
+  }
+  if (issuerSnapshot.fax) {
+    infoLines.push(`<div class="issuer-fax">FAX: ${escapeHtml(issuerSnapshot.fax)}</div>`);
+  }
+  if (sensitiveSnapshot?.invoiceNumber) {
+    infoLines.push(`<div class="issuer-invoice-number">登録番号: ${escapeHtml(sensitiveSnapshot.invoiceNumber)}</div>`);
+  }
+  if (issuerSnapshot.contactPerson) {
+    infoLines.push(`<div class="issuer-contact">担当: ${escapeHtml(issuerSnapshot.contactPerson)}</div>`);
+  }
+
+  if (infoLines.length === 0) {
+    return '';
+  }
+
+  const sealHtml = hasSeal
+    ? `<div class="issuer-seal"><img src="data:image/png;base64,${issuerSnapshot.sealImageBase64}" alt="印影" class="seal-image" /></div>`
+    : '';
+
+  return `
+    <div class="issuer-block">
+      <div class="issuer-info">
+        ${infoLines.join('\n        ')}
+      </div>
+      ${sealHtml}
     </div>
   `;
 }
@@ -779,53 +891,426 @@ function generateScreenTemplate(
 // === Formal PDF Template (monochrome official layout) ===
 
 /**
- * Generate formal PDF template HTML (official document layout)
+ * Generate invoice formal PDF template HTML (accounting-style layout)
+ * New layout with black-background labels and larger total block
  */
-function generateFormalPdfTemplate(
+function generateInvoiceFormalTemplate(
   doc: DocumentWithTotals,
   sensitiveSnapshot: SensitiveIssuerSnapshot | null
 ): string {
   const themeCss = getFormalThemeCss(FORMAL_COLORS);
   const title = generateDocumentTitle(doc.type, 'pdf');
-  const isInvoice = doc.type === 'invoice';
 
   const clientAddressHtml = doc.clientAddress
     ? `<div class="client-address">${escapeHtml(doc.clientAddress)}</div>`
     : '';
 
-  // Build info box content (subject, due date, bank info)
+  const infoBlockHtml = renderInfoBlock(doc, sensitiveSnapshot);
+  const carriedForwardHtml = renderCarriedForwardBlock(doc);
+  const grandTotalHtml = renderGrandTotalBlock(doc);
+  const issuerHtml = renderInvoiceIssuerBlock(doc, sensitiveSnapshot);
+  const lineItemsTableHtml = renderFormalLineItemsTable(doc);
+  const totalsHtml = renderFormalTotalsSection(doc);
+
+  const notesHtml = doc.notes
+    ? `<div class="formal-notes-section"><div class="notes-title">備考欄</div><div class="notes-content">${escapeHtml(doc.notes)}</div></div>`
+    : '<div class="formal-notes-section"><div class="notes-title">備考欄</div><div class="notes-content"></div></div>';
+
+  return `<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', sans-serif;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #000;
+      padding: 30px 40px;
+      background: #fff;
+    }
+
+    .document-container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    /* Title */
+    .formal-title {
+      font-size: 26px;
+      font-weight: bold;
+      text-align: center;
+      letter-spacing: 0.2em;
+      border-bottom: 2px solid #000;
+      padding-bottom: 8px;
+      margin-bottom: 25px;
+    }
+
+    /* Two-column header */
+    .formal-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .header-left {
+      flex: 1;
+    }
+
+    .header-right {
+      text-align: right;
+      font-size: 12px;
+    }
+
+    /* Meta info (No, issue date) */
+    .header-meta {
+      margin-bottom: 15px;
+    }
+
+    .meta-row {
+      margin-bottom: 4px;
+    }
+
+    .meta-label {
+      font-weight: bold;
+    }
+
+    /* Client section */
+    .formal-client-name {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+
+    .formal-client-name::after {
+      content: ' 御中';
+      font-weight: normal;
+    }
+
+    .client-address {
+      font-size: 12px;
+      color: #333;
+    }
+
+    /* Issuer block - vertical stack with seal on right */
+    .issuer-block {
+      display: flex;
+      justify-content: flex-end;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .issuer-info {
+      text-align: right;
+    }
+
+    .issuer-company {
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+
+    .issuer-address,
+    .issuer-tel,
+    .issuer-fax,
+    .issuer-contact {
+      font-size: 11px;
+      margin-bottom: 2px;
+    }
+
+    .issuer-invoice-number {
+      font-size: 10px;
+      color: #333;
+      margin-bottom: 2px;
+    }
+
+    .issuer-seal {
+      flex-shrink: 0;
+      width: 70px;
+      height: 70px;
+    }
+
+    .seal-image {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      opacity: 0.85;
+    }
+
+    /* Info block with black-background labels */
+    .info-block {
+      border: 1px solid #000;
+      margin: 20px 0;
+    }
+
+    .info-row {
+      display: flex;
+      border-bottom: 1px solid #ccc;
+    }
+
+    .info-row:last-child {
+      border-bottom: none;
+    }
+
+    .info-label {
+      background: #000;
+      color: #fff;
+      padding: 8px 12px;
+      width: 100px;
+      font-weight: bold;
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+
+    .info-value {
+      padding: 8px 12px;
+      flex: 1;
+      font-size: 12px;
+      white-space: pre-wrap;
+    }
+
+    /* Carried forward block */
+    .carried-forward-block {
+      display: flex;
+      justify-content: space-between;
+      border: 1px solid #666;
+      padding: 10px 15px;
+      margin: 15px 0;
+      background: #f8f8f8;
+    }
+
+    .cf-label {
+      font-weight: bold;
+    }
+
+    .cf-value {
+      font-weight: bold;
+    }
+
+    /* Grand total block */
+    .grand-total-block {
+      display: flex;
+      border: 2px solid #000;
+      margin: 20px 0;
+    }
+
+    .grand-total-label {
+      background: #000;
+      color: #fff;
+      padding: 15px 25px;
+      font-size: 16px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+    }
+
+    .grand-total-value {
+      flex: 1;
+      padding: 15px 25px;
+      text-align: right;
+      font-size: 24px;
+      font-weight: bold;
+      border-left: 2px solid #000;
+    }
+
+    /* Line items table */
+    .formal-items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+    }
+
+    .formal-items-table th {
+      background: #333;
+      color: #fff;
+      padding: 10px;
+      text-align: left;
+      font-weight: bold;
+      font-size: 11px;
+    }
+
+    .formal-items-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #ccc;
+      font-size: 11px;
+    }
+
+    .formal-items-table tr:nth-child(even) {
+      background: #f5f5f5;
+    }
+
+    .formal-items-table .col-name { width: 45%; }
+    .formal-items-table .col-qty { width: 10%; text-align: right; }
+    .formal-items-table .col-unit { width: 10%; text-align: center; }
+    .formal-items-table .col-price { width: 15%; text-align: right; }
+    .formal-items-table .col-total { width: 20%; text-align: right; }
+
+    .formal-items-table .item-qty,
+    .formal-items-table .item-price,
+    .formal-items-table .item-total { text-align: right; }
+    .formal-items-table .item-unit { text-align: center; }
+
+    /* Totals section */
+    .formal-totals-section {
+      display: flex;
+      justify-content: flex-end;
+      margin: 20px 0;
+    }
+
+    .formal-totals-table {
+      border-collapse: collapse;
+      min-width: 250px;
+    }
+
+    .formal-totals-table td {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    .formal-totals-table .totals-label {
+      text-align: left;
+      border-right: 1px solid #ccc;
+    }
+
+    .formal-totals-table .totals-value {
+      text-align: right;
+    }
+
+    .formal-totals-table tr {
+      border-bottom: 1px dotted #999;
+    }
+
+    .formal-totals-table .carried-forward-row td {
+      color: #666;
+    }
+
+    .formal-totals-table .total-final-row {
+      border-top: 2px solid #000;
+      border-bottom: none;
+    }
+
+    .formal-totals-table .total-final-row td {
+      font-weight: bold;
+      font-size: 13px;
+      padding-top: 10px;
+    }
+
+    /* Notes section */
+    .formal-notes-section {
+      margin: 25px 0;
+      border: 1px solid #999;
+      min-height: 60px;
+    }
+
+    .notes-title {
+      background: #f0f0f0;
+      padding: 6px 10px;
+      font-size: 11px;
+      font-weight: bold;
+      border-bottom: 1px solid #999;
+    }
+
+    .notes-content {
+      padding: 10px;
+      font-size: 11px;
+      white-space: pre-wrap;
+      min-height: 40px;
+    }
+
+    ${themeCss}
+
+    @media print {
+      body { padding: 20px; }
+      .document-container { max-width: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="document-container">
+    <!-- Title -->
+    <div class="formal-title">${title}</div>
+
+    <!-- Two-column header -->
+    <div class="formal-header">
+      <div class="header-left">
+        <div class="formal-client-name">${escapeHtml(doc.clientName)}</div>
+        ${clientAddressHtml}
+      </div>
+      <div class="header-right">
+        <div class="header-meta">
+          <div class="meta-row"><span class="meta-label">No:</span> ${escapeHtml(doc.documentNo)}</div>
+          <div class="meta-row"><span class="meta-label">請求日:</span> ${formatDate(doc.issueDate)}</div>
+        </div>
+        ${issuerHtml}
+      </div>
+    </div>
+
+    <!-- Info block (subject, due date, bank info) -->
+    ${infoBlockHtml}
+
+    <!-- Carried forward -->
+    ${carriedForwardHtml}
+
+    <!-- Grand total -->
+    ${grandTotalHtml}
+
+    <!-- Line items -->
+    ${lineItemsTableHtml}
+
+    <!-- Totals -->
+    ${totalsHtml}
+
+    <!-- Notes -->
+    ${notesHtml}
+  </div>
+</body>
+</html>`;
+}
+
+/**
+ * Generate formal PDF template HTML (official document layout)
+ * Routes to invoice-specific or estimate-specific template
+ */
+function generateFormalPdfTemplate(
+  doc: DocumentWithTotals,
+  sensitiveSnapshot: SensitiveIssuerSnapshot | null
+): string {
+  // Invoice uses new accounting-style layout
+  if (doc.type === 'invoice') {
+    return generateInvoiceFormalTemplate(doc, sensitiveSnapshot);
+  }
+
+  // Estimate keeps the original formal layout
+  const themeCss = getFormalThemeCss(FORMAL_COLORS);
+  const title = generateDocumentTitle(doc.type, 'pdf');
+
+  const clientAddressHtml = doc.clientAddress
+    ? `<div class="client-address">${escapeHtml(doc.clientAddress)}</div>`
+    : '';
+
+  // Build info box content (subject only for estimate)
   const infoBoxLines: string[] = [];
   if (doc.subject) {
     infoBoxLines.push(`<div class="info-row"><span class="info-label">件名:</span> ${escapeHtml(doc.subject)}</div>`);
-  }
-  if (isInvoice && doc.dueDate) {
-    infoBoxLines.push(`<div class="info-row"><span class="info-label">支払期限:</span> ${formatDate(doc.dueDate)}</div>`);
-  }
-  // Bank info inline
-  if (isInvoice && hasBankInfo(sensitiveSnapshot)) {
-    const bankParts: string[] = [];
-    if (sensitiveSnapshot!.bankName) bankParts.push(escapeHtml(sensitiveSnapshot!.bankName));
-    if (sensitiveSnapshot!.branchName) bankParts.push(`${escapeHtml(sensitiveSnapshot!.branchName)}支店`);
-    if (sensitiveSnapshot!.accountType) bankParts.push(escapeHtml(sensitiveSnapshot!.accountType));
-    if (sensitiveSnapshot!.accountNumber) bankParts.push(escapeHtml(sensitiveSnapshot!.accountNumber));
-    if (sensitiveSnapshot!.accountHolderName) bankParts.push(escapeHtml(sensitiveSnapshot!.accountHolderName));
-    infoBoxLines.push(`<div class="info-row"><span class="info-label">振込先:</span> ${bankParts.join(' ')}</div>`);
   }
 
   const infoBoxHtml = infoBoxLines.length > 0
     ? `<div class="formal-info-box">${infoBoxLines.join('\n      ')}</div>`
     : '';
 
-  const introHtml = isInvoice
-    ? '<div class="formal-intro">下記のとおりご請求申し上げます。</div>'
-    : '<div class="formal-intro">下記のとおりお見積り申し上げます。</div>';
+  const introHtml = '<div class="formal-intro">下記のとおりお見積り申し上げます。</div>';
 
   const notesHtml = doc.notes
     ? `<div class="formal-notes-section"><div class="notes-title">備考欄</div><div class="notes-content">${escapeHtml(doc.notes)}</div></div>`
     : '<div class="formal-notes-section"><div class="notes-title">備考欄</div><div class="notes-content"></div></div>';
 
-  // Bank info is now in the info box at the top, so we don't need the bottom section
-  const bankHtml = '';
   const issuerHtml = renderFormalIssuerSection(doc, sensitiveSnapshot);
   const lineItemsTableHtml = renderFormalLineItemsTable(doc);
   const totalsHtml = renderFormalTotalsSection(doc);
@@ -1168,9 +1653,6 @@ function generateFormalPdfTemplate(
 
     <!-- Notes -->
     ${notesHtml}
-
-    <!-- Bank info -->
-    ${bankHtml}
   </div>
 </body>
 </html>`;

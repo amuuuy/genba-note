@@ -105,12 +105,22 @@ describe('pdfTemplateService', () => {
   });
 
   describe('generateDocumentTitle', () => {
-    it('returns 御見積書 for estimate', () => {
+    it('returns 御見積書 for estimate in screen mode', () => {
       expect(generateDocumentTitle('estimate')).toBe('御見積書');
+      expect(generateDocumentTitle('estimate', 'screen')).toBe('御見積書');
     });
 
-    it('returns 御請求書 for invoice', () => {
+    it('returns 御請求書 for invoice in screen mode', () => {
       expect(generateDocumentTitle('invoice')).toBe('御請求書');
+      expect(generateDocumentTitle('invoice', 'screen')).toBe('御請求書');
+    });
+
+    it('returns 見　積　書 for estimate in pdf mode', () => {
+      expect(generateDocumentTitle('estimate', 'pdf')).toBe('見　積　書');
+    });
+
+    it('returns 請求書 for invoice in pdf mode (no full-width spaces)', () => {
+      expect(generateDocumentTitle('invoice', 'pdf')).toBe('請求書');
     });
   });
 
@@ -717,6 +727,235 @@ describe('pdfTemplateService', () => {
         const result = generateHtmlTemplate(input);
 
         expect(result.html).toContain('Noto Sans JP');
+      });
+    });
+
+    // === Invoice PDF Mode - New Accounting Layout ===
+    describe('invoice pdf mode - accounting layout', () => {
+      it('renders title without full-width spaces for invoice in pdf mode', () => {
+        const input = createTestTemplateInput({
+          document: { type: 'invoice' },
+          mode: 'pdf',
+        });
+        const result = generateHtmlTemplate(input);
+
+        expect(result.html).toContain('請求書');
+        expect(result.html).not.toContain('請　求　書');
+      });
+
+      it('renders document number as "No:" format', () => {
+        const input = createTestTemplateInput({
+          document: { type: 'invoice', documentNo: 'INV-001' },
+          mode: 'pdf',
+        });
+        const result = generateHtmlTemplate(input);
+
+        expect(result.html).toContain('No:');
+        expect(result.html).toContain('INV-001');
+      });
+
+      it('renders issue date as "請求日:" format', () => {
+        const input = createTestTemplateInput({
+          document: { type: 'invoice', issueDate: '2026-01-30' },
+          mode: 'pdf',
+        });
+        const result = generateHtmlTemplate(input);
+
+        expect(result.html).toContain('請求日:');
+        expect(result.html).toContain('2026年1月30日');
+      });
+
+      it('renders info block with black-background labels', () => {
+        const input = createTestTemplateInput({
+          document: {
+            type: 'invoice',
+            subject: 'マンション外壁塗装工事',
+            dueDate: '2026-02-28',
+          },
+          sensitiveSnapshot: createTestSensitiveSnapshot({
+            bankName: 'みずほ銀行',
+            branchName: '渋谷',
+            accountType: '普通',
+            accountNumber: '1234567',
+            accountHolderName: 'テスト株式会社',
+          }),
+          mode: 'pdf',
+        });
+        const result = generateHtmlTemplate(input);
+
+        // Info block with black-background labels
+        expect(result.html).toContain('info-block');
+        expect(result.html).toContain('info-label');
+        expect(result.html).toContain('件名');
+        expect(result.html).toContain('支払期限');
+        expect(result.html).toContain('振込先');
+        expect(result.html).toContain('マンション外壁塗装工事');
+        expect(result.html).toContain('2026年2月28日');
+        expect(result.html).toContain('みずほ銀行');
+      });
+
+      it('renders carried forward block when amount is set', () => {
+        const input = createTestTemplateInput({
+          document: {
+            type: 'invoice',
+            carriedForwardAmount: 100000,
+          },
+          mode: 'pdf',
+        });
+        const result = generateHtmlTemplate(input);
+
+        expect(result.html).toContain('carried-forward-block');
+        expect(result.html).toContain('繰越金額');
+        expect(result.html).toContain('100,000');
+      });
+
+      it('hides carried forward block when amount is null', () => {
+        const input = createTestTemplateInput({
+          document: {
+            type: 'invoice',
+            carriedForwardAmount: null,
+          },
+          mode: 'pdf',
+        });
+        const result = generateHtmlTemplate(input);
+
+        // Check for the actual HTML element, not just CSS class name
+        expect(result.html).not.toContain('<div class="carried-forward-block">');
+      });
+
+      it('hides carried forward block when amount is zero', () => {
+        const input = createTestTemplateInput({
+          document: {
+            type: 'invoice',
+            carriedForwardAmount: 0,
+          },
+          mode: 'pdf',
+        });
+        const result = generateHtmlTemplate(input);
+
+        // Check for the actual HTML element, not just CSS class name
+        expect(result.html).not.toContain('<div class="carried-forward-block">');
+      });
+
+      it('renders grand total block with black-background label', () => {
+        const input = createTestTemplateInput({
+          document: {
+            type: 'invoice',
+            totalYen: 1100000,
+          },
+          mode: 'pdf',
+        });
+        const result = generateHtmlTemplate(input);
+
+        expect(result.html).toContain('grand-total-block');
+        expect(result.html).toContain('grand-total-label');
+        expect(result.html).toContain('grand-total-value');
+        expect(result.html).toContain('合計');
+        expect(result.html).toContain('1,100,000');
+      });
+
+      it('renders issuer info in vertical stack layout', () => {
+        const input = createTestTemplateInput({
+          document: {
+            type: 'invoice',
+            issuerSnapshot: {
+              companyName: 'テスト株式会社',
+              representativeName: null,
+              address: '〒160-0000 東京都新宿区1-2-3',
+              phone: '03-1234-5678',
+              fax: null,
+              sealImageBase64: null,
+              contactPerson: '山田太郎',
+            },
+          },
+          mode: 'pdf',
+        });
+        const result = generateHtmlTemplate(input);
+
+        expect(result.html).toContain('issuer-block');
+        expect(result.html).toContain('テスト株式会社');
+        expect(result.html).toContain('〒160-0000 東京都新宿区1-2-3');
+        expect(result.html).toContain('TEL:');
+        expect(result.html).toContain('03-1234-5678');
+        expect(result.html).toContain('担当:');
+        expect(result.html).toContain('山田太郎');
+      });
+
+      it('renders seal image to the right of issuer info', () => {
+        const input = createTestTemplateInput({
+          document: {
+            type: 'invoice',
+            issuerSnapshot: {
+              companyName: 'テスト株式会社',
+              representativeName: null,
+              address: '東京都新宿区1-2-3',
+              phone: '03-1234-5678',
+              fax: null,
+              sealImageBase64: 'dGVzdC1pbWFnZS1kYXRh', // test base64
+              contactPerson: null,
+            },
+          },
+          mode: 'pdf',
+        });
+        const result = generateHtmlTemplate(input);
+
+        expect(result.html).toContain('issuer-seal');
+        expect(result.html).toContain('seal-image');
+        expect(result.html).toContain('data:image/png;base64,dGVzdC1pbWFnZS1kYXRh');
+      });
+
+      it('renders items table with dark header', () => {
+        const lineItem = createTestLineItem({
+          name: '外壁塗装',
+          quantityMilli: 2500,
+          unit: 'm²',
+          unitPrice: 5000,
+        });
+        const input = createTestTemplateInput({
+          document: { type: 'invoice', lineItems: [lineItem] },
+          mode: 'pdf',
+        });
+        const result = generateHtmlTemplate(input);
+
+        expect(result.html).toContain('formal-items-table');
+        expect(result.html).toContain('摘要');
+        expect(result.html).toContain('数量');
+        expect(result.html).toContain('単位');
+        expect(result.html).toContain('単価');
+        expect(result.html).toContain('金額');
+        expect(result.html).toContain('外壁塗装');
+      });
+
+      it('renders totals section at bottom right', () => {
+        const input = createTestTemplateInput({
+          document: {
+            type: 'invoice',
+            subtotalYen: 1000000,
+            taxYen: 100000,
+            totalYen: 1100000,
+          },
+          mode: 'pdf',
+        });
+        const result = generateHtmlTemplate(input);
+
+        expect(result.html).toContain('formal-totals-section');
+        expect(result.html).toContain('小計');
+        expect(result.html).toContain('消費税');
+        expect(result.html).toContain('1,000,000');
+        expect(result.html).toContain('100,000');
+      });
+
+      it('estimate in pdf mode still uses old layout with spaced title', () => {
+        const input = createTestTemplateInput({
+          document: { type: 'estimate' },
+          mode: 'pdf',
+        });
+        const result = generateHtmlTemplate(input);
+
+        // Estimate should keep the old formal layout
+        expect(result.html).toContain('見　積　書');
+        expect(result.html).not.toContain('info-block');
+        expect(result.html).not.toContain('grand-total-block');
       });
     });
   });
