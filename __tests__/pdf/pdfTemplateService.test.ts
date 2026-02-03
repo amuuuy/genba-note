@@ -1219,6 +1219,98 @@ describe('pdfTemplateService', () => {
         expect(result.html).toContain('非課税');
         expect(result.html).toContain('150,000');
       });
+
+      // === New Layout Requirements (Accounting Template Redesign) ===
+      it('renders info block at full width (not side-by-side with issuer)', () => {
+        const input = createTestTemplateInput({
+          document: {
+            type: 'invoice',
+            subject: 'テスト工事',
+          },
+          mode: 'pdf',
+        });
+        const result = generateHtmlTemplate(input);
+
+        // Info block should NOT be in a side-by-side layout with issuer
+        expect(result.html).not.toContain('info-issuer-row');
+        // Info block should be in its own section (verify actual HTML element)
+        expect(result.html).toContain('<div class="info-block-section">');
+      });
+
+      it('renders issuer block as standalone section (not side-by-side with info)', () => {
+        const input = createTestTemplateInput({
+          document: {
+            type: 'invoice',
+            issuerSnapshot: {
+              companyName: 'テスト株式会社',
+              representativeName: null,
+              address: '東京都新宿区1-2-3',
+              phone: '03-1234-5678',
+              fax: null,
+              sealImageBase64: null,
+              contactPerson: '山田太郎',
+            },
+          },
+          mode: 'pdf',
+        });
+        const result = generateHtmlTemplate(input);
+
+        // Issuer block should be in its own standalone section (verify actual HTML element)
+        expect(result.html).toContain('<div class="issuer-section-standalone">');
+        expect(result.html).not.toContain('issuer-container');
+      });
+
+      it('renders grand total block AFTER line items table and tax breakdown', () => {
+        // Japanese accounting convention: 明細 → 税内訳 → 合計
+        const lineItem = createTestLineItem({
+          name: '外壁塗装',
+          quantityMilli: 1000,
+          unit: '式',
+          unitPrice: 100000,
+        });
+        const input = createTestTemplateInput({
+          document: {
+            type: 'invoice',
+            lineItems: [lineItem],
+            totalYen: 110000,
+            subtotalYen: 100000,
+            taxYen: 10000,
+            taxBreakdown: [{ rate: 10, subtotal: 100000, tax: 10000 }],
+          },
+          mode: 'pdf',
+        });
+        const result = generateHtmlTemplate(input);
+
+        // Verify order: line items table → tax breakdown → grand total
+        const itemsTablePos = result.html.indexOf('<table class="formal-items-table">');
+        const taxBreakdownPos = result.html.indexOf('<div class="tax-breakdown-section">');
+        const grandTotalPos = result.html.indexOf('<div class="grand-total-block">');
+
+        expect(itemsTablePos).toBeGreaterThan(-1);
+        expect(taxBreakdownPos).toBeGreaterThan(-1);
+        expect(grandTotalPos).toBeGreaterThan(-1);
+        // Grand total should be after line items
+        expect(grandTotalPos).toBeGreaterThan(itemsTablePos);
+        // Grand total should be after tax breakdown (standard Japanese accounting order)
+        expect(grandTotalPos).toBeGreaterThan(taxBreakdownPos);
+      });
+
+      it('renders notes section with black background label', () => {
+        const input = createTestTemplateInput({
+          document: {
+            type: 'invoice',
+            notes: 'テスト備考',
+          },
+          mode: 'pdf',
+        });
+        const result = generateHtmlTemplate(input);
+
+        // Notes title should have black background styling (matching other labels)
+        // Verify actual HTML element exists
+        expect(result.html).toContain('<div class="notes-title">');
+        // The CSS should define black background for notes-title
+        expect(result.html).toMatch(/\.notes-title\s*\{[^}]*background:\s*#000/);
+      });
     });
   });
 });

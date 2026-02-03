@@ -1,17 +1,26 @@
 /**
  * Invoice Accounting Template
  *
- * New accounting-style invoice PDF template.
- * Creates a formal invoice layout matching traditional Japanese accounting documents.
+ * Accounting-style invoice PDF template for traditional Japanese business documents.
+ * Redesigned to meet formal accounting requirements with black-label styling.
  *
- * Layout structure:
- * - Title: 請　求　書 (centered, underlined)
- * - Two-column header: Client (left) + Meta/Issuer (right)
- * - Black-label info blocks: Subject, Due date, Bank info
- * - Carried forward block (conditional)
- * - Grand total block (prominent)
- * - Line items table
- * - Tax breakdown (right-aligned)
+ * Layout structure (top to bottom):
+ * 1. Title: 請　求　書 (centered, underlined) + Meta info (No, date)
+ * 2. Issuer section (standalone, right-aligned with seal)
+ * 3. Client section (name + address)
+ * 4. Greeting text
+ * 5. Info block (full width): Subject, Due date, Bank info (black labels)
+ * 6. Line items table (black header)
+ * 7. Tax breakdown (right-aligned)
+ * 8. Carried forward block (conditional)
+ * 9. Grand total block (prominent, AFTER line items)
+ * 10. Notes section (black label)
+ *
+ * Design requirements:
+ * - Black background labels (件名/支払期限/振込先/合計/備考)
+ * - Grand total with "left black band + right large amount"
+ * - Contact person + seal horizontal layout in issuer block
+ * - No "border only" design - all labels have black background
  */
 
 import type { DocumentWithTotals, SensitiveIssuerSnapshot } from '@/types/document';
@@ -214,34 +223,6 @@ function renderInfoBlock(
     <table class="info-block-table">
       ${rows.join('')}
     </table>
-  `;
-}
-
-/**
- * Render info block and issuer block side by side
- * 情報テーブル（左）と発行者情報（右）を横並びに配置
- */
-function renderInfoAndIssuerRow(
-  doc: DocumentWithTotals,
-  sensitiveSnapshot: SensitiveIssuerSnapshot | null
-): string {
-  const infoTableHtml = renderInfoBlock(doc, sensitiveSnapshot);
-  const issuerBlockHtml = renderIssuerBlock(doc, sensitiveSnapshot);
-
-  // 両方が空の場合は空文字を返す
-  if (!infoTableHtml && !issuerBlockHtml) {
-    return '';
-  }
-
-  return `
-    <div class="info-issuer-row">
-      <div class="info-table-container">
-        ${infoTableHtml}
-      </div>
-      <div class="issuer-container">
-        ${issuerBlockHtml}
-      </div>
-    </div>
   `;
 }
 
@@ -460,24 +441,16 @@ function getTemplateStyles(): string {
       margin: 10px 0 15px 0;
     }
 
-    /* === Info + Issuer Row (Side by Side) === */
-    .info-issuer-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 20px;
-      margin-bottom: 15px;
-    }
-
-    .info-table-container {
-      flex: 0 1 55%;
-      max-width: 55%;
-    }
-
-    .issuer-container {
-      flex: 0 0 auto;
-      min-width: 180px;
+    /* === Issuer Section (Standalone, Right-aligned) === */
+    .issuer-section-standalone {
       text-align: right;
+      margin: 15px 0;
+      padding: 10px 0;
+    }
+
+    /* === Info Block Section (Full Width) === */
+    .info-block-section {
+      margin: 15px 0;
     }
 
     /* === Issuer Block === */
@@ -740,16 +713,16 @@ function getTemplateStyles(): string {
     /* === Notes Section === */
     .formal-notes-section {
       margin: 20px 0;
-      border: 1px solid #999;
+      border: 2px solid #000;
       min-height: 50px;
     }
 
     .notes-title {
-      background: #f0f0f0;
-      padding: 5px 10px;
-      font-size: 10px;
+      background: #000;
+      color: #fff;
+      padding: 8px 12px;
+      font-size: 11px;
       font-weight: bold;
-      border-bottom: 1px solid #999;
     }
 
     .notes-content {
@@ -790,6 +763,18 @@ export function generateInvoiceAccountingTemplate(
     ? `<div class="client-address">${escapeHtml(doc.clientAddress)}</div>`
     : '';
 
+  // Render issuer block as standalone section
+  const issuerBlockHtml = renderIssuerBlock(doc, sensitiveSnapshot);
+  const issuerSectionHtml = issuerBlockHtml
+    ? `<div class="issuer-section-standalone">${issuerBlockHtml}</div>`
+    : '';
+
+  // Render info block as standalone section
+  const infoBlockHtml = renderInfoBlock(doc, sensitiveSnapshot);
+  const infoSectionHtml = infoBlockHtml
+    ? `<div class="info-block-section">${infoBlockHtml}</div>`
+    : '';
+
   return `<!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -804,6 +789,9 @@ export function generateInvoiceAccountingTemplate(
     <!-- Title with meta info -->
     ${renderTitleWithMeta(doc)}
 
+    <!-- Issuer section (standalone, right-aligned) -->
+    ${issuerSectionHtml}
+
     <!-- Client section -->
     <div class="client-section">
       <div class="client-name">${escapeHtml(doc.clientName)}<span class="client-suffix">御中</span></div>
@@ -813,20 +801,20 @@ export function generateInvoiceAccountingTemplate(
     <!-- Greeting -->
     <div class="greeting-text">下記のとおり、御請求申し上げます。</div>
 
-    <!-- Info block + Issuer (side by side) -->
-    ${renderInfoAndIssuerRow(doc, sensitiveSnapshot)}
+    <!-- Info block (full width) -->
+    ${infoSectionHtml}
 
-    <!-- Carried forward (conditional) -->
-    ${renderCarriedForwardBlock(doc)}
-
-    <!-- Grand total -->
-    ${renderGrandTotalBlock(doc)}
-
-    <!-- Line items with integrated totals -->
+    <!-- Line items table -->
     ${renderLineItemsTable(doc)}
 
     <!-- Tax breakdown -->
     ${renderTaxBreakdownSection(doc)}
+
+    <!-- Carried forward (conditional) -->
+    ${renderCarriedForwardBlock(doc)}
+
+    <!-- Grand total (after line items) -->
+    ${renderGrandTotalBlock(doc)}
 
     <!-- Notes -->
     ${renderNotesSection(doc)}
