@@ -24,6 +24,7 @@ import {
   BankAccountSection,
   NumberingSettingsSection,
   SealImageSection,
+  InvoiceTemplateSection,
 } from '@/components/settings';
 import type { SettingsFormValues } from '@/domain/settings/types';
 
@@ -33,6 +34,7 @@ export default function SettingsScreen() {
     updateField,
     updateSealImage,
     toggleShowContactPerson,
+    updateInvoiceTemplateType,
     save,
     getFormattedNextNumber,
     reload,
@@ -141,6 +143,13 @@ export default function SettingsScreen() {
             invoicePrefix: state.errors.invoicePrefix,
           }}
           onChange={(field, value) => updateField(field, value)}
+          disabled={isFormDisabled}
+        />
+
+        {/* Invoice Template Section */}
+        <InvoiceTemplateSection
+          value={state.values.invoiceTemplateType}
+          onChange={updateInvoiceTemplateType}
           disabled={isFormDisabled}
         />
 

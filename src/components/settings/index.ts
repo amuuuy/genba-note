@@ -7,3 +7,4 @@ export { BankAccountSection, type BankAccountSectionProps } from './BankAccountS
 export { NumberingSettingsSection, type NumberingSettingsSectionProps } from './NumberingSettingsSection';
 export { AccountTypePicker, type AccountTypePickerProps } from './AccountTypePicker';
 export { SealImageSection, type SealImageSectionProps } from './SealImageSection';
+export { InvoiceTemplateSection, type InvoiceTemplateSectionProps } from './InvoiceTemplateSection';

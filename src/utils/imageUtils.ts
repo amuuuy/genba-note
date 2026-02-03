@@ -8,6 +8,7 @@
  */
 
 import { File, Paths, Directory } from 'expo-file-system';
+import { readAsStringAsync, EncodingType } from 'expo-file-system/legacy';
 
 /** Subdirectory name for seal images */
 const SEAL_IMAGES_SUBDIR = 'seal_images';
@@ -20,8 +21,10 @@ const SEAL_IMAGES_SUBDIR = 'seal_images';
  */
 export async function imageUriToBase64(uri: string): Promise<string | null> {
   try {
-    const file = new File(uri);
-    const base64 = await file.base64();
+    // Use traditional FileSystem API for reliable base64 encoding
+    const base64 = await readAsStringAsync(uri, {
+      encoding: EncodingType.Base64,
+    });
     return base64;
   } catch (error) {
     console.error('Failed to convert image to base64:', error);

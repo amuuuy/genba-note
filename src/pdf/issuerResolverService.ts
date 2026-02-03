@@ -22,7 +22,7 @@ import type { IssuerSnapshot, SensitiveIssuerSnapshot } from '@/types/document';
 import type { SensitiveIssuerSettings } from '@/types/settings';
 import { getIssuerSnapshot, getSensitiveIssuerInfo } from '@/storage/secureStorageService';
 import { getSettings } from '@/storage/asyncStorageService';
-import { imageUriToBase64 } from '@/utils/imageUtils';
+import { imageUriToDataUrl } from '@/utils/imageUtils';
 
 /**
  * Result of issuer info resolution
@@ -51,18 +51,40 @@ export function hasIssuerSnapshotData(snapshot: IssuerSnapshot): boolean {
 }
 
 /**
- * Load and convert seal image from URI to base64
+ * Load and convert seal image from URI to data URL
+ * Returns full data URL (e.g., 'data:image/jpeg;base64,...') for HTML embedding
  */
 async function loadSealImageBase64(sealImageUri: string | null): Promise<string | null> {
   if (!sealImageUri) {
     return null;
   }
   try {
-    return await imageUriToBase64(sealImageUri);
+    return await imageUriToDataUrl(sealImageUri);
   } catch (error) {
     console.error('Failed to load seal image:', error);
     return null;
   }
+}
+
+/**
+ * Normalize sealImageBase64 to ensure it's a valid data URL
+ * Handles backwards compatibility with legacy raw base64 data
+ * @param sealImageBase64 - Raw base64 or data URL string
+ * @returns Normalized data URL or null
+ */
+function normalizeSealImageBase64(sealImageBase64: string | null): string | null {
+  if (!sealImageBase64) {
+    return null;
+  }
+
+  // Already a data URL - return as-is
+  if (sealImageBase64.startsWith('data:')) {
+    return sealImageBase64;
+  }
+
+  // Legacy raw base64 - convert to data URL
+  // Default to PNG since we can't detect MIME type from raw base64
+  return `data:image/png;base64,${sealImageBase64}`;
 }
 
 /**
@@ -108,7 +130,8 @@ export async function resolveIssuerInfo(
     const settings = settingsResult.success ? settingsResult.data : null;
 
     // If document snapshot has seal image, use it; otherwise try to load from settings
-    let sealImageBase64 = documentIssuerSnapshot.sealImageBase64;
+    // Normalize to ensure data URL format for backwards compatibility
+    let sealImageBase64 = normalizeSealImageBase64(documentIssuerSnapshot.sealImageBase64);
     if (!sealImageBase64 && settings?.issuer.sealImageUri) {
       sealImageBase64 = await loadSealImageBase64(settings.issuer.sealImageUri);
     }

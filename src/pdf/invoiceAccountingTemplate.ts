@@ -1,0 +1,836 @@
+/**
+ * Invoice Accounting Template
+ *
+ * New accounting-style invoice PDF template.
+ * Creates a formal invoice layout matching traditional Japanese accounting documents.
+ *
+ * Layout structure:
+ * - Title: 請　求　書 (centered, underlined)
+ * - Two-column header: Client (left) + Meta/Issuer (right)
+ * - Black-label info blocks: Subject, Due date, Bank info
+ * - Carried forward block (conditional)
+ * - Grand total block (prominent)
+ * - Line items table
+ * - Tax breakdown (right-aligned)
+ */
+
+import type { DocumentWithTotals, SensitiveIssuerSnapshot } from '@/types/document';
+import {
+  formatCurrency,
+  formatDate,
+  formatQuantity,
+  parseAddressWithPostalCode,
+  escapeHtml,
+} from './templateUtils';
+
+// === Local Helper Functions ===
+
+/**
+ * Check if bank info has any non-null values
+ */
+function hasBankInfo(snapshot: SensitiveIssuerSnapshot | null): boolean {
+  if (!snapshot) return false;
+  return !!(
+    snapshot.bankName ||
+    snapshot.branchName ||
+    snapshot.accountType ||
+    snapshot.accountNumber ||
+    snapshot.accountHolderName
+  );
+}
+
+// === Section Renderers ===
+
+/**
+ * Render the document title section with meta info (No, issue date)
+ * タイトルとメタ情報を1つのセクションに統合
+ */
+function renderTitleWithMeta(doc: DocumentWithTotals): string {
+  return `
+    <div class="title-section">
+      <div class="title-row">
+        <div class="title-spacer"></div>
+        <h1 class="document-title">請　求　書</h1>
+        <div class="title-meta">
+          <table class="meta-table">
+            <tr>
+              <td class="meta-label">No</td>
+              <td class="meta-value">${escapeHtml(doc.documentNo)}</td>
+            </tr>
+            <tr>
+              <td class="meta-label">請求日</td>
+              <td class="meta-value">${formatDate(doc.issueDate)}</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+
+/**
+ * Validate that a string is a valid data URI for safe raster images
+ * Only allows PNG, JPEG, GIF formats to prevent XSS via SVG
+ */
+function isValidImageDataUri(uri: string | null | undefined): boolean {
+  if (!uri) return false;
+  // Only allow safe raster image formats (no SVG to prevent XSS)
+  return /^data:image\/(png|jpeg|jpg|gif);base64,[A-Za-z0-9+/=]+$/.test(uri);
+}
+
+/**
+ * Render issuer block with contact person + seal horizontal layout
+ * Now includes invoice registration number from sensitiveSnapshot
+ */
+function renderIssuerBlock(
+  doc: DocumentWithTotals,
+  sensitiveSnapshot: SensitiveIssuerSnapshot | null
+): string {
+  const { issuerSnapshot } = doc;
+  const hasSeal = isValidImageDataUri(issuerSnapshot.sealImageBase64);
+  const hasContact = !!issuerSnapshot.contactPerson;
+
+  const lines: string[] = [];
+
+  // Company name
+  if (issuerSnapshot.companyName) {
+    lines.push(`<div class="issuer-company">${escapeHtml(issuerSnapshot.companyName)}</div>`);
+  }
+
+  // Parse address into postal code and lines
+  const parsedAddress = parseAddressWithPostalCode(issuerSnapshot.address);
+  if (parsedAddress.postalCode) {
+    lines.push(`<div class="issuer-postal">${escapeHtml(parsedAddress.postalCode)}</div>`);
+  }
+  if (parsedAddress.addressLine1) {
+    lines.push(`<div class="issuer-address">${escapeHtml(parsedAddress.addressLine1)}</div>`);
+  }
+  if (parsedAddress.addressLine2) {
+    lines.push(`<div class="issuer-address">${escapeHtml(parsedAddress.addressLine2)}</div>`);
+  }
+
+  // TEL
+  if (issuerSnapshot.phone) {
+    lines.push(`<div class="issuer-tel">TEL: ${escapeHtml(issuerSnapshot.phone)}</div>`);
+  }
+
+  // Invoice registration number (登録番号) - required for 適格請求書
+  if (sensitiveSnapshot?.invoiceNumber) {
+    lines.push(`<div class="issuer-registration">登録番号: ${escapeHtml(sensitiveSnapshot.invoiceNumber)}</div>`);
+  }
+
+  // Contact person + seal (horizontal layout)
+  if (hasContact || hasSeal) {
+    const contactHtml = hasContact
+      ? `<span class="contact-name">担当: ${escapeHtml(issuerSnapshot.contactPerson!)}</span>`
+      : '';
+    const sealHtml = hasSeal
+      ? `<img src="${issuerSnapshot.sealImageBase64}" alt="印影" class="seal-image-inline" />`
+      : '';
+
+    lines.push(`
+      <div class="issuer-contact-with-seal">
+        ${contactHtml}
+        ${sealHtml}
+      </div>
+    `);
+  }
+
+  if (lines.length === 0) {
+    return '';
+  }
+
+  return `
+    <div class="issuer-block">
+      ${lines.join('\n')}
+    </div>
+  `;
+}
+
+/**
+ * Render info block with black-background labels
+ * Contains: Subject, Due date, Bank info
+ */
+function renderInfoBlock(
+  doc: DocumentWithTotals,
+  sensitiveSnapshot: SensitiveIssuerSnapshot | null
+): string {
+  const rows: string[] = [];
+
+  // Subject (件名)
+  if (doc.subject) {
+    rows.push(`
+      <tr>
+        <td class="info-label">件名</td>
+        <td class="info-value">${escapeHtml(doc.subject)}</td>
+      </tr>
+    `);
+  }
+
+  // Due date (支払期限)
+  if (doc.dueDate) {
+    rows.push(`
+      <tr>
+        <td class="info-label">支払期限</td>
+        <td class="info-value">${formatDate(doc.dueDate)}</td>
+      </tr>
+    `);
+  }
+
+  // Bank info (振込先)
+  if (hasBankInfo(sensitiveSnapshot)) {
+    const bankLines: string[] = [];
+    if (sensitiveSnapshot!.bankName) {
+      let bankLine = escapeHtml(sensitiveSnapshot!.bankName);
+      if (sensitiveSnapshot!.branchName) {
+        bankLine += ` ${escapeHtml(sensitiveSnapshot!.branchName)}`;
+      }
+      if (sensitiveSnapshot!.accountType) {
+        bankLine += ` ${escapeHtml(sensitiveSnapshot!.accountType)}`;
+      }
+      if (sensitiveSnapshot!.accountNumber) {
+        bankLine += ` ${escapeHtml(sensitiveSnapshot!.accountNumber)}`;
+      }
+      bankLines.push(bankLine);
+    }
+    if (sensitiveSnapshot!.accountHolderName) {
+      bankLines.push(escapeHtml(sensitiveSnapshot!.accountHolderName));
+    }
+
+    rows.push(`
+      <tr>
+        <td class="info-label">振込先</td>
+        <td class="info-value">${bankLines.join('<br>')}</td>
+      </tr>
+    `);
+  }
+
+  if (rows.length === 0) {
+    return '';
+  }
+
+  return `
+    <table class="info-block-table">
+      ${rows.join('')}
+    </table>
+  `;
+}
+
+/**
+ * Render info block and issuer block side by side
+ * 情報テーブル（左）と発行者情報（右）を横並びに配置
+ */
+function renderInfoAndIssuerRow(
+  doc: DocumentWithTotals,
+  sensitiveSnapshot: SensitiveIssuerSnapshot | null
+): string {
+  const infoTableHtml = renderInfoBlock(doc, sensitiveSnapshot);
+  const issuerBlockHtml = renderIssuerBlock(doc, sensitiveSnapshot);
+
+  // 両方が空の場合は空文字を返す
+  if (!infoTableHtml && !issuerBlockHtml) {
+    return '';
+  }
+
+  return `
+    <div class="info-issuer-row">
+      <div class="info-table-container">
+        ${infoTableHtml}
+      </div>
+      <div class="issuer-container">
+        ${issuerBlockHtml}
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Render carried forward block
+ * Only displays when amount > 0
+ */
+function renderCarriedForwardBlock(doc: DocumentWithTotals): string {
+  const carriedForward = doc.carriedForwardAmount ?? 0;
+  if (carriedForward <= 0) {
+    return '';
+  }
+
+  return `
+    <div class="carried-forward-block">
+      <div class="cf-label">繰越金額</div>
+      <div class="cf-value">${formatCurrency(carriedForward)}円</div>
+    </div>
+  `;
+}
+
+/**
+ * Render grand total block with prominent styling
+ * 合計を視覚的に最も強調
+ */
+function renderGrandTotalBlock(doc: DocumentWithTotals): string {
+  return `
+    <div class="grand-total-block">
+      <div class="grand-total-label">合計</div>
+      <div class="grand-total-value">${formatCurrency(doc.totalYen)} 円（税込）</div>
+    </div>
+  `;
+}
+
+/**
+ * Render line items table
+ * 明細テーブル: 摘要｜数量｜単位｜単価｜金額
+ * 金額は数量×単価の計算結果を表示
+ * 集計は renderGrandTotalBlock() で表示するため tfoot は含まない
+ */
+function renderLineItemsTable(doc: DocumentWithTotals): string {
+  const rows = doc.lineItemsCalculated.map((item) => {
+    return `
+      <tr>
+        <td class="item-name">${escapeHtml(item.name)}</td>
+        <td class="item-qty">${formatQuantity(item.quantityMilli)}</td>
+        <td class="item-unit">${escapeHtml(item.unit)}</td>
+        <td class="item-price">${formatCurrency(item.unitPrice)}</td>
+        <td class="item-total">${formatCurrency(item.subtotal)}</td>
+      </tr>
+    `;
+  });
+
+  return `
+    <table class="formal-items-table">
+      <thead>
+        <tr>
+          <th class="col-name">摘要</th>
+          <th class="col-qty">数量</th>
+          <th class="col-unit">単位</th>
+          <th class="col-price">単価</th>
+          <th class="col-total">金額</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+/**
+ * Render tax breakdown section
+ * 税率別内訳: 小計（税抜）、消費税額を表示
+ */
+function renderTaxBreakdownSection(doc: DocumentWithTotals): string {
+  const breakdownRows = doc.taxBreakdown.map((tb) => {
+    const rateLabel = tb.rate === 0 ? '非課税' : `${tb.rate}%対象`;
+    const taxLabel = tb.rate === 0 ? '非課税' : `消費税(${tb.rate}%)`;
+    return `
+      <tr>
+        <td class="breakdown-rate">${rateLabel}</td>
+        <td class="breakdown-subtotal">${formatCurrency(tb.subtotal)}円</td>
+        <td class="breakdown-tax-label">${taxLabel}</td>
+        <td class="breakdown-tax-value">${formatCurrency(tb.tax)}円</td>
+      </tr>
+    `;
+  });
+
+  return `
+    <div class="tax-breakdown-section">
+      <table class="tax-breakdown-table">
+        <tbody>
+          ${breakdownRows.join('')}
+          <tr class="breakdown-total-row">
+            <td class="breakdown-total-label" colspan="2">小計（税抜）</td>
+            <td class="breakdown-total-value" colspan="2">${formatCurrency(doc.subtotalYen)}円</td>
+          </tr>
+          <tr class="breakdown-total-row">
+            <td class="breakdown-total-label" colspan="2">消費税合計</td>
+            <td class="breakdown-total-value" colspan="2">${formatCurrency(doc.taxYen)}円</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+/**
+ * Render notes section
+ */
+function renderNotesSection(doc: DocumentWithTotals): string {
+  return `
+    <div class="formal-notes-section">
+      <div class="notes-title">備考欄</div>
+      <div class="notes-content">${doc.notes ? escapeHtml(doc.notes) : ''}</div>
+    </div>
+  `;
+}
+
+// === CSS Styles ===
+
+function getTemplateStyles(): string {
+  return `
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', sans-serif;
+      font-size: 11px;
+      line-height: 1.5;
+      color: #000;
+      background: #fff;
+      padding: 30px 35px;
+    }
+
+    .document-container {
+      max-width: 100%;
+      margin: 0 auto;
+    }
+
+    /* === Title Section === */
+    .title-section {
+      margin-bottom: 20px;
+    }
+
+    .title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .title-spacer {
+      flex: 1;
+    }
+
+    .document-title {
+      flex: 0 0 auto;
+      font-size: 24px;
+      font-weight: bold;
+      letter-spacing: 0.3em;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #000;
+    }
+
+    .title-meta {
+      flex: 1;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    /* Meta Info Table */
+    .meta-table {
+      border-collapse: collapse;
+    }
+
+    .meta-table td {
+      padding: 2px 8px;
+      font-size: 11px;
+    }
+
+    .meta-label {
+      text-align: right;
+    }
+
+    .meta-value {
+      text-align: right;
+    }
+
+    /* === Client Section === */
+    .client-section {
+      margin-bottom: 10px;
+    }
+
+    .client-name {
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+
+    .client-suffix {
+      font-weight: normal;
+      margin-left: 8px;
+    }
+
+    .client-address {
+      font-size: 11px;
+      color: #333333;
+    }
+
+    .greeting-text {
+      font-size: 11px;
+      margin: 10px 0 15px 0;
+    }
+
+    /* === Info + Issuer Row (Side by Side) === */
+    .info-issuer-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 20px;
+      margin-bottom: 15px;
+    }
+
+    .info-table-container {
+      flex: 0 1 55%;
+      max-width: 55%;
+    }
+
+    .issuer-container {
+      flex: 0 0 auto;
+      min-width: 180px;
+      text-align: right;
+    }
+
+    /* === Issuer Block === */
+    .issuer-block {
+      text-align: right;
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    .issuer-company {
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+
+    .issuer-postal,
+    .issuer-address,
+    .issuer-tel,
+    .issuer-registration {
+      margin-bottom: 2px;
+    }
+
+    .issuer-registration {
+      font-size: 10px;
+      color: #333;
+    }
+
+    .issuer-contact-with-seal {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 6px;
+    }
+
+    .contact-name {
+      white-space: nowrap;
+    }
+
+    .seal-image-inline {
+      width: 42px;
+      height: 42px;
+      object-fit: contain;
+      opacity: 0.85;
+      flex-shrink: 0;
+    }
+
+    /* === Info Block (Black Labels) === */
+    .info-block-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid #000;
+    }
+
+    .info-block-table tr {
+      border-bottom: 1px solid #ccc;
+    }
+
+    .info-block-table tr:last-child {
+      border-bottom: none;
+    }
+
+    .info-label {
+      background: #000;
+      color: #fff;
+      padding: 8px 12px;
+      width: 80px;
+      font-weight: bold;
+      font-size: 11px;
+      vertical-align: top;
+    }
+
+    .info-value {
+      padding: 8px 12px;
+      font-size: 11px;
+      background: #fff;
+      vertical-align: top;
+    }
+
+    /* === Carried Forward Block === */
+    .carried-forward-block {
+      display: flex;
+      border: 1px solid #000;
+      margin: 12px 0;
+      width: 55%;
+    }
+
+    .cf-label {
+      background: #000;
+      color: #fff;
+      padding: 8px 12px;
+      font-weight: bold;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .cf-value {
+      flex: 1;
+      padding: 8px 12px;
+      text-align: right;
+      font-size: 13px;
+      font-weight: bold;
+      background: #fff;
+      border-left: 1px solid #000;
+    }
+
+    /* === Grand Total Block === */
+    .grand-total-block {
+      display: flex;
+      border: 2px solid #000;
+      margin: 15px 0;
+      width: 55%;
+    }
+
+    .grand-total-label {
+      background: #000;
+      color: #fff;
+      padding: 12px 20px;
+      font-size: 14px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .grand-total-value {
+      flex: 1;
+      padding: 12px 20px;
+      text-align: right;
+      font-size: 22px;
+      font-weight: bold;
+      background: #fff;
+      border-left: 2px solid #000;
+    }
+
+    /* === Line Items Table === */
+    .formal-items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+    }
+
+    .formal-items-table th {
+      background: #000;
+      color: #fff;
+      padding: 8px 10px;
+      font-weight: bold;
+      font-size: 10px;
+      text-align: center;
+      border: 1px solid #000;
+    }
+
+    .formal-items-table td {
+      padding: 7px 10px;
+      font-size: 10px;
+      border-bottom: 1px solid #ccc;
+    }
+
+    .formal-items-table tr:nth-child(even) {
+      background: #f8f8f8;
+    }
+
+    .formal-items-table .col-name {
+      width: 45%;
+      text-align: left;
+    }
+
+    .formal-items-table .col-qty {
+      width: 10%;
+      text-align: right;
+    }
+
+    .formal-items-table .col-unit {
+      width: 10%;
+      text-align: center;
+    }
+
+    .formal-items-table .col-price {
+      width: 15%;
+      text-align: right;
+    }
+
+    .formal-items-table .col-total {
+      width: 20%;
+      text-align: right;
+    }
+
+    .formal-items-table .item-name {
+      text-align: left;
+    }
+
+    .formal-items-table .item-qty {
+      text-align: right;
+    }
+
+    .formal-items-table .item-unit {
+      text-align: center;
+    }
+
+    .formal-items-table .item-price {
+      text-align: right;
+    }
+
+    .formal-items-table .item-total {
+      text-align: right;
+    }
+
+    /* === Tax Breakdown Section === */
+    .tax-breakdown-section {
+      display: flex;
+      justify-content: flex-end;
+      margin: 15px 0;
+    }
+
+    .tax-breakdown-table {
+      border-collapse: collapse;
+      min-width: 350px;
+    }
+
+    .tax-breakdown-table td {
+      padding: 4px 10px;
+      font-size: 10px;
+    }
+
+    .breakdown-rate {
+      text-align: left;
+      font-weight: bold;
+    }
+
+    .breakdown-subtotal {
+      text-align: right;
+    }
+
+    .breakdown-tax-label {
+      text-align: left;
+      padding-left: 20px !important;
+    }
+
+    .breakdown-tax-value {
+      text-align: right;
+    }
+
+    .breakdown-total-row {
+      border-top: 1px solid #999;
+    }
+
+    .breakdown-total-label {
+      text-align: left;
+      font-weight: bold;
+    }
+
+    .breakdown-total-value {
+      text-align: right;
+      font-weight: bold;
+    }
+
+    /* === Notes Section === */
+    .formal-notes-section {
+      margin: 20px 0;
+      border: 1px solid #999;
+      min-height: 50px;
+    }
+
+    .notes-title {
+      background: #f0f0f0;
+      padding: 5px 10px;
+      font-size: 10px;
+      font-weight: bold;
+      border-bottom: 1px solid #999;
+    }
+
+    .notes-content {
+      padding: 8px 10px;
+      font-size: 10px;
+      white-space: pre-wrap;
+      min-height: 30px;
+    }
+
+    /* === Print Styles === */
+    @media print {
+      body {
+        padding: 15px;
+      }
+      .document-container {
+        max-width: none;
+      }
+    }
+  `;
+}
+
+// === Main Template Generator ===
+
+/**
+ * Generate invoice accounting template HTML
+ *
+ * Creates a formal accounting-style invoice layout matching traditional Japanese business documents.
+ *
+ * @param doc - Document with calculated totals
+ * @param sensitiveSnapshot - Sensitive issuer information (bank account, etc.)
+ * @returns Complete HTML string for the invoice
+ */
+export function generateInvoiceAccountingTemplate(
+  doc: DocumentWithTotals,
+  sensitiveSnapshot: SensitiveIssuerSnapshot | null
+): string {
+  const clientAddressHtml = doc.clientAddress
+    ? `<div class="client-address">${escapeHtml(doc.clientAddress)}</div>`
+    : '';
+
+  return `<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    ${getTemplateStyles()}
+  </style>
+</head>
+<body>
+  <div class="document-container">
+    <!-- Title with meta info -->
+    ${renderTitleWithMeta(doc)}
+
+    <!-- Client section -->
+    <div class="client-section">
+      <div class="client-name">${escapeHtml(doc.clientName)}<span class="client-suffix">御中</span></div>
+      ${clientAddressHtml}
+    </div>
+
+    <!-- Greeting -->
+    <div class="greeting-text">下記のとおり、御請求申し上げます。</div>
+
+    <!-- Info block + Issuer (side by side) -->
+    ${renderInfoAndIssuerRow(doc, sensitiveSnapshot)}
+
+    <!-- Carried forward (conditional) -->
+    ${renderCarriedForwardBlock(doc)}
+
+    <!-- Grand total -->
+    ${renderGrandTotalBlock(doc)}
+
+    <!-- Line items with integrated totals -->
+    ${renderLineItemsTable(doc)}
+
+    <!-- Tax breakdown -->
+    ${renderTaxBreakdownSection(doc)}
+
+    <!-- Notes -->
+    ${renderNotesSection(doc)}
+  </div>
+</body>
+</html>`;
+}

@@ -1,3 +1,6 @@
+import type { InvoiceTemplateType } from '@/pdf/types';
+import { DEFAULT_INVOICE_TEMPLATE_TYPE } from '@/pdf/types';
+
 /**
  * App settings stored in AsyncStorage
  */
@@ -29,6 +32,9 @@ export interface AppSettings {
     /** Next invoice number (starts at 1) */
     nextInvoiceNumber: number;
   };
+
+  /** Invoice PDF template preference */
+  invoiceTemplateType: InvoiceTemplateType;
 
   /** Schema version for data migration */
   schemaVersion: number;
@@ -72,6 +78,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     nextEstimateNumber: 1,
     nextInvoiceNumber: 1,
   },
+  invoiceTemplateType: DEFAULT_INVOICE_TEMPLATE_TYPE,
   schemaVersion: 1,
 };
 

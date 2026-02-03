@@ -7,6 +7,23 @@
 
 import type { DocumentWithTotals, SensitiveIssuerSnapshot, DocumentType } from '@/types/document';
 
+// === Invoice Template Type ===
+
+/**
+ * Invoice template type for PDF generation
+ * - ACCOUNTING: Traditional Japanese accounting-style layout (current default)
+ * - SIMPLE: Clean, minimal layout similar to estimate format
+ */
+export const InvoiceTemplateType = {
+  ACCOUNTING: 'ACCOUNTING',
+  SIMPLE: 'SIMPLE',
+} as const;
+
+export type InvoiceTemplateType = (typeof InvoiceTemplateType)[keyof typeof InvoiceTemplateType];
+
+/** Default invoice template type */
+export const DEFAULT_INVOICE_TEMPLATE_TYPE: InvoiceTemplateType = 'ACCOUNTING';
+
 // === Template Input ===
 
 /**
@@ -21,6 +38,9 @@ export interface PdfTemplateInput {
 
   /** Output mode - 'screen' for colorful preview, 'pdf' for formal print (default: 'screen') */
   mode?: TemplateMode;
+
+  /** Invoice template type (only used for invoice documents in pdf mode) */
+  invoiceTemplateType?: InvoiceTemplateType;
 }
 
 /**

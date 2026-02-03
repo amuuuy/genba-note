@@ -2,6 +2,8 @@
  * Settings Domain Types
  */
 
+import type { InvoiceTemplateType } from '@/pdf/types';
+
 /**
  * Validation error for a specific field
  */
@@ -33,6 +35,8 @@ export interface SettingsFormValues {
   invoicePrefix: string;
   /** Seal image URI (local file path) */
   sealImageUri: string | null;
+  /** Invoice PDF template preference */
+  invoiceTemplateType: InvoiceTemplateType;
 
   // SecureStore fields (sensitive)
   invoiceNumber: string;

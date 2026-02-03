@@ -147,6 +147,7 @@ describe('issuerResolverService', () => {
               nextEstimateNumber: 1,
               nextInvoiceNumber: 1,
             },
+            invoiceTemplateType: 'ACCOUNTING',
             schemaVersion: 1,
           },
         });
@@ -225,6 +226,7 @@ describe('issuerResolverService', () => {
           nextEstimateNumber: 1,
           nextInvoiceNumber: 1,
         },
+        invoiceTemplateType: 'ACCOUNTING' as const,
         schemaVersion: 1,
       };
 
@@ -319,6 +321,7 @@ describe('issuerResolverService', () => {
           nextEstimateNumber: 1,
           nextInvoiceNumber: 1,
         },
+        invoiceTemplateType: 'ACCOUNTING' as const,
         schemaVersion: 1,
       };
 
@@ -455,6 +458,7 @@ describe('issuerResolverService', () => {
               nextEstimateNumber: 1,
               nextInvoiceNumber: 1,
             },
+            invoiceTemplateType: 'ACCOUNTING',
             schemaVersion: 1,
           },
         });
@@ -519,6 +523,7 @@ describe('issuerResolverService', () => {
           nextEstimateNumber: 1,
           nextInvoiceNumber: 1,
         },
+        invoiceTemplateType: 'ACCOUNTING' as const,
         schemaVersion: 1,
       };
 
@@ -623,6 +628,7 @@ describe('issuerResolverService', () => {
               nextEstimateNumber: 1,
               nextInvoiceNumber: 1,
             },
+            invoiceTemplateType: 'ACCOUNTING',
             schemaVersion: 1,
           },
         });
@@ -671,6 +677,7 @@ describe('issuerResolverService', () => {
               nextEstimateNumber: 1,
               nextInvoiceNumber: 1,
             },
+            invoiceTemplateType: 'ACCOUNTING',
             schemaVersion: 1,
           },
         });

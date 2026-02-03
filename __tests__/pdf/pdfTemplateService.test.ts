@@ -22,6 +22,7 @@ import {
   formatDate,
   generateDocumentTitle,
   generateFilenameTitle,
+  parseAddressWithPostalCode,
 } from '@/pdf/pdfTemplateService';
 
 describe('pdfTemplateService', () => {
@@ -101,6 +102,70 @@ describe('pdfTemplateService', () => {
 
     it('handles December', () => {
       expect(formatDate('2026-12-31')).toBe('2026年12月31日');
+    });
+  });
+
+  // === Address Parsing ===
+  describe('parseAddressWithPostalCode', () => {
+    it('parses address with 〒 prefix postal code', () => {
+      const result = parseAddressWithPostalCode('〒100-0001 東京都千代田区千代田1-1-1');
+      expect(result.postalCode).toBe('〒100-0001');
+      expect(result.addressLine1).toBe('東京都千代田区千代田1-1-1');
+      expect(result.addressLine2).toBeNull();
+    });
+
+    it('parses address with postal code without 〒 prefix', () => {
+      const result = parseAddressWithPostalCode('160-0000 東京都新宿区1-2-3');
+      expect(result.postalCode).toBe('〒160-0000');
+      expect(result.addressLine1).toBe('東京都新宿区1-2-3');
+    });
+
+    it('parses postal code without hyphen', () => {
+      const result = parseAddressWithPostalCode('1000001 東京都千代田区');
+      expect(result.postalCode).toBe('〒100-0001');
+      expect(result.addressLine1).toBe('東京都千代田区');
+    });
+
+    it('splits multi-line address with newline', () => {
+      const result = parseAddressWithPostalCode('〒100-0001 東京都千代田区千代田1-1-1\nサンプルビル3階');
+      expect(result.postalCode).toBe('〒100-0001');
+      expect(result.addressLine1).toBe('東京都千代田区千代田1-1-1');
+      expect(result.addressLine2).toBe('サンプルビル3階');
+    });
+
+    it('splits multi-line address with double full-width space', () => {
+      const result = parseAddressWithPostalCode('〒100-0001 東京都千代田区　　サンプルビル');
+      expect(result.postalCode).toBe('〒100-0001');
+      expect(result.addressLine1).toBe('東京都千代田区');
+      expect(result.addressLine2).toBe('サンプルビル');
+    });
+
+    it('handles address without postal code', () => {
+      const result = parseAddressWithPostalCode('東京都渋谷区');
+      expect(result.postalCode).toBeNull();
+      expect(result.addressLine1).toBe('東京都渋谷区');
+      expect(result.addressLine2).toBeNull();
+    });
+
+    it('splits address without postal code using double full-width space', () => {
+      const result = parseAddressWithPostalCode('東京都渋谷区　　テストビル5階');
+      expect(result.postalCode).toBeNull();
+      expect(result.addressLine1).toBe('東京都渋谷区');
+      expect(result.addressLine2).toBe('テストビル5階');
+    });
+
+    it('returns all null for null input', () => {
+      const result = parseAddressWithPostalCode(null);
+      expect(result.postalCode).toBeNull();
+      expect(result.addressLine1).toBeNull();
+      expect(result.addressLine2).toBeNull();
+    });
+
+    it('returns all null for empty string', () => {
+      const result = parseAddressWithPostalCode('');
+      expect(result.postalCode).toBeNull();
+      expect(result.addressLine1).toBeNull();
+      expect(result.addressLine2).toBeNull();
     });
   });
 
@@ -248,15 +313,16 @@ describe('pdfTemplateService', () => {
         expect(invoiceResult.html).not.toContain(INVOICE_COLORS.primary);
       });
 
-      it('pdf mode includes formal theme CSS (transparent backgrounds)', () => {
+      it('pdf mode includes formal styling for invoices (accounting style)', () => {
         const input = createTestTemplateInput({
           document: { type: 'invoice' },
           mode: 'pdf',
         });
         const result = generateHtmlTemplate(input);
 
-        // Formal theme uses transparent background for headers
-        expect(result.html).toContain('background: transparent');
+        // Accounting-style template uses black/white formal styling
+        expect(result.html).toContain('background: #000');
+        expect(result.html).toContain('background: #fff');
       });
 
       it('screen mode includes screen theme CSS (colored backgrounds)', () => {
@@ -732,36 +798,37 @@ describe('pdfTemplateService', () => {
 
     // === Invoice PDF Mode - New Accounting Layout ===
     describe('invoice pdf mode - accounting layout', () => {
-      it('renders title without full-width spaces for invoice in pdf mode', () => {
+      it('renders title with full-width spaces for invoice in pdf mode (accounting style)', () => {
         const input = createTestTemplateInput({
           document: { type: 'invoice' },
           mode: 'pdf',
         });
         const result = generateHtmlTemplate(input);
 
-        expect(result.html).toContain('請求書');
-        expect(result.html).not.toContain('請　求　書');
+        // New accounting-style template uses spaced title matching traditional format
+        expect(result.html).toContain('請　求　書');
       });
 
-      it('renders document number as "No:" format', () => {
+      it('renders document number in meta table', () => {
         const input = createTestTemplateInput({
           document: { type: 'invoice', documentNo: 'INV-001' },
           mode: 'pdf',
         });
         const result = generateHtmlTemplate(input);
 
-        expect(result.html).toContain('No:');
+        expect(result.html).toContain('meta-label');
+        expect(result.html).toContain('No');
         expect(result.html).toContain('INV-001');
       });
 
-      it('renders issue date as "請求日:" format', () => {
+      it('renders issue date in meta table', () => {
         const input = createTestTemplateInput({
           document: { type: 'invoice', issueDate: '2026-01-30' },
           mode: 'pdf',
         });
         const result = generateHtmlTemplate(input);
 
-        expect(result.html).toContain('請求日:');
+        expect(result.html).toContain('請求日');
         expect(result.html).toContain('2026年1月30日');
       });
 
@@ -783,8 +850,8 @@ describe('pdfTemplateService', () => {
         });
         const result = generateHtmlTemplate(input);
 
-        // Info block with black-background labels
-        expect(result.html).toContain('info-block');
+        // Info block with black-background labels (table layout)
+        expect(result.html).toContain('info-block-table');
         expect(result.html).toContain('info-label');
         expect(result.html).toContain('件名');
         expect(result.html).toContain('支払期限');
@@ -874,14 +941,16 @@ describe('pdfTemplateService', () => {
 
         expect(result.html).toContain('issuer-block');
         expect(result.html).toContain('テスト株式会社');
-        expect(result.html).toContain('〒160-0000 東京都新宿区1-2-3');
+        // Address is now parsed into postal code and address line
+        expect(result.html).toContain('〒160-0000');
+        expect(result.html).toContain('東京都新宿区1-2-3');
         expect(result.html).toContain('TEL:');
         expect(result.html).toContain('03-1234-5678');
         expect(result.html).toContain('担当:');
         expect(result.html).toContain('山田太郎');
       });
 
-      it('renders seal image to the right of issuer info', () => {
+      it('renders seal image inline (without contact person)', () => {
         const input = createTestTemplateInput({
           document: {
             type: 'invoice',
@@ -891,7 +960,7 @@ describe('pdfTemplateService', () => {
               address: '東京都新宿区1-2-3',
               phone: '03-1234-5678',
               fax: null,
-              sealImageBase64: 'dGVzdC1pbWFnZS1kYXRh', // test base64
+              sealImageBase64: 'data:image/png;base64,dGVzdC1pbWFnZS1kYXRh', // data URL format
               contactPerson: null,
             },
           },
@@ -899,8 +968,9 @@ describe('pdfTemplateService', () => {
         });
         const result = generateHtmlTemplate(input);
 
-        expect(result.html).toContain('issuer-seal');
-        expect(result.html).toContain('seal-image');
+        // New layout: seal is inline with contact person area
+        expect(result.html).toContain('issuer-contact-with-seal');
+        expect(result.html).toContain('seal-image-inline');
         expect(result.html).toContain('data:image/png;base64,dGVzdC1pbWFnZS1kYXRh');
       });
 
@@ -926,7 +996,7 @@ describe('pdfTemplateService', () => {
         expect(result.html).toContain('外壁塗装');
       });
 
-      it('renders totals section at bottom right', () => {
+      it('renders grand total in prominent block (not in table footer)', () => {
         const input = createTestTemplateInput({
           document: {
             type: 'invoice',
@@ -938,11 +1008,12 @@ describe('pdfTemplateService', () => {
         });
         const result = generateHtmlTemplate(input);
 
-        expect(result.html).toContain('formal-totals-section');
-        expect(result.html).toContain('小計');
-        expect(result.html).toContain('消費税');
-        expect(result.html).toContain('1,000,000');
-        expect(result.html).toContain('100,000');
+        // Grand total is displayed in a separate prominent block
+        expect(result.html).toContain('grand-total-block');
+        expect(result.html).toContain('1,100,000');
+        expect(result.html).toContain('円（税込）');
+        // Table footer (tfoot) is not used for totals
+        expect(result.html).not.toContain('subtotal-row');
       });
 
       it('estimate in pdf mode still uses old layout with spaced title', () => {
@@ -954,8 +1025,199 @@ describe('pdfTemplateService', () => {
 
         // Estimate should keep the old formal layout
         expect(result.html).toContain('見　積　書');
-        expect(result.html).not.toContain('info-block');
+        // Note: info-block-table is only used in invoice accounting template
+        expect(result.html).not.toContain('info-block-table');
         expect(result.html).not.toContain('grand-total-block');
+      });
+
+      // === New Layout Requirements ===
+      it('includes greeting text "下記のとおり、御請求申し上げます。"', () => {
+        const input = createTestTemplateInput({
+          document: { type: 'invoice' },
+          mode: 'pdf',
+        });
+        const result = generateHtmlTemplate(input);
+
+        expect(result.html).toContain('下記のとおり、御請求申し上げます。');
+      });
+
+      it('does NOT include FAX in issuer info', () => {
+        const input = createTestTemplateInput({
+          document: {
+            type: 'invoice',
+            issuerSnapshot: {
+              companyName: 'テスト株式会社',
+              representativeName: null,
+              address: '東京都新宿区1-2-3',
+              phone: '03-1234-5678',
+              fax: '03-1234-5679',
+              sealImageBase64: null,
+              contactPerson: '担当太郎',
+            },
+          },
+          mode: 'pdf',
+        });
+        const result = generateHtmlTemplate(input);
+
+        expect(result.html).not.toContain('FAX');
+        expect(result.html).not.toContain('03-1234-5679');
+      });
+
+      it('includes 登録番号 in invoice pdf mode when set', () => {
+        const input = createTestTemplateInput({
+          document: { type: 'invoice' },
+          sensitiveSnapshot: createTestSensitiveSnapshot({
+            invoiceNumber: 'T9876543210123',
+          }),
+          mode: 'pdf',
+        });
+        const result = generateHtmlTemplate(input);
+
+        expect(result.html).toContain('登録番号');
+        expect(result.html).toContain('T9876543210123');
+      });
+
+      it('omits 登録番号 in invoice pdf mode when not set', () => {
+        const input = createTestTemplateInput({
+          document: { type: 'invoice' },
+          sensitiveSnapshot: createTestSensitiveSnapshot({
+            invoiceNumber: null,
+          }),
+          mode: 'pdf',
+        });
+        const result = generateHtmlTemplate(input);
+
+        expect(result.html).not.toContain('登録番号');
+      });
+
+      it('renders seal inline with contact person name (not separate block)', () => {
+        const input = createTestTemplateInput({
+          document: {
+            type: 'invoice',
+            issuerSnapshot: {
+              companyName: 'テスト株式会社',
+              representativeName: null,
+              address: '東京都新宿区1-2-3',
+              phone: '03-1234-5678',
+              fax: null,
+              sealImageBase64: 'data:image/png;base64,dGVzdC1pbWFnZS1kYXRh', // data URL format
+              contactPerson: '山田太郎',
+            },
+          },
+          mode: 'pdf',
+        });
+        const result = generateHtmlTemplate(input);
+
+        // Seal should be inline with contact person
+        expect(result.html).toContain('issuer-contact-with-seal');
+        expect(result.html).toContain('seal-image-inline');
+        expect(result.html).toContain('担当:');
+        expect(result.html).toContain('山田太郎');
+      });
+
+      it('parses postal code from address and displays separately', () => {
+        const input = createTestTemplateInput({
+          document: {
+            type: 'invoice',
+            issuerSnapshot: {
+              companyName: 'テスト株式会社',
+              representativeName: null,
+              address: '〒100-0001 東京都千代田区千代田1-1-1\nサンプルビル3階',
+              phone: '03-1234-5678',
+              fax: null,
+              sealImageBase64: null,
+              contactPerson: null,
+            },
+          },
+          mode: 'pdf',
+        });
+        const result = generateHtmlTemplate(input);
+
+        expect(result.html).toContain('issuer-postal');
+        expect(result.html).toContain('〒100-0001');
+        expect(result.html).toContain('東京都千代田区千代田1-1-1');
+        expect(result.html).toContain('サンプルビル3階');
+      });
+
+      it('renders bank info in multi-line format in 振込先', () => {
+        const input = createTestTemplateInput({
+          document: { type: 'invoice' },
+          sensitiveSnapshot: createTestSensitiveSnapshot({
+            bankName: 'サンプル銀行',
+            branchName: '本店',
+            accountType: '普通',
+            accountNumber: '1111111',
+            accountHolderName: 'サンプル（カ',
+          }),
+          mode: 'pdf',
+        });
+        const result = generateHtmlTemplate(input);
+
+        expect(result.html).toContain('振込先');
+        expect(result.html).toContain('サンプル銀行');
+        expect(result.html).toContain('本店');
+        expect(result.html).toContain('普通');
+        expect(result.html).toContain('1111111');
+        expect(result.html).toContain('サンプル（カ');
+      });
+
+      it('renders carried forward block with black-background label style', () => {
+        const input = createTestTemplateInput({
+          document: {
+            type: 'invoice',
+            carriedForwardAmount: 10000,
+          },
+          mode: 'pdf',
+        });
+        const result = generateHtmlTemplate(input);
+
+        expect(result.html).toContain('cf-label');
+        expect(result.html).toContain('繰越金額');
+        expect(result.html).toContain('10,000');
+      });
+
+      it('renders tax breakdown section with subtotal and tax amounts', () => {
+        const input = createTestTemplateInput({
+          document: {
+            type: 'invoice',
+            subtotalYen: 100000,
+            taxYen: 10000,
+            totalYen: 110000,
+            taxBreakdown: [
+              { rate: 10, subtotal: 100000, tax: 10000 },
+            ],
+          },
+          mode: 'pdf',
+        });
+        const result = generateHtmlTemplate(input);
+
+        expect(result.html).toContain('tax-breakdown-section');
+        expect(result.html).toContain('10%対象');
+        expect(result.html).toContain('小計（税抜）');
+        expect(result.html).toContain('消費税合計');
+        expect(result.html).toContain('100,000');
+        expect(result.html).toContain('10,000');
+      });
+
+      it('renders tax breakdown section with multiple tax rates', () => {
+        const input = createTestTemplateInput({
+          document: {
+            type: 'invoice',
+            subtotalYen: 150000,
+            taxYen: 10000,
+            totalYen: 160000,
+            taxBreakdown: [
+              { rate: 10, subtotal: 100000, tax: 10000 },
+              { rate: 0, subtotal: 50000, tax: 0 },
+            ],
+          },
+          mode: 'pdf',
+        });
+        const result = generateHtmlTemplate(input);
+
+        expect(result.html).toContain('10%対象');
+        expect(result.html).toContain('非課税');
+        expect(result.html).toContain('150,000');
       });
     });
   });

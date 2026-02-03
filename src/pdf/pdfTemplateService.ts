@@ -10,9 +10,31 @@
  */
 
 import type { DocumentType, DocumentWithTotals, TaxRate, SensitiveIssuerSnapshot } from '@/types/document';
-import type { PdfTemplateInput, PdfTemplateResult, ColorScheme, TemplateMode } from './types';
-import { ESTIMATE_COLORS, INVOICE_COLORS, FORMAL_COLORS } from './types';
+import type { PdfTemplateInput, PdfTemplateResult, ColorScheme, TemplateMode, InvoiceTemplateType } from './types';
+import { ESTIMATE_COLORS, INVOICE_COLORS, FORMAL_COLORS, DEFAULT_INVOICE_TEMPLATE_TYPE } from './types';
 import { getScreenThemeCss, getFormalThemeCss } from './themes';
+import { generateInvoiceAccountingTemplate } from './invoiceAccountingTemplate';
+
+// Re-export formatting utilities from templateUtils for backwards compatibility
+export {
+  formatCurrency,
+  formatQuantity,
+  formatTaxRate,
+  formatDate,
+  parseAddressWithPostalCode,
+  escapeHtml,
+} from './templateUtils';
+export type { ParsedAddress } from './templateUtils';
+
+// Import for internal use
+import {
+  formatCurrency,
+  formatQuantity,
+  formatTaxRate,
+  formatDate,
+  parseAddressWithPostalCode,
+  escapeHtml,
+} from './templateUtils';
 
 // === Color Scheme ===
 
@@ -21,49 +43,6 @@ import { getScreenThemeCss, getFormalThemeCss } from './themes';
  */
 export function getColorScheme(type: DocumentType): ColorScheme {
   return type === 'estimate' ? ESTIMATE_COLORS : INVOICE_COLORS;
-}
-
-// === Formatting Functions ===
-
-/**
- * Format currency with thousand separators
- * @param amount - Amount in yen
- * @returns Formatted string (e.g., "1,234,567")
- */
-export function formatCurrency(amount: number): string {
-  return amount.toLocaleString('ja-JP');
-}
-
-/**
- * Format quantity from milli-units to display string
- * @param quantityMilli - Quantity in milli-units (1000 = 1.0)
- * @returns Formatted string (e.g., "2.5", "1", "0.001")
- */
-export function formatQuantity(quantityMilli: number): string {
-  const value = quantityMilli / 1000;
-  // Use toFixed(3) then remove trailing zeros
-  const formatted = value.toFixed(3).replace(/\.?0+$/, '');
-  // If result is empty string (shouldn't happen), return "0"
-  return formatted || '0';
-}
-
-/**
- * Format tax rate for display
- * @param rate - Tax rate (0 or 10)
- * @returns "10%" or "非課税"
- */
-export function formatTaxRate(rate: TaxRate): string {
-  return rate === 0 ? '非課税' : `${rate}%`;
-}
-
-/**
- * Format date string to Japanese format
- * @param dateString - Date in YYYY-MM-DD format
- * @returns Japanese format (e.g., "2026年1月30日")
- */
-export function formatDate(dateString: string): string {
-  const [year, month, day] = dateString.split('-').map(Number);
-  return `${year}年${month}月${day}日`;
 }
 
 /**
@@ -93,18 +72,6 @@ export function generateFilenameTitle(documentNo: string, type: DocumentType): s
 }
 
 // === Section Renderers ===
-
-/**
- * Escape HTML special characters
- */
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
 
 /**
  * Check if bank info has any non-null values
@@ -251,7 +218,7 @@ function renderFormalIssuerSection(
 
   // Seal image HTML (positioned to the right of the info block)
   const sealHtml = hasSeal
-    ? `<div class="issuer-seal"><img src="data:image/png;base64,${issuerSnapshot.sealImageBase64}" alt="印影" class="seal-image" /></div>`
+    ? `<div class="issuer-seal"><img src="${issuerSnapshot.sealImageBase64}" alt="印影" class="seal-image" /></div>`
     : '';
 
   // Return issuer block with flexbox layout: [info] [seal]
@@ -267,18 +234,20 @@ function renderFormalIssuerSection(
 
 /**
  * Render line items table
+ * 明細テーブル: 品名｜数量｜単位｜単価（税抜）｜税率｜金額（税抜）
+ * 金額は数量×単価の計算結果（税抜金額）を表示
  */
 function renderLineItemsTable(doc: DocumentWithTotals, _colors: ColorScheme): string {
   const rows = doc.lineItemsCalculated.map((item) => {
-    const lineTotal = item.subtotal + item.tax;
+    // 金額は税抜（subtotal = 数量 × 単価）
     return `
         <tr>
           <td class="item-name">${escapeHtml(item.name)}</td>
           <td class="item-qty">${formatQuantity(item.quantityMilli)}</td>
           <td class="item-unit">${escapeHtml(item.unit)}</td>
-          <td class="item-price">¥${formatCurrency(item.unitPrice)}</td>
+          <td class="item-price">${formatCurrency(item.unitPrice)}円</td>
           <td class="item-tax">${formatTaxRate(item.taxRate)}</td>
-          <td class="item-total">¥${formatCurrency(lineTotal)}</td>
+          <td class="item-total">${formatCurrency(item.subtotal)}円</td>
         </tr>`;
   });
 
@@ -289,9 +258,9 @@ function renderLineItemsTable(doc: DocumentWithTotals, _colors: ColorScheme): st
           <th class="col-name">品名</th>
           <th class="col-qty">数量</th>
           <th class="col-unit">単位</th>
-          <th class="col-price">単価</th>
+          <th class="col-price">単価（税抜）</th>
           <th class="col-tax">税率</th>
-          <th class="col-total">金額</th>
+          <th class="col-total">金額（税抜）</th>
         </tr>
       </thead>
       <tbody>
@@ -303,17 +272,19 @@ function renderLineItemsTable(doc: DocumentWithTotals, _colors: ColorScheme): st
 
 /**
  * Render formal line items table (without tax rate column for simplicity)
+ * 明細テーブル: 摘要｜数量｜単位｜単価（税抜）｜金額（税抜）
+ * 金額は数量×単価の計算結果（税抜金額）を表示
  */
 function renderFormalLineItemsTable(doc: DocumentWithTotals): string {
   const rows = doc.lineItemsCalculated.map((item) => {
-    const lineTotal = item.subtotal + item.tax;
+    // 金額は税抜（subtotal = 数量 × 単価）
     return `
         <tr>
           <td class="item-name">${escapeHtml(item.name)}</td>
           <td class="item-qty">${formatQuantity(item.quantityMilli)}</td>
           <td class="item-unit">${escapeHtml(item.unit)}</td>
-          <td class="item-price">${formatCurrency(item.unitPrice)}</td>
-          <td class="item-total">${formatCurrency(lineTotal)}</td>
+          <td class="item-price">${formatCurrency(item.unitPrice)}円</td>
+          <td class="item-total">${formatCurrency(item.subtotal)}円</td>
         </tr>`;
   });
 
@@ -324,8 +295,8 @@ function renderFormalLineItemsTable(doc: DocumentWithTotals): string {
           <th class="col-name">摘要</th>
           <th class="col-qty">数量</th>
           <th class="col-unit">単位</th>
-          <th class="col-price">単価</th>
-          <th class="col-total">金額</th>
+          <th class="col-price">単価（税抜）</th>
+          <th class="col-total">金額（税抜）</th>
         </tr>
       </thead>
       <tbody>
@@ -337,14 +308,15 @@ function renderFormalLineItemsTable(doc: DocumentWithTotals): string {
 
 /**
  * Render totals section with tax breakdown and carried forward amount
+ * 小計（税抜）、消費税（税率明示）、合計（税込）の3点を明確に区分
  */
 function renderTotalsSection(doc: DocumentWithTotals): string {
   const breakdownRows = doc.taxBreakdown.map((tb) => {
     const label = tb.rate === 0 ? '非課税対象' : `${tb.rate}%対象`;
     return `
         <div class="breakdown-row">
-          <span class="breakdown-label">${label}: ¥${formatCurrency(tb.subtotal)}</span>
-          <span class="breakdown-tax">消費税: ¥${formatCurrency(tb.tax)}</span>
+          <span class="breakdown-label">${label}: ${formatCurrency(tb.subtotal)}円</span>
+          <span class="breakdown-tax">消費税(${tb.rate === 0 ? '非課税' : `${tb.rate}%`}): ${formatCurrency(tb.tax)}円</span>
         </div>`;
   });
 
@@ -353,20 +325,20 @@ function renderTotalsSection(doc: DocumentWithTotals): string {
     ? `
       <div class="totals-row carried-forward">
         <span class="label">繰越金額</span>
-        <span class="value">¥${formatCurrency(carriedForward)}</span>
+        <span class="value">${formatCurrency(carriedForward)}円</span>
       </div>`
     : '';
 
   return `
     <div class="totals-section">
       <div class="totals-row">
-        <span class="label">小計</span>
-        <span class="value">¥${formatCurrency(doc.subtotalYen)}</span>
+        <span class="label">小計（税抜）</span>
+        <span class="value">${formatCurrency(doc.subtotalYen)}円</span>
       </div>
       ${breakdownRows.join('\n')}${carriedForwardRow}
       <div class="totals-row total-final">
-        <span class="label">合計(税込)</span>
-        <span class="value">¥${formatCurrency(doc.totalYen)}</span>
+        <span class="label">合計（税込）</span>
+        <span class="value">${formatCurrency(doc.totalYen)}円</span>
       </div>
     </div>
   `;
@@ -374,10 +346,10 @@ function renderTotalsSection(doc: DocumentWithTotals): string {
 
 /**
  * Render formal totals section with carried forward amount
+ * 小計（税抜）、消費税（税率明示）、合計（税込）の3点を明確に区分
+ * 合計（税込）は視覚的に最も強調
  */
 function renderFormalTotalsSection(doc: DocumentWithTotals): string {
-  // Calculate totals without carried forward for display
-  const lineItemsTotal = doc.subtotalYen + doc.taxYen;
   const carriedForward = doc.carriedForwardAmount ?? 0;
   const hasCarriedForward = carriedForward > 0;
 
@@ -389,20 +361,34 @@ function renderFormalTotalsSection(doc: DocumentWithTotals): string {
         </tr>`
     : '';
 
+  // 税率別の消費税内訳を生成（複数税率対応）
+  const taxBreakdownRows = doc.taxBreakdown
+    .filter((tb) => tb.tax > 0) // 税額が0でないもののみ表示
+    .map((tb) => {
+      const rateLabel = tb.rate === 0 ? '非課税' : `${tb.rate}%`;
+      return `
+        <tr class="tax-breakdown-row">
+          <td class="totals-label tax-rate-label">　消費税(${rateLabel})</td>
+          <td class="totals-value">${formatCurrency(tb.tax)}円</td>
+        </tr>`;
+    })
+    .join('');
+
   return `
     <div class="formal-totals-section">
       <table class="formal-totals-table">
         <tr>
-          <td class="totals-label">小計</td>
+          <td class="totals-label">小計（税抜）</td>
           <td class="totals-value">${formatCurrency(doc.subtotalYen)}円</td>
         </tr>
-        <tr>
+        <tr class="tax-total-row">
           <td class="totals-label">消費税</td>
           <td class="totals-value">${formatCurrency(doc.taxYen)}円</td>
-        </tr>${carriedForwardRow}
+        </tr>
+        ${taxBreakdownRows}${carriedForwardRow}
         <tr class="total-final-row">
-          <td class="totals-label">合計</td>
-          <td class="totals-value">${formatCurrency(doc.totalYen)}円(税込)</td>
+          <td class="totals-label total-final-label">合計（税込）</td>
+          <td class="totals-value total-final-value">${formatCurrency(doc.totalYen)}円</td>
         </tr>
       </table>
     </div>
@@ -469,6 +455,7 @@ function renderInfoBlock(
 /**
  * Render carried forward block for invoice PDF
  * Only displays when amount > 0
+ * Layout: Black background label (left) + white background value (right)
  */
 function renderCarriedForwardBlock(doc: DocumentWithTotals): string {
   const carriedForward = doc.carriedForwardAmount ?? 0;
@@ -478,70 +465,87 @@ function renderCarriedForwardBlock(doc: DocumentWithTotals): string {
 
   return `
     <div class="carried-forward-block">
-      <span class="cf-label">繰越金額</span>
-      <span class="cf-value">${formatCurrency(carriedForward)}円</span>
+      <div class="cf-label">繰越金額</div>
+      <div class="cf-value">${formatCurrency(carriedForward)}円</div>
     </div>
   `;
 }
 
 /**
  * Render grand total block with black-background label for invoice PDF
+ * 合計（税込）を視覚的に最も強調
  */
 function renderGrandTotalBlock(doc: DocumentWithTotals): string {
   return `
     <div class="grand-total-block">
-      <div class="grand-total-label">合計</div>
-      <div class="grand-total-value">${formatCurrency(doc.totalYen)}円(税込)</div>
+      <div class="grand-total-label">合計（税込）</div>
+      <div class="grand-total-value">${formatCurrency(doc.totalYen)}円</div>
     </div>
   `;
 }
 
 /**
  * Render issuer block for invoice PDF (vertical stack layout)
- * Seal image is positioned to the right of issuer info
+ * New layout:
+ * - Parse address into postal code + address lines
+ * - Remove FAX and 登録番号
+ * - Seal image is positioned inline with contact person name
  */
 function renderInvoiceIssuerBlock(
   doc: DocumentWithTotals,
-  sensitiveSnapshot: SensitiveIssuerSnapshot | null
+  _sensitiveSnapshot: SensitiveIssuerSnapshot | null
 ): string {
   const { issuerSnapshot } = doc;
   const hasSeal = !!issuerSnapshot.sealImageBase64;
 
   const infoLines: string[] = [];
 
+  // Company name
   if (issuerSnapshot.companyName) {
     infoLines.push(`<div class="issuer-company">${escapeHtml(issuerSnapshot.companyName)}</div>`);
   }
-  if (issuerSnapshot.address) {
-    infoLines.push(`<div class="issuer-address">${escapeHtml(issuerSnapshot.address)}</div>`);
+
+  // Parse address into postal code and lines
+  const parsedAddress = parseAddressWithPostalCode(issuerSnapshot.address);
+  if (parsedAddress.postalCode) {
+    infoLines.push(`<div class="issuer-postal">${escapeHtml(parsedAddress.postalCode)}</div>`);
   }
+  if (parsedAddress.addressLine1) {
+    infoLines.push(`<div class="issuer-address-line">${escapeHtml(parsedAddress.addressLine1)}</div>`);
+  }
+  if (parsedAddress.addressLine2) {
+    infoLines.push(`<div class="issuer-address-line">${escapeHtml(parsedAddress.addressLine2)}</div>`);
+  }
+
+  // TEL (no FAX)
   if (issuerSnapshot.phone) {
     infoLines.push(`<div class="issuer-tel">TEL: ${escapeHtml(issuerSnapshot.phone)}</div>`);
   }
-  if (issuerSnapshot.fax) {
-    infoLines.push(`<div class="issuer-fax">FAX: ${escapeHtml(issuerSnapshot.fax)}</div>`);
-  }
-  if (sensitiveSnapshot?.invoiceNumber) {
-    infoLines.push(`<div class="issuer-invoice-number">登録番号: ${escapeHtml(sensitiveSnapshot.invoiceNumber)}</div>`);
-  }
-  if (issuerSnapshot.contactPerson) {
-    infoLines.push(`<div class="issuer-contact">担当: ${escapeHtml(issuerSnapshot.contactPerson)}</div>`);
+
+  // Contact person with inline seal - HORIZONTAL ROW: 担当者名（左）+ 印鑑（右）
+  if (issuerSnapshot.contactPerson || hasSeal) {
+    const contactHtml = issuerSnapshot.contactPerson
+      ? `<span class="contact-name">担当: ${escapeHtml(issuerSnapshot.contactPerson)}</span>`
+      : '';
+    const sealHtml = hasSeal
+      ? `<img src="${issuerSnapshot.sealImageBase64}" alt="印影" class="seal-image-inline" />`
+      : '';
+
+    infoLines.push(`
+      <div class="issuer-contact-with-seal">
+        ${contactHtml}${sealHtml}
+      </div>`);
   }
 
   if (infoLines.length === 0) {
     return '';
   }
 
-  const sealHtml = hasSeal
-    ? `<div class="issuer-seal"><img src="data:image/png;base64,${issuerSnapshot.sealImageBase64}" alt="印影" class="seal-image" /></div>`
-    : '';
-
   return `
     <div class="issuer-block">
       <div class="issuer-info">
         ${infoLines.join('\n        ')}
       </div>
-      ${sealHtml}
     </div>
   `;
 }
@@ -875,7 +879,7 @@ function generateScreenTemplate(
 
     <div class="total-box">
       <div class="label">合計金額（税込）</div>
-      <div class="amount">¥${formatCurrency(doc.totalYen)}</div>
+      <div class="amount">${formatCurrency(doc.totalYen)}円</div>
     </div>
 
     ${lineItemsTableHtml}
@@ -999,12 +1003,15 @@ function generateInvoiceFormalTemplate(
       color: #333;
     }
 
-    /* Issuer block - vertical stack with seal on right */
+    /* Greeting text */
+    .greeting-text {
+      font-size: 12px;
+      margin-top: 15px;
+    }
+
+    /* Issuer block - vertical stack layout */
     .issuer-block {
-      display: flex;
-      justify-content: flex-end;
-      align-items: flex-start;
-      gap: 10px;
+      text-align: right;
     }
 
     .issuer-info {
@@ -1017,31 +1024,43 @@ function generateInvoiceFormalTemplate(
       margin-bottom: 4px;
     }
 
-    .issuer-address,
-    .issuer-tel,
-    .issuer-fax,
-    .issuer-contact {
+    .issuer-postal {
       font-size: 11px;
       margin-bottom: 2px;
     }
 
-    .issuer-invoice-number {
-      font-size: 10px;
-      color: #333;
+    .issuer-address-line {
+      font-size: 11px;
       margin-bottom: 2px;
     }
 
-    .issuer-seal {
-      flex-shrink: 0;
-      width: 70px;
-      height: 70px;
+    .issuer-tel {
+      font-size: 11px;
+      margin-bottom: 2px;
     }
 
-    .seal-image {
-      width: 100%;
-      height: 100%;
+    /* Contact person with inline seal - HORIZONTAL ROW LAYOUT
+       担当者名（左）と印鑑画像（右）を同一行で横並び配置 */
+    .issuer-contact-with-seal {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      font-size: 11px;
+      margin-top: 4px;
+    }
+
+    .contact-name {
+      white-space: nowrap;
+    }
+
+    .seal-image-inline {
+      width: 45px;
+      height: 45px;
       object-fit: contain;
       opacity: 0.85;
+      flex-shrink: 0;
     }
 
     /* Info block with black-background labels */
@@ -1076,22 +1095,32 @@ function generateInvoiceFormalTemplate(
       white-space: pre-wrap;
     }
 
-    /* Carried forward block */
+    /* Carried forward block - black label + white value (same style as grand total) */
     .carried-forward-block {
       display: flex;
-      justify-content: space-between;
-      border: 1px solid #666;
-      padding: 10px 15px;
+      border: 1px solid #000;
       margin: 15px 0;
-      background: #f8f8f8;
     }
 
     .cf-label {
+      background: #000;
+      color: #fff;
+      padding: 8px 12px;
+      font-size: 12px;
       font-weight: bold;
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
     }
 
     .cf-value {
+      flex: 1;
+      padding: 8px 12px;
+      text-align: right;
+      font-size: 14px;
       font-weight: bold;
+      background: #fff;
+      border-left: 1px solid #000;
     }
 
     /* Grand total block */
@@ -1191,15 +1220,37 @@ function generateInvoiceFormalTemplate(
       color: #666;
     }
 
+    /* 税率別内訳行（インデント付き） */
+    .formal-totals-table .tax-breakdown-row td {
+      font-size: 10px;
+      color: #666;
+      padding: 3px 12px;
+    }
+
+    .formal-totals-table .tax-rate-label {
+      padding-left: 20px;
+    }
+
+    /* 合計（税込）行 - 最も強調 */
     .formal-totals-table .total-final-row {
       border-top: 2px solid #000;
-      border-bottom: none;
+      border-bottom: 2px solid #000;
+      background: #f5f5f5;
     }
 
     .formal-totals-table .total-final-row td {
       font-weight: bold;
-      font-size: 13px;
       padding-top: 10px;
+      padding-bottom: 10px;
+    }
+
+    .formal-totals-table .total-final-label {
+      font-size: 13px;
+    }
+
+    .formal-totals-table .total-final-value {
+      font-size: 16px;
+      color: #000;
     }
 
     /* Notes section */
@@ -1242,6 +1293,7 @@ function generateInvoiceFormalTemplate(
       <div class="header-left">
         <div class="formal-client-name">${escapeHtml(doc.clientName)}</div>
         ${clientAddressHtml}
+        <div class="greeting-text">下記のとおり、御請求申し上げます。</div>
       </div>
       <div class="header-right">
         <div class="header-meta">
@@ -1277,14 +1329,24 @@ function generateInvoiceFormalTemplate(
 /**
  * Generate formal PDF template HTML (official document layout)
  * Routes to invoice-specific or estimate-specific template
+ *
+ * @param doc - Document with calculated totals
+ * @param sensitiveSnapshot - Sensitive issuer information
+ * @param invoiceTemplateType - Invoice template type (ACCOUNTING or SIMPLE)
  */
 function generateFormalPdfTemplate(
   doc: DocumentWithTotals,
-  sensitiveSnapshot: SensitiveIssuerSnapshot | null
+  sensitiveSnapshot: SensitiveIssuerSnapshot | null,
+  invoiceTemplateType: InvoiceTemplateType = DEFAULT_INVOICE_TEMPLATE_TYPE
 ): string {
-  // Invoice uses new accounting-style layout
+  // Invoice: route based on template type
   if (doc.type === 'invoice') {
-    return generateInvoiceFormalTemplate(doc, sensitiveSnapshot);
+    if (invoiceTemplateType === 'SIMPLE') {
+      // Use the existing formal template (simpler layout)
+      return generateInvoiceFormalTemplate(doc, sensitiveSnapshot);
+    }
+    // Default: Use accounting-style layout
+    return generateInvoiceAccountingTemplate(doc, sensitiveSnapshot);
   }
 
   // Estimate keeps the original formal layout
@@ -1557,15 +1619,37 @@ function generateFormalPdfTemplate(
       color: #666;
     }
 
+    /* 税率別内訳行（インデント付き） */
+    .formal-totals-table .tax-breakdown-row td {
+      font-size: 10px;
+      color: #666;
+      padding: 3px 12px;
+    }
+
+    .formal-totals-table .tax-rate-label {
+      padding-left: 20px;
+    }
+
+    /* 合計（税込）行 - 最も強調 */
     .formal-totals-table .total-final-row {
       border-top: 2px solid #000;
-      border-bottom: none;
+      border-bottom: 2px solid #000;
+      background: #f5f5f5;
     }
 
     .formal-totals-table .total-final-row td {
       font-weight: bold;
-      font-size: 13px;
       padding-top: 10px;
+      padding-bottom: 10px;
+    }
+
+    .formal-totals-table .total-final-label {
+      font-size: 13px;
+    }
+
+    .formal-totals-table .total-final-value {
+      font-size: 16px;
+      color: #000;
     }
 
     /* Notes section */
@@ -1641,8 +1725,8 @@ function generateFormalPdfTemplate(
 
     <!-- Total amount -->
     <div class="formal-total-box">
-      <span class="total-label">合計</span>
-      <span class="total-amount">${formatCurrency(doc.totalYen)}円(税込)</span>
+      <span class="total-label">合計（税込）</span>
+      <span class="total-amount">${formatCurrency(doc.totalYen)}円</span>
     </div>
 
     <!-- Line items -->
@@ -1665,15 +1749,16 @@ function generateFormalPdfTemplate(
  *
  * @param input - Template input with document data and optional mode
  * @param input.mode - Output mode: 'screen' (colorful preview) or 'pdf' (formal print)
+ * @param input.invoiceTemplateType - Invoice template type (only used for invoice documents in pdf mode)
  */
 export function generateHtmlTemplate(input: PdfTemplateInput): PdfTemplateResult {
-  const { document: doc, sensitiveSnapshot, mode = 'screen' } = input;
+  const { document: doc, sensitiveSnapshot, mode = 'screen', invoiceTemplateType } = input;
 
   let html: string;
 
   if (mode === 'pdf') {
     // Use formal PDF template for official documents
-    html = generateFormalPdfTemplate(doc, sensitiveSnapshot);
+    html = generateFormalPdfTemplate(doc, sensitiveSnapshot, invoiceTemplateType);
   } else {
     // Use colorful screen template for preview
     const colors = getColorScheme(doc.type);

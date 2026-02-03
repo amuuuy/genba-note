@@ -13,9 +13,11 @@ import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
 
 import type { PdfTemplateInput, PdfGenerationResult } from './types';
+import { DEFAULT_INVOICE_TEMPLATE_TYPE } from './types';
 import { generateHtmlTemplate } from './pdfTemplateService';
 import { checkProStatus } from './proGateService';
 import { validateDocumentForPdf, formatValidationError } from './pdfValidationService';
+import { getSettings } from '@/storage/asyncStorageService';
 
 /**
  * Generate PDF from HTML (internal function)
@@ -145,10 +147,17 @@ export async function generateAndSharePdf(
     };
   }
 
+  // 2.5. Load settings to get invoice template preference
+  const settingsResult = await getSettings();
+  const invoiceTemplateType = settingsResult.success
+    ? settingsResult.data?.invoiceTemplateType ?? DEFAULT_INVOICE_TEMPLATE_TYPE
+    : DEFAULT_INVOICE_TEMPLATE_TYPE;
+
   // 3. Generate HTML template with formal PDF theme
   const { html } = generateHtmlTemplate({
     ...input,
     mode: 'pdf',
+    invoiceTemplateType,
   });
 
   // 4. Generate PDF

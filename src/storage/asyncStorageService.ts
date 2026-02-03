@@ -489,6 +489,7 @@ function mergeSettingsWithDefaults(stored: Partial<AppSettings>): AppSettings {
       nextEstimateNumber: stored.numbering?.nextEstimateNumber ?? DEFAULT_APP_SETTINGS.numbering.nextEstimateNumber,
       nextInvoiceNumber: stored.numbering?.nextInvoiceNumber ?? DEFAULT_APP_SETTINGS.numbering.nextInvoiceNumber,
     },
+    invoiceTemplateType: stored.invoiceTemplateType ?? DEFAULT_APP_SETTINGS.invoiceTemplateType,
     schemaVersion: stored.schemaVersion ?? DEFAULT_APP_SETTINGS.schemaVersion,
   };
 }
