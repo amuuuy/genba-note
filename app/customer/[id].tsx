@@ -19,7 +19,7 @@ import {
   ScrollView,
   BackHandler,
 } from 'react-native';
-import { useLocalSearchParams, router, Stack } from 'expo-router';
+import { useLocalSearchParams, router, Stack, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -33,6 +33,8 @@ import {
   WorkLogEntryList,
   AddWorkLogEntryModal,
 } from '@/components/customer';
+import { addPhotoRecord, deletePhotoMetadataOnly } from '@/domain/customer/customerPhotoService';
+import { deleteWorkLogEntry } from '@/domain/customer/workLogEntryService';
 import type { CustomerPhoto, PhotoType } from '@/types/customerPhoto';
 import type { WorkLogEntry } from '@/types/workLogEntry';
 
@@ -132,7 +134,10 @@ export default function CustomerEditScreen() {
       Alert.alert('保存しました', undefined, [
         {
           text: 'OK',
-          onPress: () => router.back(),
+          onPress: () => {
+            // 顧客一覧へ遷移（navigateはスタックを適切に処理する）
+            router.navigate('/(tabs)/customers' as Href);
+          },
         },
       ]);
     } else if (state.errorMessage) {
@@ -205,13 +210,89 @@ export default function CustomerEditScreen() {
     setShowAddEntryModal(true);
   }, []);
 
-  // Handle create work log entry
-  const handleCreateEntry = useCallback(async (workDate: string, note: string | null) => {
+  // Handle create work log entry with photos
+  const handleCreateEntry = useCallback(async (
+    workDate: string,
+    note: string | null,
+    photos: {
+      before: Array<{ uri: string; originalFilename: string | null }>;
+      after: Array<{ uri: string; originalFilename: string | null }>;
+    }
+  ) => {
+    // 1. Create the work log entry
     const entry = await createEntry(workDate, note);
     if (!entry) {
       throw new Error('作業記録の作成に失敗しました');
     }
-  }, [createEntry]);
+
+    // Track successfully added photo IDs for rollback
+    const addedPhotoIds: string[] = [];
+
+    // Helper to rollback on failure
+    // Order: delete entry first (which unlinks photos), then delete photo metadata
+    // This ensures that if entry deletion fails, photo metadata is preserved
+    const rollback = async (errorMessage: string) => {
+      // 1. Delete the work log entry first
+      // Note: deleteWorkLogEntry unlinks photos (sets workLogEntryId to null) before deleting
+      const entryDeleteResult = await deleteWorkLogEntry(entry.id);
+      if (!entryDeleteResult.success) {
+        // Entry deletion failed - refresh state and show specific error
+        // Photo metadata is preserved for manual recovery
+        await refreshEntries();
+        await refreshPhotos();
+        throw new Error('作業記録の削除に失敗しました。再度お試しください。');
+      }
+
+      // 2. Delete metadata for successfully added photos (keep files for retry)
+      for (const photoId of addedPhotoIds) {
+        const deleteResult = await deletePhotoMetadataOnly(photoId);
+        if (!deleteResult.success) {
+          console.warn('Failed to delete photo metadata during rollback:', photoId);
+        }
+      }
+
+      // Refresh to update state
+      await refreshEntries();
+      await refreshPhotos();
+      throw new Error(errorMessage);
+    };
+
+    // 2. Create photo records for the before photos
+    const now = Date.now();
+    for (const photo of photos.before) {
+      const result = await addPhotoRecord({
+        customerId: customerId!,
+        workLogEntryId: entry.id,
+        type: 'before' as PhotoType,
+        uri: photo.uri,
+        originalFilename: photo.originalFilename,
+        takenAt: now,
+      });
+      if (!result.success) {
+        await rollback(result.error?.message || '写真の保存に失敗しました');
+      }
+      addedPhotoIds.push(result.data!.id);
+    }
+
+    // 3. Create photo records for the after photos
+    for (const photo of photos.after) {
+      const result = await addPhotoRecord({
+        customerId: customerId!,
+        workLogEntryId: entry.id,
+        type: 'after' as PhotoType,
+        uri: photo.uri,
+        originalFilename: photo.originalFilename,
+        takenAt: now,
+      });
+      if (!result.success) {
+        await rollback(result.error?.message || '写真の保存に失敗しました');
+      }
+      addedPhotoIds.push(result.data!.id);
+    }
+
+    // 4. Refresh photos to show the new ones
+    await refreshPhotos();
+  }, [createEntry, customerId, refreshPhotos, refreshEntries]);
 
   // Handle update work log entry note
   const handleUpdateEntryNote = useCallback(async (entryId: string, note: string | null) => {
@@ -421,6 +502,7 @@ export default function CustomerEditScreen() {
       {/* Add Work Log Entry Modal */}
       <AddWorkLogEntryModal
         visible={showAddEntryModal}
+        customerId={customerId!}
         existingDates={workLogEntries.map((e) => e.workDate)}
         onClose={() => setShowAddEntryModal(false)}
         onCreate={handleCreateEntry}

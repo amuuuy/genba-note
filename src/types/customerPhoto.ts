@@ -73,3 +73,45 @@ export interface AddPhotoInput {
   /** Original filename (optional) */
   originalFilename?: string | null;
 }
+
+/**
+ * Temporary photo info for use before WorkLogEntry is created.
+ * Used in AddWorkLogEntryModal when adding photos before the entry exists.
+ */
+export interface TempPhotoInfo {
+  /** Temporary ID (generated locally, not persisted) */
+  tempId: string;
+
+  /** Photo type: before or after */
+  type: PhotoType;
+
+  /** Permanent URI after copying to storage */
+  permanentUri: string;
+
+  /** Original filename from image picker */
+  originalFilename: string | null;
+}
+
+/**
+ * Input for adding a photo record (file already stored)
+ * Used when photos are added before the WorkLogEntry is created
+ */
+export interface AddPhotoRecordInput {
+  /** Customer ID */
+  customerId: string;
+
+  /** Work log entry ID */
+  workLogEntryId: string;
+
+  /** Photo type: before or after */
+  type: PhotoType;
+
+  /** Permanent URI (file already stored) */
+  uri: string;
+
+  /** Original filename */
+  originalFilename: string | null;
+
+  /** Photo taken timestamp (epoch ms) */
+  takenAt: number;
+}

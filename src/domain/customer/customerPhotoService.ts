@@ -10,6 +10,7 @@ import type {
   PhotoType,
   CustomerPhotoFilter,
   AddPhotoInput,
+  AddPhotoRecordInput,
 } from '@/types/customerPhoto';
 import {
   CustomerDomainResult,
@@ -328,6 +329,49 @@ export async function deletePhoto(
 }
 
 /**
+ * Delete photo metadata only (without deleting the file).
+ * Used for rollback when photo files should be preserved for retry.
+ */
+export async function deletePhotoMetadataOnly(
+  photoId: string
+): Promise<CustomerDomainResult<void>> {
+  try {
+    const result = await photosQueue.enqueue(async () => {
+      const photos = await getAllPhotosFromStorage();
+      const index = photos.findIndex((p) => p.id === photoId);
+
+      if (index === -1) {
+        return { found: false as const };
+      }
+
+      photos.splice(index, 1);
+      await saveAllPhotosToStorage(photos);
+
+      return { found: true as const };
+    });
+
+    if (!result.found) {
+      return errorResult(
+        createCustomerServiceError(
+          'CUSTOMER_NOT_FOUND',
+          `Photo with ID ${photoId} not found`
+        )
+      );
+    }
+
+    return successResult(undefined);
+  } catch (error) {
+    return errorResult(
+      createCustomerServiceError(
+        'STORAGE_ERROR',
+        'Failed to delete photo metadata',
+        { originalError: error instanceof Error ? error.message : String(error) }
+      )
+    );
+  }
+}
+
+/**
  * Delete all photos for a customer
  */
 export async function deletePhotosByCustomer(
@@ -494,6 +538,79 @@ export async function updatePhotoWorkLogEntry(
       createCustomerServiceError(
         'STORAGE_ERROR',
         'Failed to update photo work log entry',
+        { originalError: error instanceof Error ? error.message : String(error) }
+      )
+    );
+  }
+}
+
+/**
+ * Add a photo record for an already-stored file.
+ * Used when photos are added before the WorkLogEntry is created.
+ * The file must already exist at the provided URI.
+ *
+ * Note: This function performs final count check inside queue to prevent
+ * concurrent additions from exceeding the limit.
+ */
+export async function addPhotoRecord(
+  input: AddPhotoRecordInput
+): Promise<CustomerDomainResult<CustomerPhoto>> {
+  try {
+    // Verify file exists before creating metadata
+    const fileSizeResult = await getFileSize(input.uri);
+    if (!fileSizeResult.success) {
+      return errorResult(
+        createCustomerServiceError(
+          'FILE_NOT_FOUND',
+          '写真ファイルが見つかりません。再度選択してください。'
+        )
+      );
+    }
+
+    const now = Date.now();
+    const photo: CustomerPhoto = {
+      id: generateUUID(),
+      customerId: input.customerId,
+      workLogEntryId: input.workLogEntryId,
+      type: input.type,
+      uri: input.uri,
+      originalFilename: input.originalFilename,
+      takenAt: input.takenAt,
+      createdAt: now,
+    };
+
+    // Use queue to prevent RMW race conditions
+    // Final count check inside queue (atomic with save)
+    const queueResult = await photosQueue.enqueue(async () => {
+      const photos = await getAllPhotosFromStorage();
+
+      // Final count check inside queue to prevent concurrent additions exceeding limit
+      if (photos.length >= MAX_TOTAL_PHOTOS) {
+        return { success: false as const, reason: 'count_exceeded' };
+      }
+
+      photos.push(photo);
+      await saveAllPhotosToStorage(photos);
+      return { success: true as const };
+    });
+
+    // If final count check failed, return error without deleting file.
+    // The caller (modal) retains the file in tempPhotos for retry or cleanup on cancel.
+    if (!queueResult.success) {
+      return errorResult(
+        createCustomerServiceError(
+          'PHOTO_COUNT_LIMIT_EXCEEDED',
+          `写真の上限（${MAX_TOTAL_PHOTOS}枚）に達しました。不要な写真を削除してから追加してください。`
+        )
+      );
+    }
+
+    return successResult(photo);
+  } catch (error) {
+    return errorResult(
+      createCustomerServiceError(
+        'STORAGE_ERROR',
+        'Failed to add photo record',
         { originalError: error instanceof Error ? error.message : String(error) }
       )
     );
