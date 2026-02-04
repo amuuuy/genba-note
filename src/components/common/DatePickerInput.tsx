@@ -136,34 +136,29 @@ export const DatePickerInput: React.FC<DatePickerInputProps> = ({
         </Text>
         {required && <Text style={styles.requiredIndicator}>必須</Text>}
       </View>
-      <Pressable
-        style={styles.inputContainer}
-        onPress={handleContainerPress}
-        disabled={disabled}
-        accessible={false}
-      >
+      <View style={styles.inputContainer}>
         {isNativePlatform ? (
           <Pressable
             onPress={handleCalendarPress}
             disabled={disabled}
+            style={styles.calendarButton}
             accessibilityLabel="カレンダーから選択"
             accessibilityRole="button"
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <Ionicons
               name="calendar-outline"
-              size={20}
+              size={24}
               color={disabled ? '#C7C7CC' : '#007AFF'}
-              style={styles.icon}
             />
           </Pressable>
         ) : (
-          <Ionicons
-            name="calendar-outline"
-            size={20}
-            color={disabled ? '#C7C7CC' : '#8E8E93'}
-            style={styles.icon}
-          />
+          <View style={styles.calendarButton}>
+            <Ionicons
+              name="calendar-outline"
+              size={24}
+              color={disabled ? '#C7C7CC' : '#8E8E93'}
+            />
+          </View>
         )}
         <TextInput
           ref={inputRef}
@@ -206,7 +201,7 @@ export const DatePickerInput: React.FC<DatePickerInputProps> = ({
             )}
           </View>
         )}
-      </Pressable>
+      </View>
       {error && (
         <Text style={styles.errorText} accessibilityRole="alert">
           {error}
@@ -266,8 +261,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     minHeight: 44,
   },
-  icon: {
-    marginRight: 8,
+  calendarButton: {
+    padding: 8,
+    marginLeft: -8,
+    marginRight: 0,
+    minWidth: 36,
+    minHeight: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   input: {
     flex: 1,
