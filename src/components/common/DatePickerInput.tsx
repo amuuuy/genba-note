@@ -4,18 +4,21 @@
  * A text input for date entry in YYYY-MM-DD format.
  * Uses existing dateUtils.ts for validation.
  * Displays formatted date and validates on blur.
+ * Tapping the calendar icon opens a native date picker modal.
  */
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
   TextInput,
   StyleSheet,
   Pressable,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { getTodayString } from '@/utils/dateUtils';
+import DateTimePickerModal from 'react-native-modal-datetime-picker';
+import { getTodayString, parseLocalDate, formatDateToString } from '@/utils/dateUtils';
 import { formatDateForDisplay, parseDateInput } from './dateInputHelpers';
 
 // Re-export helpers for convenience
@@ -56,7 +59,14 @@ export const DatePickerInput: React.FC<DatePickerInputProps> = ({
   // Use display mode to show formatted date, edit mode for raw input
   const [isEditing, setIsEditing] = useState(false);
   const [inputValue, setInputValue] = useState(value ?? '');
+  const [isPickerVisible, setIsPickerVisible] = useState(false);
   const inputRef = useRef<TextInput>(null);
+
+  // Convert current value to Date for picker initial value
+  const currentDateForPicker = useMemo(() => {
+    if (!value) return new Date();
+    return parseLocalDate(value) ?? new Date();
+  }, [value]);
 
   const handleFocus = useCallback(() => {
     setIsEditing(true);
@@ -93,6 +103,25 @@ export const DatePickerInput: React.FC<DatePickerInputProps> = ({
     }
   }, [disabled]);
 
+  // Calendar picker is only available on native platforms (iOS/Android)
+  const isNativePlatform = Platform.OS !== 'web';
+
+  const handleCalendarPress = useCallback(() => {
+    if (disabled || !isNativePlatform) return;
+    setIsPickerVisible(true);
+  }, [disabled, isNativePlatform]);
+
+  const handlePickerConfirm = useCallback((date: Date) => {
+    setIsPickerVisible(false);
+    const dateString = formatDateToString(date);
+    onChange(dateString);
+    setInputValue(dateString);
+  }, [onChange]);
+
+  const handlePickerCancel = useCallback(() => {
+    setIsPickerVisible(false);
+  }, []);
+
   const displayValue = isEditing
     ? inputValue
     : value
@@ -113,12 +142,29 @@ export const DatePickerInput: React.FC<DatePickerInputProps> = ({
         disabled={disabled}
         accessible={false}
       >
-        <Ionicons
-          name="calendar-outline"
-          size={20}
-          color={disabled ? '#C7C7CC' : '#8E8E93'}
-          style={styles.icon}
-        />
+        {isNativePlatform ? (
+          <Pressable
+            onPress={handleCalendarPress}
+            disabled={disabled}
+            accessibilityLabel="カレンダーから選択"
+            accessibilityRole="button"
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons
+              name="calendar-outline"
+              size={20}
+              color={disabled ? '#C7C7CC' : '#007AFF'}
+              style={styles.icon}
+            />
+          </Pressable>
+        ) : (
+          <Ionicons
+            name="calendar-outline"
+            size={20}
+            color={disabled ? '#C7C7CC' : '#8E8E93'}
+            style={styles.icon}
+          />
+        )}
         <TextInput
           ref={inputRef}
           style={[
@@ -165,6 +211,18 @@ export const DatePickerInput: React.FC<DatePickerInputProps> = ({
         <Text style={styles.errorText} accessibilityRole="alert">
           {error}
         </Text>
+      )}
+      {isNativePlatform && (
+        <DateTimePickerModal
+          isVisible={isPickerVisible}
+          mode="date"
+          date={currentDateForPicker}
+          onConfirm={handlePickerConfirm}
+          onCancel={handlePickerCancel}
+          confirmTextIOS="確定"
+          cancelTextIOS="キャンセル"
+          locale="ja"
+        />
       )}
     </View>
   );
