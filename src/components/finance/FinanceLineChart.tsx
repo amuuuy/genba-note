@@ -9,6 +9,7 @@ import React, { memo } from 'react';
 import { View, Text, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import type { FinanceChartData } from '@/domain/finance';
+import { formatYAxisLabel } from '@/utils/currencyFormat';
 
 export interface FinanceLineChartProps {
   /** Aggregated chart data */
@@ -35,16 +36,16 @@ const chartConfig = {
   backgroundGradientTo: '#fff',
   decimalPlaces: 0,
   color: (opacity = 1) => `rgba(0, 122, 255, ${opacity})`,
-  labelColor: () => '#8E8E93',
+  labelColor: () => '#6B7280', // Darker gray for better readability
   style: {
     borderRadius: 12,
   },
   propsForDots: {
-    r: '4',
+    r: '5', // Slightly larger dots for visibility
     strokeWidth: '2',
   },
   propsForBackgroundLines: {
-    strokeDasharray: '',
+    strokeDasharray: '5, 5', // Dashed lines for cleaner look
     stroke: '#E5E5EA',
   },
 };
@@ -141,7 +142,7 @@ export const FinanceLineChart: React.FC<FinanceLineChartProps> = memo(
           strokeWidth: 2,
         },
       ],
-      legend: ['収支', '収入', '支出'],
+      legend: ['収支（累積）', '収入', '支出'],
     };
 
     return (
@@ -149,7 +150,7 @@ export const FinanceLineChart: React.FC<FinanceLineChartProps> = memo(
         <LineChart
           data={chartData}
           width={getChartWidth()}
-          height={220}
+          height={250}
           chartConfig={chartConfig}
           bezier
           style={styles.chart}
@@ -158,19 +159,9 @@ export const FinanceLineChart: React.FC<FinanceLineChartProps> = memo(
           withVerticalLines={false}
           withHorizontalLabels
           withVerticalLabels
-          fromZero
           yAxisSuffix=""
-          yAxisInterval={1}
-          formatYLabel={(value) => {
-            const num = parseInt(value, 10);
-            if (num >= 10000) {
-              return `${Math.round(num / 10000)}万`;
-            }
-            if (num >= 1000) {
-              return `${Math.round(num / 1000)}千`;
-            }
-            return value;
-          }}
+          segments={5}
+          formatYLabel={formatYAxisLabel}
         />
         <View style={styles.legendContainer}>
           <View style={styles.legendItem}>
