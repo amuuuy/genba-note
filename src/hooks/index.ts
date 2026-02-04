@@ -41,7 +41,10 @@ export { useCustomerList } from './useCustomerList';
 export type { UseCustomerListReturn } from './useCustomerList';
 
 export { useCustomerPhotos } from './useCustomerPhotos';
-export type { UseCustomerPhotosReturn } from './useCustomerPhotos';
+export type { UseCustomerPhotosReturn, PhotosByType } from './useCustomerPhotos';
+
+export { useWorkLogEntries } from './useWorkLogEntries';
+export type { UseWorkLogEntriesReturn } from './useWorkLogEntries';
 
 export { useCustomerEdit } from './useCustomerEdit';
 export type {

@@ -24,6 +24,9 @@ export interface CustomerPhoto {
   /** Customer ID (foreign key) */
   customerId: string;
 
+  /** Work log entry ID (foreign key, null for legacy/undated photos) */
+  workLogEntryId: string | null;
+
   /** Photo type: before or after work */
   type: PhotoType;
 
@@ -57,6 +60,9 @@ export interface CustomerPhotoFilter {
 export interface AddPhotoInput {
   /** Customer ID to link the photo to */
   customerId: string;
+
+  /** Work log entry ID (optional, null for undated photos) */
+  workLogEntryId?: string | null;
 
   /** Photo type: before or after */
   type: PhotoType;

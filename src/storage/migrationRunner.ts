@@ -22,8 +22,9 @@ import {
  * - v2: Add carriedForwardAmount and contactPerson
  * - v3: Add fax field
  * - v4: Add customer master and customer photos
+ * - v5: Add work log entries for date-based photo grouping
  */
-export const CURRENT_SCHEMA_VERSION = 4;
+export const CURRENT_SCHEMA_VERSION = 5;
 
 // === Migrations Initialization Flag ===
 let migrationsInitialized = false;

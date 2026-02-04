@@ -6,4 +6,5 @@
 
 export * from './customerService';
 export * from './customerPhotoService';
+export * from './workLogEntryService';
 export * from './types';

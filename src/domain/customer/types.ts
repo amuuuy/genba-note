@@ -13,7 +13,9 @@ export type CustomerServiceErrorCode =
   | 'STORAGE_ERROR'
   | 'DUPLICATE_NAME'
   | 'PHOTO_COUNT_LIMIT_EXCEEDED'
-  | 'PHOTO_SIZE_LIMIT_EXCEEDED';
+  | 'PHOTO_SIZE_LIMIT_EXCEEDED'
+  | 'DUPLICATE_WORK_DATE'
+  | 'WORK_LOG_ENTRY_NOT_FOUND';
 
 /**
  * Customer service error

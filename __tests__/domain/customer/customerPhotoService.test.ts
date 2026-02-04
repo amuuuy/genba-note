@@ -50,6 +50,7 @@ function createTestPhoto(overrides?: Partial<CustomerPhoto>): CustomerPhoto {
   return {
     id: 'photo-1',
     customerId: 'customer-1',
+    workLogEntryId: null,
     type: 'before',
     uri: 'file:///path/to/photo.jpg',
     originalFilename: 'photo.jpg',

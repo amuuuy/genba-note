@@ -10,6 +10,7 @@ import {
   getPhotosByCustomer,
   addPhoto as addPhotoService,
   deletePhoto as deletePhotoService,
+  updatePhotoWorkLogEntry as updatePhotoWorkLogEntryService,
 } from '@/domain/customer';
 
 /**
@@ -24,19 +25,38 @@ interface CustomerPhotosState {
   error: string | null;
 }
 
+/**
+ * Photos grouped by type
+ */
+export interface PhotosByType {
+  before: CustomerPhoto[];
+  after: CustomerPhoto[];
+}
+
 export interface UseCustomerPhotosReturn {
   /** Photos taken before work (作業前) */
   beforePhotos: CustomerPhoto[];
   /** Photos taken after work (作業後) */
   afterPhotos: CustomerPhoto[];
+  /** Undated photos (workLogEntryId is null) grouped by type */
+  undatedPhotos: PhotosByType;
   /** Whether photos are loading */
   isLoading: boolean;
   /** Error message */
   error: string | null;
   /** Add a new photo */
-  addPhoto: (type: PhotoType, sourceUri: string, originalFilename?: string | null) => Promise<boolean>;
+  addPhoto: (
+    type: PhotoType,
+    sourceUri: string,
+    workLogEntryId?: string | null,
+    originalFilename?: string | null
+  ) => Promise<boolean>;
   /** Delete a photo */
   deletePhoto: (photoId: string) => Promise<boolean>;
+  /** Get photos by work log entry ID */
+  getPhotosByEntry: (entryId: string) => PhotosByType;
+  /** Reassign a photo to a different work log entry (or undated) */
+  reassignPhoto: (photoId: string, workLogEntryId: string | null) => Promise<boolean>;
   /** Refresh the photos list */
   refresh: () => Promise<void>;
 }
@@ -99,18 +119,49 @@ export function useCustomerPhotos(customerId: string | null): UseCustomerPhotosR
     return state.allPhotos.filter((photo) => photo.type === 'after');
   }, [state.allPhotos]);
 
+  // Memoized undated photos (workLogEntryId is null)
+  const undatedPhotos = useMemo((): PhotosByType => {
+    const undated = state.allPhotos.filter((photo) => photo.workLogEntryId === null);
+    return {
+      before: undated.filter((photo) => photo.type === 'before'),
+      after: undated.filter((photo) => photo.type === 'after'),
+    };
+  }, [state.allPhotos]);
+
+  /**
+   * Get photos grouped by type for a specific work log entry
+   */
+  const getPhotosByEntry = useCallback(
+    (entryId: string): PhotosByType => {
+      const entryPhotos = state.allPhotos.filter(
+        (photo) => photo.workLogEntryId === entryId
+      );
+      return {
+        before: entryPhotos.filter((photo) => photo.type === 'before'),
+        after: entryPhotos.filter((photo) => photo.type === 'after'),
+      };
+    },
+    [state.allPhotos]
+  );
+
   /**
    * Add a new photo
    * @returns true if successful
    */
   const addPhoto = useCallback(
-    async (type: PhotoType, sourceUri: string, originalFilename?: string | null): Promise<boolean> => {
+    async (
+      type: PhotoType,
+      sourceUri: string,
+      workLogEntryId?: string | null,
+      originalFilename?: string | null
+    ): Promise<boolean> => {
       if (!customerId) {
         return false;
       }
 
       const result = await addPhotoService({
         customerId,
+        workLogEntryId,
         type,
         sourceUri,
         originalFilename,
@@ -123,6 +174,22 @@ export function useCustomerPhotos(customerId: string | null): UseCustomerPhotosR
       return false;
     },
     [customerId, refresh]
+  );
+
+  /**
+   * Reassign a photo to a different work log entry (or undated)
+   * @returns true if successful
+   */
+  const reassignPhoto = useCallback(
+    async (photoId: string, workLogEntryId: string | null): Promise<boolean> => {
+      const result = await updatePhotoWorkLogEntryService(photoId, workLogEntryId);
+      if (result.success) {
+        await refresh();
+        return true;
+      }
+      return false;
+    },
+    [refresh]
   );
 
   /**
@@ -144,10 +211,13 @@ export function useCustomerPhotos(customerId: string | null): UseCustomerPhotosR
   return {
     beforePhotos,
     afterPhotos,
+    undatedPhotos,
     isLoading: state.isLoading,
     error: state.error,
     addPhoto,
     deletePhoto,
+    getPhotosByEntry,
+    reassignPhoto,
     refresh,
   };
 }

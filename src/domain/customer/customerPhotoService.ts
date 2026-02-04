@@ -200,6 +200,7 @@ export async function addPhoto(
     const photo: CustomerPhoto = {
       id: generateUUID(),
       customerId: input.customerId,
+      workLogEntryId: input.workLogEntryId ?? null,
       type: input.type,
       uri: permanentUri,
       originalFilename: input.originalFilename ?? null,
@@ -382,4 +383,119 @@ export async function getPhotoDataUrlsForPdf(
   }
 
   return dataUrls;
+}
+
+/**
+ * Get photos by work log entry ID
+ * Returns photos sorted by takenAt (newest first)
+ */
+export async function getPhotosByWorkLogEntry(
+  workLogEntryId: string,
+  type?: PhotoType
+): Promise<CustomerDomainResult<CustomerPhoto[]>> {
+  try {
+    const photos = await getAllPhotosFromStorage();
+
+    let filtered = photos.filter((p) => p.workLogEntryId === workLogEntryId);
+
+    if (type) {
+      filtered = filtered.filter((p) => p.type === type);
+    }
+
+    // Sort by takenAt (newest first)
+    filtered.sort((a, b) => b.takenAt - a.takenAt);
+
+    return successResult(filtered);
+  } catch (error) {
+    return errorResult(
+      createCustomerServiceError(
+        'STORAGE_ERROR',
+        'Failed to get photos by work log entry',
+        { originalError: error instanceof Error ? error.message : String(error) }
+      )
+    );
+  }
+}
+
+/**
+ * Get undated photos for a customer (workLogEntryId is null)
+ * Returns photos sorted by takenAt (newest first)
+ */
+export async function getUndatedPhotosByCustomer(
+  customerId: string,
+  type?: PhotoType
+): Promise<CustomerDomainResult<CustomerPhoto[]>> {
+  try {
+    const photos = await getAllPhotosFromStorage();
+
+    let filtered = photos.filter(
+      (p) => p.customerId === customerId && p.workLogEntryId === null
+    );
+
+    if (type) {
+      filtered = filtered.filter((p) => p.type === type);
+    }
+
+    // Sort by takenAt (newest first)
+    filtered.sort((a, b) => b.takenAt - a.takenAt);
+
+    return successResult(filtered);
+  } catch (error) {
+    return errorResult(
+      createCustomerServiceError(
+        'STORAGE_ERROR',
+        'Failed to get undated photos',
+        { originalError: error instanceof Error ? error.message : String(error) }
+      )
+    );
+  }
+}
+
+/**
+ * Update photo's work log entry association
+ * Used to reassign photos between entries or to undated
+ */
+export async function updatePhotoWorkLogEntry(
+  photoId: string,
+  workLogEntryId: string | null
+): Promise<CustomerDomainResult<CustomerPhoto>> {
+  try {
+    const result = await photosQueue.enqueue(async () => {
+      const photos = await getAllPhotosFromStorage();
+      const index = photos.findIndex((p) => p.id === photoId);
+
+      if (index === -1) {
+        return { success: false as const, reason: 'not_found' };
+      }
+
+      const photo = photos[index];
+      const updated: CustomerPhoto = {
+        ...photo,
+        workLogEntryId,
+      };
+
+      photos[index] = updated;
+      await saveAllPhotosToStorage(photos);
+      return { success: true as const, photo: updated };
+    });
+
+    if (!result.success) {
+      return errorResult(
+        createCustomerServiceError(
+          'CUSTOMER_NOT_FOUND',
+          `Photo with ID ${photoId} not found`
+        )
+      );
+    }
+
+    return successResult(result.photo);
+  } catch (error) {
+    return errorResult(
+      createCustomerServiceError(
+        'STORAGE_ERROR',
+        'Failed to update photo work log entry',
+        { originalError: error instanceof Error ? error.message : String(error) }
+      )
+    );
+  }
 }

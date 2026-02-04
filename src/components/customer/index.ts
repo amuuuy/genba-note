@@ -21,3 +21,12 @@ export type { CustomerSearchModalProps } from './CustomerSearchModal';
 
 export { CustomerAutoComplete } from './CustomerAutoComplete';
 export type { CustomerAutoCompleteProps } from './CustomerAutoComplete';
+
+export { WorkLogEntrySection } from './WorkLogEntrySection';
+export type { WorkLogEntrySectionProps } from './WorkLogEntrySection';
+
+export { WorkLogEntryList } from './WorkLogEntryList';
+export type { WorkLogEntryListProps } from './WorkLogEntryList';
+
+export { AddWorkLogEntryModal } from './AddWorkLogEntryModal';
+export type { AddWorkLogEntryModalProps } from './AddWorkLogEntryModal';

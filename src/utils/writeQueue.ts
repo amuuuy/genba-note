@@ -108,3 +108,9 @@ export const customersQueue = createWriteQueue();
  * Protects: addPhoto, deletePhoto, deletePhotosByCustomer in customerPhotoService.
  */
 export const photosQueue = createWriteQueue();
+
+/**
+ * Queue for work log entry write operations.
+ * Protects: createWorkLogEntry, updateWorkLogEntry, deleteWorkLogEntry in workLogEntryService.
+ */
+export const workLogEntriesQueue = createWriteQueue();

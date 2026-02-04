@@ -4,3 +4,4 @@ export * from './settings';
 export * from './subscription';
 export * from './customer';
 export * from './customerPhoto';
+export * from './workLogEntry';

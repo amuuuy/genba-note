@@ -25,11 +25,16 @@ import * as ImagePicker from 'expo-image-picker';
 
 import { useCustomerEdit } from '@/hooks/useCustomerEdit';
 import { useCustomerPhotos } from '@/hooks/useCustomerPhotos';
+import { useWorkLogEntries } from '@/hooks/useWorkLogEntries';
 import { useReadOnlyMode } from '@/hooks/useReadOnlyMode';
 import { FormInput, FormSection, ConfirmDialog } from '@/components/common';
-import { PhotoGallery, PhotoPreviewModal } from '@/components/customer';
+import {
+  PhotoPreviewModal,
+  WorkLogEntryList,
+  AddWorkLogEntryModal,
+} from '@/components/customer';
 import type { CustomerPhoto, PhotoType } from '@/types/customerPhoto';
-import { deletePhotosByCustomer } from '@/domain/customer';
+import type { WorkLogEntry } from '@/types/workLogEntry';
 
 export default function CustomerEditScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -44,11 +49,24 @@ export default function CustomerEditScreen() {
   const {
     beforePhotos,
     afterPhotos,
+    undatedPhotos,
     isLoading: isPhotosLoading,
     addPhoto,
     deletePhoto,
+    getPhotosByEntry,
+    reassignPhoto,
     refresh: refreshPhotos,
   } = useCustomerPhotos(customerId);
+
+  // Work log entries state (only for existing customers)
+  const {
+    entries: workLogEntries,
+    isLoading: isEntriesLoading,
+    createEntry,
+    updateEntry,
+    deleteEntry,
+    refresh: refreshEntries,
+  } = useWorkLogEntries(customerId);
 
   // Read-only mode state
   const { isReadOnlyMode } = useReadOnlyMode();
@@ -59,6 +77,13 @@ export default function CustomerEditScreen() {
 
   // Delete confirmation state
   const [deletePhotoConfirm, setDeletePhotoConfirm] = useState<CustomerPhoto | null>(null);
+  const [deleteEntryConfirm, setDeleteEntryConfirm] = useState<WorkLogEntry | null>(null);
+
+  // Add work log entry modal state
+  const [showAddEntryModal, setShowAddEntryModal] = useState(false);
+
+  // Track which entry is currently being added to (for photo adds)
+  const [currentEntryId, setCurrentEntryId] = useState<string | null>(null);
 
   // Ref to latest isDirty for back handlers
   const isDirtyRef = useRef(state.isDirty);
@@ -128,7 +153,7 @@ export default function CustomerEditScreen() {
   }, []);
 
   // Handle add photo
-  const handleAddPhoto = useCallback(async (type: PhotoType) => {
+  const handleAddPhoto = useCallback(async (entryId: string | null, type: PhotoType) => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: false,
@@ -137,7 +162,7 @@ export default function CustomerEditScreen() {
 
     if (!result.canceled && result.assets[0]) {
       const asset = result.assets[0];
-      const success = await addPhoto(type, asset.uri, asset.fileName);
+      const success = await addPhoto(type, asset.uri, entryId, asset.fileName);
       if (!success) {
         Alert.alert('エラー', '写真の追加に失敗しました');
       }
@@ -173,6 +198,46 @@ export default function CustomerEditScreen() {
     setShowPreview(false);
     setPreviewPhoto(null);
   }, []);
+
+  // Handle add work log entry
+  const handleAddEntry = useCallback(() => {
+    setShowAddEntryModal(true);
+  }, []);
+
+  // Handle create work log entry
+  const handleCreateEntry = useCallback(async (workDate: string, note: string | null) => {
+    const entry = await createEntry(workDate, note);
+    if (!entry) {
+      throw new Error('作業記録の作成に失敗しました');
+    }
+  }, [createEntry]);
+
+  // Handle update work log entry note
+  const handleUpdateEntryNote = useCallback(async (entryId: string, note: string | null) => {
+    const success = await updateEntry(entryId, note);
+    if (!success) {
+      Alert.alert('エラー', 'メモの更新に失敗しました');
+    }
+  }, [updateEntry]);
+
+  // Handle delete work log entry trigger
+  const handleDeleteEntryPress = useCallback((entry: WorkLogEntry) => {
+    setDeleteEntryConfirm(entry);
+  }, []);
+
+  // Handle delete work log entry confirm
+  const handleDeleteEntryConfirm = useCallback(async () => {
+    if (!deleteEntryConfirm) return;
+
+    const success = await deleteEntry(deleteEntryConfirm.id);
+    if (!success) {
+      Alert.alert('エラー', '作業記録の削除に失敗しました');
+    } else {
+      // Refresh photos to update undated photos list
+      await refreshPhotos();
+    }
+    setDeleteEntryConfirm(null);
+  }, [deleteEntryConfirm, deleteEntry, refreshPhotos]);
 
   // Determine title
   const title = isNewCustomer ? '新規顧客' : '顧客編集';
@@ -299,33 +364,23 @@ export default function CustomerEditScreen() {
           />
         </FormSection>
 
-        {/* Photo Sections (only for existing customers) */}
+        {/* Work Log Entries (only for existing customers) */}
         {!isNewCustomer && (
-          <>
-            <FormSection title="現場写真">
-              <PhotoGallery
-                photos={beforePhotos}
-                type="before"
-                onPhotoPress={handlePhotoPress}
-                onAddPress={() => handleAddPhoto('before')}
-                onDeletePress={handleDeletePhotoPress}
-                disabled={!isEditable}
-                testID="before-photos-gallery"
-              />
-
-              <View style={styles.photoSpacer} />
-
-              <PhotoGallery
-                photos={afterPhotos}
-                type="after"
-                onPhotoPress={handlePhotoPress}
-                onAddPress={() => handleAddPhoto('after')}
-                onDeletePress={handleDeletePhotoPress}
-                disabled={!isEditable}
-                testID="after-photos-gallery"
-              />
-            </FormSection>
-          </>
+          <FormSection title="現場写真">
+            <WorkLogEntryList
+              entries={workLogEntries}
+              getPhotosByEntry={getPhotosByEntry}
+              undatedPhotos={undatedPhotos}
+              onPhotoPress={handlePhotoPress}
+              onAddPhoto={handleAddPhoto}
+              onDeletePhoto={handleDeletePhotoPress}
+              onAddEntry={handleAddEntry}
+              onUpdateEntryNote={handleUpdateEntryNote}
+              onDeleteEntry={handleDeleteEntryPress}
+              disabled={!isEditable}
+              testID="work-log-entry-list"
+            />
+          </FormSection>
         )}
       </ScrollView>
 
@@ -348,6 +403,27 @@ export default function CustomerEditScreen() {
         destructive
         onConfirm={handleDeletePhotoConfirm}
         onCancel={() => setDeletePhotoConfirm(null)}
+      />
+
+      {/* Delete Work Log Entry Confirmation */}
+      <ConfirmDialog
+        visible={deleteEntryConfirm !== null}
+        title="作業日を削除"
+        message="この作業日を削除しますか？\n紐づいた写真は「日付未設定」に移動されます。"
+        confirmText="削除"
+        cancelText="キャンセル"
+        destructive
+        onConfirm={handleDeleteEntryConfirm}
+        onCancel={() => setDeleteEntryConfirm(null)}
+      />
+
+      {/* Add Work Log Entry Modal */}
+      <AddWorkLogEntryModal
+        visible={showAddEntryModal}
+        existingDates={workLogEntries.map((e) => e.workDate)}
+        onClose={() => setShowAddEntryModal(false)}
+        onCreate={handleCreateEntry}
+        testID="add-work-log-entry-modal"
       />
     </KeyboardAvoidingView>
   );
@@ -381,8 +457,5 @@ const styles = StyleSheet.create({
   },
   headerButtonDisabled: {
     opacity: 0.5,
-  },
-  photoSpacer: {
-    height: 24,
   },
 });
