@@ -120,3 +120,9 @@ export const workLogEntriesQueue = createWriteQueue();
  * Protects: saveFinanceEntry, deleteFinanceEntry in financeStorage.
  */
 export const financeEntriesQueue = createWriteQueue();
+
+/**
+ * Queue for finance photo write operations.
+ * Protects: addFinancePhoto, deleteFinancePhoto in financePhotoStorage.
+ */
+export const financePhotosQueue = createWriteQueue();

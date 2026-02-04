@@ -12,3 +12,6 @@ export type { CreateFinanceCardGroupProps } from './CreateFinanceCardGroup';
 
 export { FinanceEntryModal } from './FinanceEntryModal';
 export type { FinanceEntryModalProps } from './FinanceEntryModal';
+
+export { FinancePhotoSection } from './FinancePhotoSection';
+export type { FinancePhotoSectionProps } from './FinancePhotoSection';

@@ -23,6 +23,8 @@ export interface FinanceEntry {
   description: string;
   /** Optional category */
   category?: string;
+  /** Photo IDs associated with this entry */
+  photoIds?: string[];
   /** Creation timestamp (ISO8601) */
   createdAt: string;
   /** Last update timestamp (ISO8601) */

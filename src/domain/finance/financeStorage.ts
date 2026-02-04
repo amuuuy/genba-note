@@ -11,6 +11,7 @@ import { STORAGE_KEYS } from '@/utils/constants';
 import { getReadOnlyMode } from '@/storage/readOnlyModeState';
 import { financeEntriesQueue } from '@/utils/writeQueue';
 import type { FinanceEntry, FinanceSummary } from './types';
+import { deletePhotosByFinanceEntry } from './financePhotoStorage';
 
 // === Result Types ===
 
@@ -163,23 +164,24 @@ export async function saveFinanceEntry(
 /**
  * Delete finance entry
  * Serialized via financeEntriesQueue to prevent RMW race conditions.
+ * Also deletes all associated photos (cascading delete).
  */
 export async function deleteFinanceEntry(id: string): Promise<FinanceResult<void>> {
   if (getReadOnlyMode()) {
     return readOnlyError();
   }
 
-  return financeEntriesQueue.enqueue(async () => {
+  const entryResult = await financeEntriesQueue.enqueue(async () => {
     // Re-check read-only mode inside queue to handle mode changes during wait
     if (getReadOnlyMode()) {
-      return readOnlyError();
+      return { success: false as const, readonly: true };
     }
 
     try {
       const result = await getAllFinanceEntries();
 
       if (!result.success) {
-        return errorResult<void>(result.error!);
+        return { success: false as const, error: result.error };
       }
 
       const entries = result.data ?? [];
@@ -189,17 +191,31 @@ export async function deleteFinanceEntry(id: string): Promise<FinanceResult<void
         STORAGE_KEYS.FINANCE_ENTRIES,
         JSON.stringify(filteredEntries)
       );
-      return successResult(undefined);
+      return { success: true as const };
     } catch (error) {
-      return errorResult<void>(
-        createError(
+      return {
+        success: false as const,
+        error: createError(
           'WRITE_ERROR',
           'Failed to delete finance entry',
           error instanceof Error ? error : undefined
-        )
-      );
+        ),
+      };
     }
   });
+
+  if (entryResult.readonly) {
+    return readOnlyError();
+  }
+
+  if (!entryResult.success) {
+    return errorResult<void>(entryResult.error!);
+  }
+
+  // Delete associated photos (cascading delete)
+  await deletePhotosByFinanceEntry(id);
+
+  return successResult(undefined);
 }
 
 /**

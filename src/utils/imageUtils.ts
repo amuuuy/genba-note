@@ -20,6 +20,9 @@ const SEAL_IMAGES_SUBDIR = 'seal_images';
 /** Subdirectory name for customer photos */
 const CUSTOMER_PHOTOS_SUBDIR = 'customer_photos';
 
+/** Subdirectory name for finance photos */
+const FINANCE_PHOTOS_SUBDIR = 'finance_photos';
+
 /**
  * Convert local image URI to base64 string
  *
@@ -221,5 +224,153 @@ export async function getFileSize(uri: string): Promise<FileSizeResult> {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error reading file size',
     };
+  }
+}
+
+/** Temp subdirectory name for finance photos */
+const FINANCE_PHOTOS_TMP_SUBDIR = '_tmp';
+
+/**
+ * Copy finance photo to app's temporary storage
+ *
+ * Storage structure:
+ * documents/finance_photos/_tmp/{timestamp}_{uuid}.{ext}
+ *
+ * Photos should be moved to entry directory upon save using moveFinancePhotoToEntryDirectory.
+ *
+ * @param sourceUri - Source image URI (from image picker)
+ * @returns New temporary URI, or null if copy fails
+ */
+export async function copyFinancePhotoToTempStorage(
+  sourceUri: string
+): Promise<string | null> {
+  try {
+    // Generate unique filename with timestamp and UUID
+    const timestamp = Date.now();
+    const uuid = generateUUID().slice(0, 8); // Short UUID for filename
+    const extension = sourceUri.split('.').pop() || 'jpg';
+    const filename = `${timestamp}_${uuid}.${extension}`;
+
+    // Ensure destination directory exists: finance_photos/_tmp/
+    const destDir = new Directory(
+      Paths.document,
+      FINANCE_PHOTOS_SUBDIR,
+      FINANCE_PHOTOS_TMP_SUBDIR
+    );
+    destDir.create({ intermediates: true, idempotent: true });
+
+    // Copy file to temporary storage
+    const sourceFile = new File(sourceUri);
+    const destFile = new File(destDir, filename);
+
+    sourceFile.copy(destFile);
+
+    return destFile.uri;
+  } catch (error) {
+    console.error('Failed to copy finance photo to temp storage:', error);
+    return null;
+  }
+}
+
+/**
+ * Move finance photo from temp to entry directory
+ *
+ * @param tempUri - Current URI in temp directory
+ * @param financeEntryId - Finance entry ID for permanent storage
+ * @returns New permanent URI, or null if move fails
+ */
+export async function moveFinancePhotoToEntryDirectory(
+  tempUri: string,
+  financeEntryId: string
+): Promise<string | null> {
+  try {
+    // Extract filename from temp URI
+    const filename = tempUri.split('/').pop();
+    if (!filename) {
+      return null;
+    }
+
+    // Ensure destination directory exists: finance_photos/{financeEntryId}/
+    const destDir = new Directory(
+      Paths.document,
+      FINANCE_PHOTOS_SUBDIR,
+      financeEntryId
+    );
+    destDir.create({ intermediates: true, idempotent: true });
+
+    // Move file to permanent storage
+    const sourceFile = new File(tempUri);
+    const destFile = new File(destDir, filename);
+
+    sourceFile.move(destFile);
+
+    return destFile.uri;
+  } catch (error) {
+    console.error('Failed to move finance photo to entry directory:', error);
+    return null;
+  }
+}
+
+/**
+ * Copy finance photo to app's permanent storage (direct, without temp)
+ *
+ * Storage structure:
+ * documents/finance_photos/{financeEntryId}/{timestamp}_{uuid}.{ext}
+ *
+ * @param sourceUri - Source image URI (from image picker)
+ * @param financeEntryId - Finance entry ID for organizing photos
+ * @returns New permanent URI, or null if copy fails
+ */
+export async function copyFinancePhotoToPermanentStorage(
+  sourceUri: string,
+  financeEntryId: string
+): Promise<string | null> {
+  try {
+    // Generate unique filename with timestamp and UUID
+    const timestamp = Date.now();
+    const uuid = generateUUID().slice(0, 8); // Short UUID for filename
+    const extension = sourceUri.split('.').pop() || 'jpg';
+    const filename = `${timestamp}_${uuid}.${extension}`;
+
+    // Ensure destination directory exists: finance_photos/{financeEntryId}/
+    const destDir = new Directory(
+      Paths.document,
+      FINANCE_PHOTOS_SUBDIR,
+      financeEntryId
+    );
+    destDir.create({ intermediates: true, idempotent: true });
+
+    // Copy file to permanent storage
+    const sourceFile = new File(sourceUri);
+    const destFile = new File(destDir, filename);
+
+    sourceFile.copy(destFile);
+
+    return destFile.uri;
+  } catch (error) {
+    console.error('Failed to copy finance photo to permanent storage:', error);
+    return null;
+  }
+}
+
+/**
+ * Delete all photos for a finance entry
+ *
+ * @param financeEntryId - Finance entry ID to delete photos for
+ */
+export async function deleteFinancePhotosDirectory(
+  financeEntryId: string
+): Promise<void> {
+  try {
+    const entryDir = new Directory(
+      Paths.document,
+      FINANCE_PHOTOS_SUBDIR,
+      financeEntryId
+    );
+    if (entryDir.exists) {
+      entryDir.delete();
+    }
+  } catch (error) {
+    console.error('Failed to delete finance photos directory:', error);
   }
 }

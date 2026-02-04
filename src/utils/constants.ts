@@ -31,6 +31,9 @@ export const MAX_LINE_ITEMS = 100;
 /** Maximum total photos in the app */
 export const MAX_TOTAL_PHOTOS = 1000;
 
+/** Maximum photos per finance entry */
+export const MAX_FINANCE_PHOTOS_PER_ENTRY = 5;
+
 /** Maximum photo file size when adding (4.5MB) */
 export const MAX_PHOTO_SIZE_ACTIVE_BYTES = 4_718_592; // 4.5 * 1024 * 1024
 
@@ -86,6 +89,7 @@ export const STORAGE_KEYS = {
   CUSTOMER_PHOTOS: '@genba_customerPhotos',
   WORK_LOG_ENTRIES: '@genba_workLogEntries',
   FINANCE_ENTRIES: '@genba_financeEntries',
+  FINANCE_PHOTOS: '@genba_financePhotos',
 } as const;
 
 /**

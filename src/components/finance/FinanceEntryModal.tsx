@@ -2,7 +2,7 @@
  * FinanceEntryModal Component
  *
  * Modal for creating/editing income or expense entries.
- * Includes amount, date, and description fields.
+ * Includes amount, date, description fields, and photo attachments.
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
@@ -16,11 +16,24 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Platform,
+  Alert,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { DatePickerInput } from '@/components/common/DatePickerInput';
+import { FinancePhotoSection } from './FinancePhotoSection';
 import { getTodayString } from '@/utils/dateUtils';
 import { generateUUID } from '@/utils/uuid';
+import {
+  copyFinancePhotoToTempStorage,
+  deleteStoredImage,
+  getFileSize,
+} from '@/utils/imageUtils';
+import {
+  MAX_PHOTO_SIZE_ACTIVE_BYTES,
+  MAX_FINANCE_PHOTOS_PER_ENTRY,
+} from '@/utils/constants';
 import type { FinanceType, FinanceEntry } from '@/domain/finance';
+import type { TempFinancePhotoInfo } from '@/types/financePhoto';
 
 export interface FinanceEntryModalProps {
   /** Whether the modal is visible */
@@ -29,8 +42,11 @@ export interface FinanceEntryModalProps {
   type: FinanceType;
   /** Callback when modal is cancelled */
   onCancel: () => void;
-  /** Callback when entry is saved */
-  onSave: (entry: FinanceEntry) => void;
+  /** Callback when entry is saved with photos (returns Promise for error handling) */
+  onSave: (
+    entry: FinanceEntry,
+    photos: Array<{ uri: string; originalFilename: string | null }>
+  ) => Promise<void>;
   /** Test ID for testing */
   testID?: string;
 }
@@ -65,6 +81,8 @@ export const FinanceEntryModal: React.FC<FinanceEntryModalProps> = ({
   const [form, setForm] = useState<FormState>(INITIAL_FORM_STATE);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [photos, setPhotos] = useState<TempFinancePhotoInfo[]>([]);
+  const [isAddingPhoto, setIsAddingPhoto] = useState(false);
 
   // Reset form when modal opens
   useEffect(() => {
@@ -75,6 +93,8 @@ export const FinanceEntryModal: React.FC<FinanceEntryModalProps> = ({
       });
       setErrors({});
       setIsSaving(false);
+      setPhotos([]);
+      setIsAddingPhoto(false);
     }
   }, [visible]);
 
@@ -114,34 +134,135 @@ export const FinanceEntryModal: React.FC<FinanceEntryModalProps> = ({
     return Object.keys(newErrors).length === 0;
   }, [form]);
 
+  // Handle add photo
+  const handleAddPhoto = useCallback(async () => {
+    // Check per-entry limit
+    if (photos.length >= MAX_FINANCE_PHOTOS_PER_ENTRY) {
+      Alert.alert('エラー', `1件あたりの写真上限（${MAX_FINANCE_PHOTOS_PER_ENTRY}枚）に達しました。`);
+      return;
+    }
+
+    setIsAddingPhoto(true);
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+
+        // Validate file size
+        const fileSizeResult = await getFileSize(asset.uri);
+        if (!fileSizeResult.success) {
+          Alert.alert('エラー', '写真の読み込みに失敗しました');
+          return;
+        }
+        if (fileSizeResult.size! > MAX_PHOTO_SIZE_ACTIVE_BYTES) {
+          const sizeMB = (fileSizeResult.size! / (1024 * 1024)).toFixed(1);
+          const limitMB = (MAX_PHOTO_SIZE_ACTIVE_BYTES / (1024 * 1024)).toFixed(1);
+          Alert.alert('エラー', `写真サイズ（${sizeMB}MB）が制限（${limitMB}MB）を超えています。`);
+          return;
+        }
+
+        // Copy to temp storage; will be moved to entry directory on save
+        const tempUri = await copyFinancePhotoToTempStorage(asset.uri);
+
+        if (!tempUri) {
+          Alert.alert('エラー', '写真の保存に失敗しました');
+          return;
+        }
+
+        const tempPhoto: TempFinancePhotoInfo = {
+          tempId: generateUUID(),
+          permanentUri: tempUri,
+          originalFilename: asset.fileName ?? null,
+        };
+
+        setPhotos((prev) => [...prev, tempPhoto]);
+      }
+    } catch {
+      Alert.alert('エラー', '写真の追加中にエラーが発生しました');
+    } finally {
+      setIsAddingPhoto(false);
+    }
+  }, [photos.length]);
+
+  // Handle delete temp photo
+  const handleDeletePhoto = useCallback(
+    async (tempId: string) => {
+      // Prevent deletion during save to avoid inconsistency
+      if (isSaving) {
+        return;
+      }
+
+      const photo = photos.find((p) => p.tempId === tempId);
+      if (photo) {
+        // Delete from filesystem
+        await deleteStoredImage(photo.permanentUri);
+        // Remove from state
+        setPhotos((prev) => prev.filter((p) => p.tempId !== tempId));
+      }
+    },
+    [photos, isSaving]
+  );
+
+  // Handle cancel with cleanup
+  const handleCancel = useCallback(async () => {
+    // Prevent cancel during save
+    if (isSaving) {
+      return;
+    }
+
+    // Clean up all temporary photos from filesystem
+    for (const photo of photos) {
+      await deleteStoredImage(photo.permanentUri);
+    }
+
+    onCancel();
+  }, [photos, isSaving, onCancel]);
+
   const handleSave = useCallback(async () => {
     if (isSaving || !validateForm()) return;
 
     setIsSaving(true);
-    const now = new Date().toISOString();
-    const entry: FinanceEntry = {
-      id: generateUUID(),
-      type,
-      amount: Number(form.amount.trim()),
-      date: form.date,
-      description: form.description.trim(),
-      createdAt: now,
-      updatedAt: now,
-    };
+    try {
+      const now = new Date().toISOString();
+      const entry: FinanceEntry = {
+        id: generateUUID(),
+        type,
+        amount: Number(form.amount.trim()),
+        date: form.date,
+        description: form.description.trim(),
+        createdAt: now,
+        updatedAt: now,
+      };
 
-    onSave(entry);
-    // Note: isSaving is reset when modal reopens via useEffect
-  }, [isSaving, validateForm, type, form, onSave]);
+      // Convert temp photos to photo data for parent
+      const photoData = photos.map((p) => ({
+        uri: p.permanentUri,
+        originalFilename: p.originalFilename,
+      }));
+
+      await onSave(entry, photoData);
+      // Parent will close modal on success
+    } finally {
+      // Always reset isSaving to allow retry on failure
+      setIsSaving(false);
+    }
+  }, [isSaving, validateForm, type, form, photos, onSave]);
 
   const title = type === 'income' ? '収入追加' : '支出追加';
-  const canSave = form.amount.trim() !== '' && form.date !== '' && !isSaving;
+  const canSave =
+    form.amount.trim() !== '' && form.date !== '' && !isSaving && !isAddingPhoto;
 
   return (
     <Modal
       visible={visible}
       animationType="slide"
       presentationStyle="pageSheet"
-      onRequestClose={onCancel}
+      onRequestClose={handleCancel}
       testID={testID}
     >
       <KeyboardAvoidingView
@@ -151,12 +272,15 @@ export const FinanceEntryModal: React.FC<FinanceEntryModalProps> = ({
         {/* Header */}
         <View style={styles.header}>
           <Pressable
-            onPress={onCancel}
+            onPress={handleCancel}
             style={styles.headerButton}
             accessibilityLabel="キャンセル"
             accessibilityRole="button"
+            disabled={isSaving}
           >
-            <Text style={styles.cancelText}>キャンセル</Text>
+            <Text style={[styles.cancelText, isSaving && styles.cancelTextDisabled]}>
+              キャンセル
+            </Text>
           </Pressable>
           <Text style={styles.headerTitle}>{title}</Text>
           <Pressable
@@ -211,6 +335,16 @@ export const FinanceEntryModal: React.FC<FinanceEntryModalProps> = ({
             testID="finance-date-input"
           />
 
+          {/* Photo Section */}
+          <FinancePhotoSection
+            photos={photos}
+            onAddPhoto={handleAddPhoto}
+            onDeletePhoto={handleDeletePhoto}
+            isAddingPhoto={isAddingPhoto}
+            disabled={isSaving}
+            testID="finance-photo-section"
+          />
+
           {/* Description Input */}
           <View style={styles.fieldContainer}>
             <Text style={styles.label}>説明/メモ</Text>
@@ -262,6 +396,9 @@ const styles = StyleSheet.create({
   cancelText: {
     fontSize: 17,
     color: '#007AFF',
+  },
+  cancelTextDisabled: {
+    color: '#C7C7CC',
   },
   saveText: {
     fontSize: 17,

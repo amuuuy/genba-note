@@ -8,8 +8,14 @@
 import { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, Alert } from 'react-native';
 import { CreateFinanceCardGroup, FinanceEntryModal } from '@/components/finance';
-import { saveFinanceEntry, type FinanceEntry, type FinanceType } from '@/domain/finance';
+import {
+  saveFinanceEntry,
+  addFinancePhotoRecord,
+  type FinanceEntry,
+  type FinanceType,
+} from '@/domain/finance';
 import { useReadOnlyMode } from '@/hooks/useReadOnlyMode';
+import { deleteStoredImage } from '@/utils/imageUtils';
 
 export default function BalanceScreen() {
   const { isReadOnlyMode } = useReadOnlyMode();
@@ -30,17 +36,86 @@ export default function BalanceScreen() {
     setModalVisible(false);
   }, []);
 
-  const handleModalSave = useCallback(async (entry: FinanceEntry) => {
-    const result = await saveFinanceEntry(entry);
+  const handleModalSave = useCallback(
+    async (
+      entry: FinanceEntry,
+      photos: Array<{ uri: string; originalFilename: string | null }>
+    ) => {
+      // Save the finance entry first
+      const photoIds: string[] = [];
+      const entryWithPhotos: FinanceEntry = {
+        ...entry,
+        photoIds: [], // Will be updated after saving photos
+      };
 
-    if (result.success) {
+      const result = await saveFinanceEntry(entryWithPhotos);
+
+      if (!result.success) {
+        // Clean up temporary photos if entry save failed
+        for (const photo of photos) {
+          await deleteStoredImage(photo.uri);
+        }
+        Alert.alert('エラー', result.error?.message ?? '保存に失敗しました');
+        return;
+      }
+
+      // Save photo records - track failed photos for cleanup
+      const failedPhotos: Array<{ uri: string }> = [];
+      let photoSaveError: string | null = null;
+
+      for (const photo of photos) {
+        const photoResult = await addFinancePhotoRecord({
+          financeEntryId: entry.id,
+          uri: photo.uri,
+          originalFilename: photo.originalFilename,
+          addedAt: Date.now(),
+        });
+
+        if (photoResult.success && photoResult.data) {
+          photoIds.push(photoResult.data.id);
+        } else {
+          // Track failed photo and error message
+          failedPhotos.push({ uri: photo.uri });
+          if (!photoSaveError && photoResult.error?.message) {
+            photoSaveError = photoResult.error.message;
+          }
+        }
+      }
+
+      // If some photos failed, clean up remaining temp files
+      for (const failedPhoto of failedPhotos) {
+        await deleteStoredImage(failedPhoto.uri);
+      }
+
+      // Update entry with photo IDs if photos were added
+      if (photoIds.length > 0) {
+        const updatedEntry: FinanceEntry = {
+          ...result.data!,
+          photoIds,
+        };
+        await saveFinanceEntry(updatedEntry);
+      }
+
       setModalVisible(false);
       const typeLabel = entry.type === 'income' ? '収入' : '支出';
-      Alert.alert('保存完了', `${typeLabel}を保存しました`);
-    } else {
-      Alert.alert('エラー', result.error?.message ?? '保存に失敗しました');
-    }
-  }, []);
+
+      // Show appropriate message based on photo save results
+      if (failedPhotos.length > 0 && photoIds.length > 0) {
+        Alert.alert(
+          '一部保存完了',
+          `${typeLabel}を保存しましたが、${failedPhotos.length}枚の写真の保存に失敗しました。\n${photoSaveError ?? ''}`
+        );
+      } else if (failedPhotos.length > 0 && photoIds.length === 0) {
+        Alert.alert(
+          '保存完了（写真なし）',
+          `${typeLabel}を保存しましたが、写真の保存に失敗しました。\n${photoSaveError ?? ''}`
+        );
+      } else {
+        Alert.alert('保存完了', `${typeLabel}を保存しました`);
+      }
+    },
+    []
+  );
 
   return (
     <View style={styles.container}>
