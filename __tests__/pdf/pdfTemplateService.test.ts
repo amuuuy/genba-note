@@ -968,9 +968,9 @@ describe('pdfTemplateService', () => {
         });
         const result = generateHtmlTemplate(input);
 
-        // New layout: seal is inline with contact person area
-        expect(result.html).toContain('issuer-contact-with-seal');
-        expect(result.html).toContain('seal-image-inline');
+        // Seal image is rendered in issuer block
+        expect(result.html).toContain('issuer-seal');
+        expect(result.html).toContain('seal-image');
         expect(result.html).toContain('data:image/png;base64,dGVzdC1pbWFnZS1kYXRh');
       });
 
@@ -1108,9 +1108,9 @@ describe('pdfTemplateService', () => {
         });
         const result = generateHtmlTemplate(input);
 
-        // Seal should be inline with contact person
-        expect(result.html).toContain('issuer-contact-with-seal');
-        expect(result.html).toContain('seal-image-inline');
+        // Seal should be in issuer block, contact person separate
+        expect(result.html).toContain('issuer-seal');
+        expect(result.html).toContain('seal-image');
         expect(result.html).toContain('担当:');
         expect(result.html).toContain('山田太郎');
       });

@@ -34,6 +34,7 @@ import {
   formatDate,
   parseAddressWithPostalCode,
   escapeHtml,
+  isValidImageDataUri,
 } from './templateUtils';
 
 // === Color Scheme ===
@@ -182,7 +183,7 @@ function renderFormalIssuerSection(
   sensitiveSnapshot: SensitiveIssuerSnapshot | null
 ): string {
   const { issuerSnapshot } = doc;
-  const hasSeal = !!issuerSnapshot.sealImageBase64;
+  const hasSeal = isValidImageDataUri(issuerSnapshot.sealImageBase64);
 
   // Build issuer info lines (displayed vertically on left side)
   const infoLines: string[] = [];
@@ -496,7 +497,7 @@ function renderInvoiceIssuerBlock(
   _sensitiveSnapshot: SensitiveIssuerSnapshot | null
 ): string {
   const { issuerSnapshot } = doc;
-  const hasSeal = !!issuerSnapshot.sealImageBase64;
+  const hasSeal = isValidImageDataUri(issuerSnapshot.sealImageBase64);
 
   const infoLines: string[] = [];
 

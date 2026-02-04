@@ -30,6 +30,7 @@ import {
   formatQuantity,
   parseAddressWithPostalCode,
   escapeHtml,
+  isValidImageDataUri,
 } from './templateUtils';
 
 // === Local Helper Functions ===
@@ -77,16 +78,6 @@ function renderTitleWithMeta(doc: DocumentWithTotals): string {
   `;
 }
 
-
-/**
- * Validate that a string is a valid data URI for safe raster images
- * Only allows PNG, JPEG, GIF formats to prevent XSS via SVG
- */
-function isValidImageDataUri(uri: string | null | undefined): boolean {
-  if (!uri) return false;
-  // Only allow safe raster image formats (no SVG to prevent XSS)
-  return /^data:image\/(png|jpeg|jpg|gif);base64,[A-Za-z0-9+/=]+$/.test(uri);
-}
 
 /**
  * Render issuer block with seal placed below phone number

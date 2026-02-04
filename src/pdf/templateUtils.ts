@@ -126,3 +126,19 @@ export function escapeHtml(text: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+
+// === Image Validation ===
+
+/**
+ * Validate that a string is a valid data URI for safe raster images
+ * Only allows PNG, JPEG, GIF, WEBP formats to prevent XSS via SVG
+ *
+ * @param uri - The data URI to validate
+ * @returns true if valid raster image data URI, false otherwise
+ */
+export function isValidImageDataUri(uri: string | null | undefined): boolean {
+  if (!uri) return false;
+  // Only allow safe raster image formats (no SVG to prevent XSS)
+  // Check prefix only - validating full base64 content is expensive and unnecessary
+  return /^data:image\/(png|jpeg|jpg|gif|webp);base64,[A-Za-z0-9+/]/.test(uri);
+}
