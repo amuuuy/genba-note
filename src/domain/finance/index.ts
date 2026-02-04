@@ -7,3 +7,4 @@
 export * from './types';
 export * from './financeStorage';
 export * from './financePhotoStorage';
+export * from './chartAggregationService';

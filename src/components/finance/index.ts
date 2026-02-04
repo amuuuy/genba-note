@@ -15,3 +15,12 @@ export type { FinanceEntryModalProps } from './FinanceEntryModal';
 
 export { FinancePhotoSection } from './FinancePhotoSection';
 export type { FinancePhotoSectionProps } from './FinancePhotoSection';
+
+export { ChartPeriodSelector } from './ChartPeriodSelector';
+export type { ChartPeriodSelectorProps } from './ChartPeriodSelector';
+
+export { FinanceSummaryCard } from './FinanceSummaryCard';
+export type { FinanceSummaryCardProps } from './FinanceSummaryCard';
+
+export { FinanceLineChart } from './FinanceLineChart';
+export type { FinanceLineChartProps } from './FinanceLineChart';

@@ -1,26 +1,38 @@
 /**
  * Balance Screen
  *
- * Displays income/expense management interface.
- * Allows users to add income and expense entries.
+ * Displays income/expense management interface with chart visualization.
+ * Allows users to add income and expense entries and view trends.
  */
 
 import { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, Alert } from 'react-native';
-import { CreateFinanceCardGroup, FinanceEntryModal } from '@/components/finance';
+import { View, StyleSheet, Alert, ScrollView } from 'react-native';
+import {
+  CreateFinanceCardGroup,
+  FinanceEntryModal,
+  ChartPeriodSelector,
+  FinanceSummaryCard,
+  FinanceLineChart,
+} from '@/components/finance';
 import {
   saveFinanceEntry,
   addFinancePhotoRecord,
   type FinanceEntry,
   type FinanceType,
+  type ChartPeriod,
 } from '@/domain/finance';
 import { useReadOnlyMode } from '@/hooks/useReadOnlyMode';
+import { useFinanceChart } from '@/hooks/useFinanceChart';
 import { deleteStoredImage } from '@/utils/imageUtils';
 
 export default function BalanceScreen() {
   const { isReadOnlyMode } = useReadOnlyMode();
   const [modalVisible, setModalVisible] = useState(false);
   const [modalType, setModalType] = useState<FinanceType>('income');
+  const [chartPeriod, setChartPeriod] = useState<ChartPeriod>('monthly');
+
+  // Chart data hook
+  const { chartData, isLoading, error, refresh } = useFinanceChart(chartPeriod);
 
   const handleCreateIncome = useCallback(() => {
     setModalType('income');
@@ -99,6 +111,9 @@ export default function BalanceScreen() {
       setModalVisible(false);
       const typeLabel = entry.type === 'income' ? '収入' : '支出';
 
+      // Refresh chart data after saving
+      await refresh();
+
       // Show appropriate message based on photo save results
       if (failedPhotos.length > 0 && photoIds.length > 0) {
         Alert.alert(
@@ -114,24 +129,51 @@ export default function BalanceScreen() {
         Alert.alert('保存完了', `${typeLabel}を保存しました`);
       }
     },
-    []
+    [refresh]
   );
+
+  const handlePeriodChange = useCallback((period: ChartPeriod) => {
+    setChartPeriod(period);
+  }, []);
 
   return (
     <View style={styles.container}>
-      {/* Create Income/Expense Cards */}
-      <CreateFinanceCardGroup
-        onCreateIncome={handleCreateIncome}
-        onCreateExpense={handleCreateExpense}
-        disabled={isReadOnlyMode}
-        testID="create-finance-card-group"
-      />
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Create Income/Expense Cards */}
+        <CreateFinanceCardGroup
+          onCreateIncome={handleCreateIncome}
+          onCreateExpense={handleCreateExpense}
+          disabled={isReadOnlyMode}
+          testID="create-finance-card-group"
+        />
 
-      {/* Placeholder for future features */}
-      <View style={styles.placeholder}>
-        <Text style={styles.placeholderText}>収支管理画面</Text>
-        <Text style={styles.hint}>ここに売上集計と入金状況が表示されます</Text>
-      </View>
+        {/* Summary Card */}
+        <FinanceSummaryCard
+          totalIncome={chartData?.totalIncome ?? 0}
+          totalExpense={chartData?.totalExpense ?? 0}
+          currentBalance={chartData?.currentBalance ?? 0}
+          testID="finance-summary-card"
+        />
+
+        {/* Period Selector */}
+        <ChartPeriodSelector
+          selectedPeriod={chartPeriod}
+          onPeriodChange={handlePeriodChange}
+          testID="chart-period-selector"
+        />
+
+        {/* Line Chart */}
+        <FinanceLineChart
+          data={chartData}
+          isLoading={isLoading}
+          error={error}
+          testID="finance-line-chart"
+        />
+      </ScrollView>
 
       {/* Finance Entry Modal */}
       <FinanceEntryModal
@@ -148,23 +190,12 @@ export default function BalanceScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#F2F2F7',
   },
-  placeholder: {
+  scrollView: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
   },
-  placeholderText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#333',
-  },
-  hint: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
+  scrollContent: {
+    paddingBottom: 24,
   },
 });

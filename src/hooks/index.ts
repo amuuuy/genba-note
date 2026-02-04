@@ -53,3 +53,6 @@ export type {
   CustomerEditState,
   UseCustomerEditReturn,
 } from './useCustomerEdit';
+
+export { useFinanceChart } from './useFinanceChart';
+export type { UseFinanceChartReturn } from './useFinanceChart';
