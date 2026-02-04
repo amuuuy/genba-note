@@ -56,10 +56,14 @@ export function hasIssuerSnapshotData(snapshot: IssuerSnapshot): boolean {
  */
 async function loadSealImageBase64(sealImageUri: string | null): Promise<string | null> {
   if (!sealImageUri) {
+    if (__DEV__) console.log('[SealImage] No sealImageUri provided');
     return null;
   }
   try {
-    return await imageUriToDataUrl(sealImageUri);
+    if (__DEV__) console.log('[SealImage] Loading from URI:', sealImageUri);
+    const result = await imageUriToDataUrl(sealImageUri);
+    if (__DEV__) console.log('[SealImage] Result:', result ? 'success' : 'null');
+    return result;
   } catch (error) {
     console.error('Failed to load seal image:', error);
     return null;
@@ -129,11 +133,20 @@ export async function resolveIssuerInfo(
     const settingsResult = await getSettings();
     const settings = settingsResult.success ? settingsResult.data : null;
 
+    if (__DEV__) {
+      console.log('[ResolveIssuer] Document sealImageBase64:', documentIssuerSnapshot.sealImageBase64 ? 'exists' : 'null');
+      console.log('[ResolveIssuer] Settings sealImageUri:', settings?.issuer.sealImageUri ?? 'null');
+    }
+
     // If document snapshot has seal image, use it; otherwise try to load from settings
     // Normalize to ensure data URL format for backwards compatibility
     let sealImageBase64 = normalizeSealImageBase64(documentIssuerSnapshot.sealImageBase64);
     if (!sealImageBase64 && settings?.issuer.sealImageUri) {
       sealImageBase64 = await loadSealImageBase64(settings.issuer.sealImageUri);
+    }
+
+    if (__DEV__) {
+      console.log('[ResolveIssuer] Final sealImageBase64:', sealImageBase64 ? 'exists' : 'null');
     }
 
     // Fill missing/empty companyName from settings if available (for older documents)

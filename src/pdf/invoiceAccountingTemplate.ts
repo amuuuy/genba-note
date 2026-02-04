@@ -468,8 +468,8 @@ function getTemplateStyles(): string {
     }
 
     .seal-image {
-      width: 50px;
-      height: 50px;
+      width: 70px;
+      height: 70px;
       object-fit: contain;
       opacity: 0.85;
     }

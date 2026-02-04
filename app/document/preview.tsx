@@ -95,9 +95,12 @@ export default function DocumentPreviewScreen() {
         setDocumentWithTotals(documentForTemplate);
 
         // 5. Generate HTML with resolved data
+        // 請求書の場合はPDFスタイル（会計様式）でプレビュー表示
+        const templateMode = documentForTemplate.type === 'invoice' ? 'pdf' : 'screen';
         const templateResult = generateHtmlTemplate({
           document: documentForTemplate,
           sensitiveSnapshot: issuerInfo.sensitiveSnapshot,
+          mode: templateMode,
         });
         setHtml(templateResult.html);
 
