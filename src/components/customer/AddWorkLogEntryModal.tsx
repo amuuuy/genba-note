@@ -22,6 +22,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import * as ImagePicker from 'expo-image-picker';
 
 import type { PhotoType, TempPhotoInfo } from '@/types/customerPhoto';
@@ -129,6 +130,7 @@ export const AddWorkLogEntryModal: React.FC<AddWorkLogEntryModalProps> = ({
   const [note, setNote] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isDatePickerVisible, setIsDatePickerVisible] = useState(false);
 
   // Temporary photos state
   const [beforePhotos, setBeforePhotos] = useState<TempPhotoInfo[]>([]);
@@ -144,13 +146,31 @@ export const AddWorkLogEntryModal: React.FC<AddWorkLogEntryModalProps> = ({
     [dateInput]
   );
 
+  // Convert current dateInput to Date for picker
+  const currentDateForPicker = useMemo(() => {
+    if (!isValidDate) return new Date();
+    const date = new Date(dateInput + 'T00:00:00');
+    return isNaN(date.getTime()) ? new Date() : date;
+  }, [dateInput, isValidDate]);
+
   const canCreate = isValidDate && !isDuplicateDate && !isInFuture && !isCreating && !isAddingPhoto;
 
-  const handleDateChange = useCallback((text: string) => {
-    // Allow only numbers and hyphens
-    const cleaned = text.replace(/[^\d-]/g, '');
-    setDateInput(cleaned);
+  // Date picker handlers
+  const handleOpenDatePicker = useCallback(() => {
+    setIsDatePickerVisible(true);
+  }, []);
+
+  const handleDatePickerConfirm = useCallback((date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    setDateInput(`${year}-${month}-${day}`);
     setError(null);
+    setIsDatePickerVisible(false);
+  }, []);
+
+  const handleDatePickerCancel = useCallback(() => {
+    setIsDatePickerVisible(false);
   }, []);
 
   // Handle add photo
@@ -401,17 +421,15 @@ export const AddWorkLogEntryModal: React.FC<AddWorkLogEntryModalProps> = ({
               <Text style={styles.sectionLabel}>作業日</Text>
 
               <View style={styles.dateInputContainer}>
-                <Ionicons name="calendar-outline" size={20} color="#666" />
-                <TextInput
-                  style={styles.dateInput}
-                  value={dateInput}
-                  onChangeText={handleDateChange}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor="#C7C7CC"
-                  keyboardType="numbers-and-punctuation"
-                  maxLength={10}
-                  autoCorrect={false}
-                />
+                <Pressable
+                  style={styles.dateInputPressable}
+                  onPress={handleOpenDatePicker}
+                  accessibilityRole="button"
+                  accessibilityLabel="日付を選択"
+                >
+                  <Ionicons name="calendar-outline" size={20} color="#666" />
+                  <Text style={styles.dateInputText}>{dateInput}</Text>
+                </Pressable>
                 <Pressable
                   style={styles.todayButton}
                   onPress={handleSetToday}
@@ -427,15 +445,6 @@ export const AddWorkLogEntryModal: React.FC<AddWorkLogEntryModalProps> = ({
               )}
 
               {/* Validation messages */}
-              {!isValidDate && dateInput.length >= 10 && (
-                <View style={styles.warningContainer}>
-                  <Ionicons name="alert-circle" size={16} color="#FF3B30" />
-                  <Text style={styles.errorText}>
-                    日付の形式が正しくありません (YYYY-MM-DD)
-                  </Text>
-                </View>
-              )}
-
               {isDuplicateDate && (
                 <View style={styles.warningContainer}>
                   <Ionicons name="warning-outline" size={16} color="#FF9500" />
@@ -445,14 +454,17 @@ export const AddWorkLogEntryModal: React.FC<AddWorkLogEntryModalProps> = ({
                 </View>
               )}
 
-              {isInFuture && (
-                <View style={styles.warningContainer}>
-                  <Ionicons name="warning-outline" size={16} color="#FF9500" />
-                  <Text style={styles.warningText}>
-                    未来の日付は選択できません
-                  </Text>
-                </View>
-              )}
+              <DateTimePickerModal
+                isVisible={isDatePickerVisible}
+                mode="date"
+                date={currentDateForPicker}
+                onConfirm={handleDatePickerConfirm}
+                onCancel={handleDatePickerCancel}
+                confirmTextIOS="確定"
+                cancelTextIOS="キャンセル"
+                locale="ja"
+                maximumDate={new Date()}
+              />
             </View>
 
             {/* Before photos */}
@@ -554,11 +566,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 12,
   },
-  dateInput: {
+  dateInputPressable: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  dateInputText: {
     fontSize: 16,
     color: '#333',
-    paddingVertical: 12,
     marginLeft: 8,
   },
   todayButton: {
