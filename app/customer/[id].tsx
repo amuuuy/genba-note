@@ -19,7 +19,7 @@ import {
   ScrollView,
   BackHandler,
 } from 'react-native';
-import { useLocalSearchParams, router, Stack, type Href } from 'expo-router';
+import { useLocalSearchParams, router, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -128,16 +128,17 @@ export default function CustomerEditScreen() {
   const handleSave = useCallback(async () => {
     const savedCustomer = await save();
     if (savedCustomer) {
-      if (isNewCustomer) {
-        // Navigate to the saved customer's edit screen
-        router.replace(`/customer/${savedCustomer.id}` as Href);
-      } else {
-        Alert.alert('保存しました');
-      }
+      // 新規・既存とも: 保存成功 → Alert → OK で顧客一覧へ遷移
+      Alert.alert('保存しました', undefined, [
+        {
+          text: 'OK',
+          onPress: () => router.back(),
+        },
+      ]);
     } else if (state.errorMessage) {
       Alert.alert('エラー', state.errorMessage);
     }
-  }, [save, isNewCustomer, state.errorMessage]);
+  }, [save, state.errorMessage]);
 
   // Handle back with unsaved changes check
   const handleBack = useCallback(() => {
