@@ -489,7 +489,7 @@ function renderGrandTotalBlock(doc: DocumentWithTotals): string {
  * New layout:
  * - Parse address into postal code + address lines
  * - Remove FAX and 登録番号
- * - Seal image is positioned inline with contact person name
+ * - Seal image is positioned below phone number
  */
 function renderInvoiceIssuerBlock(
   doc: DocumentWithTotals,
@@ -522,19 +522,14 @@ function renderInvoiceIssuerBlock(
     infoLines.push(`<div class="issuer-tel">TEL: ${escapeHtml(issuerSnapshot.phone)}</div>`);
   }
 
-  // Contact person with inline seal - HORIZONTAL ROW: 担当者名（左）+ 印鑑（右）
-  if (issuerSnapshot.contactPerson || hasSeal) {
-    const contactHtml = issuerSnapshot.contactPerson
-      ? `<span class="contact-name">担当: ${escapeHtml(issuerSnapshot.contactPerson)}</span>`
-      : '';
-    const sealHtml = hasSeal
-      ? `<img src="${issuerSnapshot.sealImageBase64}" alt="印影" class="seal-image-inline" />`
-      : '';
+  // Seal image (placed below phone number)
+  if (hasSeal) {
+    infoLines.push(`<div class="issuer-seal"><img src="${issuerSnapshot.sealImageBase64}" alt="印影" class="seal-image" /></div>`);
+  }
 
-    infoLines.push(`
-      <div class="issuer-contact-with-seal">
-        ${contactHtml}${sealHtml}
-      </div>`);
+  // Contact person (separate from seal)
+  if (issuerSnapshot.contactPerson) {
+    infoLines.push(`<div class="issuer-contact">担当: ${escapeHtml(issuerSnapshot.contactPerson)}</div>`);
   }
 
   if (infoLines.length === 0) {
@@ -1039,28 +1034,23 @@ function generateInvoiceFormalTemplate(
       margin-bottom: 2px;
     }
 
-    /* Contact person with inline seal - HORIZONTAL ROW LAYOUT
-       担当者名（左）と印鑑画像（右）を同一行で横並び配置 */
-    .issuer-contact-with-seal {
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 8px;
-      font-size: 11px;
-      margin-top: 4px;
+    /* Seal image positioned below phone number */
+    .issuer-seal {
+      text-align: right;
+      margin: 8px 0;
     }
 
-    .contact-name {
-      white-space: nowrap;
-    }
-
-    .seal-image-inline {
-      width: 45px;
-      height: 45px;
+    .seal-image {
+      width: 50px;
+      height: 50px;
       object-fit: contain;
       opacity: 0.85;
-      flex-shrink: 0;
+    }
+
+    /* Contact person (separate from seal) */
+    .issuer-contact {
+      font-size: 11px;
+      margin-top: 4px;
     }
 
     /* Info block with black-background labels */

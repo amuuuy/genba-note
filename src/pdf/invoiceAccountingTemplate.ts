@@ -89,7 +89,7 @@ function isValidImageDataUri(uri: string | null | undefined): boolean {
 }
 
 /**
- * Render issuer block with contact person + seal horizontal layout
+ * Render issuer block with seal placed below phone number
  * Now includes invoice registration number from sensitiveSnapshot
  */
 function renderIssuerBlock(
@@ -124,26 +124,19 @@ function renderIssuerBlock(
     lines.push(`<div class="issuer-tel">TEL: ${escapeHtml(issuerSnapshot.phone)}</div>`);
   }
 
+  // Seal image (placed below phone number)
+  if (hasSeal) {
+    lines.push(`<div class="issuer-seal"><img src="${issuerSnapshot.sealImageBase64}" alt="印影" class="seal-image" /></div>`);
+  }
+
   // Invoice registration number (登録番号) - required for 適格請求書
   if (sensitiveSnapshot?.invoiceNumber) {
     lines.push(`<div class="issuer-registration">登録番号: ${escapeHtml(sensitiveSnapshot.invoiceNumber)}</div>`);
   }
 
-  // Contact person + seal (horizontal layout)
-  if (hasContact || hasSeal) {
-    const contactHtml = hasContact
-      ? `<span class="contact-name">担当: ${escapeHtml(issuerSnapshot.contactPerson!)}</span>`
-      : '';
-    const sealHtml = hasSeal
-      ? `<img src="${issuerSnapshot.sealImageBase64}" alt="印影" class="seal-image-inline" />`
-      : '';
-
-    lines.push(`
-      <div class="issuer-contact-with-seal">
-        ${contactHtml}
-        ${sealHtml}
-      </div>
-    `);
+  // Contact person (separate from seal)
+  if (hasContact) {
+    lines.push(`<div class="issuer-contact">担当: ${escapeHtml(issuerSnapshot.contactPerson!)}</div>`);
   }
 
   if (lines.length === 0) {
@@ -478,25 +471,20 @@ function getTemplateStyles(): string {
       color: #333;
     }
 
-    .issuer-contact-with-seal {
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 10px;
-      margin-top: 6px;
+    .issuer-seal {
+      text-align: right;
+      margin: 8px 0;
     }
 
-    .contact-name {
-      white-space: nowrap;
-    }
-
-    .seal-image-inline {
-      width: 42px;
-      height: 42px;
+    .seal-image {
+      width: 50px;
+      height: 50px;
       object-fit: contain;
       opacity: 0.85;
-      flex-shrink: 0;
+    }
+
+    .issuer-contact {
+      margin-top: 4px;
     }
 
     /* === Info Block (Black Labels) === */
