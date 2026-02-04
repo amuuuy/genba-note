@@ -33,7 +33,7 @@ export interface UseWorkLogEntriesReturn {
   createEntry: (workDate: string, note?: string | null) => Promise<WorkLogEntry | null>;
   /** Update an entry's note */
   updateEntry: (id: string, note: string | null) => Promise<boolean>;
-  /** Delete a work log entry (photos become undated) */
+  /** Delete a work log entry (associated photos are also deleted) */
   deleteEntry: (id: string) => Promise<boolean>;
   /** Refresh the entries list */
   refresh: () => Promise<void>;
@@ -131,7 +131,7 @@ export function useWorkLogEntries(customerId: string | null): UseWorkLogEntriesR
 
   /**
    * Delete a work log entry
-   * Associated photos become undated (workLogEntryId = null)
+   * Associated photos are also deleted
    * @returns true if successful
    */
   const deleteEntry = useCallback(

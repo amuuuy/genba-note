@@ -5,11 +5,13 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system';
 import type {
   WorkLogEntry,
   CreateWorkLogEntryInput,
   UpdateWorkLogEntryInput,
 } from '@/types/workLogEntry';
+import type { CustomerPhoto } from '@/types/customerPhoto';
 import {
   CustomerDomainResult,
   successResult,
@@ -221,28 +223,97 @@ export async function updateWorkLogEntry(
 
 /**
  * Delete a work log entry
- * Associated photos are NOT deleted, but their workLogEntryId is set to null
+ * Associated photos are also deleted (both files and metadata)
+ *
+ * IMPORTANT: Entry is deleted first to ensure atomicity.
+ * If entry deletion fails, photos remain intact.
+ * Photo deletion failures are logged but don't fail the operation
+ * since the entry is already deleted.
  */
 export async function deleteWorkLogEntry(
   id: string
 ): Promise<CustomerDomainResult<void>> {
   try {
-    // First, unlink all photos from this entry (set workLogEntryId to null)
+    // First, delete the entry to ensure it exists and can be deleted
+    const result = await workLogEntriesQueue.enqueue(async () => {
+      const entries = await getAllEntriesFromStorage();
+      const index = entries.findIndex((e) => e.id === id);
+
+      if (index === -1) {
+        return { success: false as const, reason: 'not_found' };
+      }
+
+      entries.splice(index, 1);
+      await saveAllEntriesToStorage(entries);
+      return { success: true as const };
+    });
+
+    if (!result.success) {
+      return errorResult(
+        createCustomerServiceError(
+          'WORK_LOG_ENTRY_NOT_FOUND',
+          '作業記録が見つかりません'
+        )
+      );
+    }
+
+    // Entry deleted successfully, now delete associated photos
+    // Only delete metadata for photos whose files were successfully deleted
+    // Photos with failed file deletions keep their metadata for cleanup retry
     await photosQueue.enqueue(async () => {
       const photosJson = await AsyncStorage.getItem(STORAGE_KEYS.CUSTOMER_PHOTOS);
       if (photosJson) {
-        const photos = JSON.parse(photosJson);
-        const updated = photos.map((p: { workLogEntryId: string | null }) =>
-          p.workLogEntryId === id ? { ...p, workLogEntryId: null } : p
+        const photos = JSON.parse(photosJson) as CustomerPhoto[];
+        const photosToDelete = photos.filter((p) => p.workLogEntryId === id);
+        const successfullyDeletedIds = new Set<string>();
+
+        // Delete photo files, tracking which ones succeed
+        for (const photo of photosToDelete) {
+          try {
+            const fileInfo = await FileSystem.getInfoAsync(photo.uri);
+            if (fileInfo.exists) {
+              await FileSystem.deleteAsync(photo.uri, { idempotent: true });
+            }
+            // File deleted or doesn't exist - mark as successfully handled
+            successfullyDeletedIds.add(photo.id);
+          } catch (error) {
+            // File deletion failed - keep metadata for cleanup retry
+            console.warn('Failed to delete photo file, keeping metadata for retry:', photo.uri, error);
+          }
+        }
+
+        // Only remove metadata for successfully deleted photos
+        // Failed deletions keep their metadata so cleanupOrphanedPhotos can retry
+        const remaining = photos.filter(
+          (p) => p.workLogEntryId !== id || !successfullyDeletedIds.has(p.id)
         );
         await AsyncStorage.setItem(
           STORAGE_KEYS.CUSTOMER_PHOTOS,
-          JSON.stringify(updated)
+          JSON.stringify(remaining)
         );
       }
     });
 
-    // Then delete the entry
+    return successResult(undefined);
+  } catch (error) {
+    return errorResult(
+      createCustomerServiceError(
+        'STORAGE_ERROR',
+        'Failed to delete work log entry',
+        { originalError: error instanceof Error ? error.message : String(error) }
+      )
+    );
+  }
+}
+
+/**
+ * Delete a work log entry without deleting associated photos
+ * Used for rollback scenarios where photos should be preserved
+ */
+export async function deleteWorkLogEntryOnly(
+  id: string
+): Promise<CustomerDomainResult<void>> {
+  try {
     const result = await workLogEntriesQueue.enqueue(async () => {
       const entries = await getAllEntriesFromStorage();
       const index = entries.findIndex((e) => e.id === id);

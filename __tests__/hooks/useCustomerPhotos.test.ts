@@ -51,7 +51,6 @@ describe('useCustomerPhotos', () => {
       const expectedReturn: UseCustomerPhotosReturn = {
         beforePhotos: [],
         afterPhotos: [],
-        undatedPhotos: { before: [], after: [] },
         isLoading: false,
         error: null,
         addPhoto: jest.fn(),
@@ -64,9 +63,6 @@ describe('useCustomerPhotos', () => {
       // Verify properties exist with correct types
       expect(Array.isArray(expectedReturn.beforePhotos)).toBe(true);
       expect(Array.isArray(expectedReturn.afterPhotos)).toBe(true);
-      expect(typeof expectedReturn.undatedPhotos).toBe('object');
-      expect(Array.isArray(expectedReturn.undatedPhotos.before)).toBe(true);
-      expect(Array.isArray(expectedReturn.undatedPhotos.after)).toBe(true);
       expect(typeof expectedReturn.isLoading).toBe('boolean');
       expect(typeof expectedReturn.addPhoto).toBe('function');
       expect(typeof expectedReturn.deletePhoto).toBe('function');
@@ -77,15 +73,15 @@ describe('useCustomerPhotos', () => {
   });
 
   describe('Photo operations delegation', () => {
-    it('addPhoto interface accepts type and sourceUri', () => {
+    it('addPhoto interface accepts type, sourceUri, and workLogEntryId', () => {
       // Type test: verify addPhoto accepts correct input types
-      const mockAddPhoto = jest.fn<Promise<boolean>, [PhotoType, string]>();
+      const mockAddPhoto = jest.fn<Promise<boolean>, [PhotoType, string, string]>();
 
-      mockAddPhoto('before', 'file:///tmp/photo.jpg');
-      expect(mockAddPhoto).toHaveBeenCalledWith('before', 'file:///tmp/photo.jpg');
+      mockAddPhoto('before', 'file:///tmp/photo.jpg', 'entry-123');
+      expect(mockAddPhoto).toHaveBeenCalledWith('before', 'file:///tmp/photo.jpg', 'entry-123');
 
-      mockAddPhoto('after', 'file:///tmp/photo2.jpg');
-      expect(mockAddPhoto).toHaveBeenCalledWith('after', 'file:///tmp/photo2.jpg');
+      mockAddPhoto('after', 'file:///tmp/photo2.jpg', 'entry-456');
+      expect(mockAddPhoto).toHaveBeenCalledWith('after', 'file:///tmp/photo2.jpg', 'entry-456');
     });
 
     it('deletePhoto interface accepts photoId string', () => {

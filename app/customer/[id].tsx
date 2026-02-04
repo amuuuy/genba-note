@@ -34,7 +34,7 @@ import {
   AddWorkLogEntryModal,
 } from '@/components/customer';
 import { addPhotoRecord, deletePhotoMetadataOnly } from '@/domain/customer/customerPhotoService';
-import { deleteWorkLogEntry } from '@/domain/customer/workLogEntryService';
+import { deleteWorkLogEntryOnly } from '@/domain/customer/workLogEntryService';
 import type { CustomerPhoto, PhotoType } from '@/types/customerPhoto';
 import type { WorkLogEntry } from '@/types/workLogEntry';
 
@@ -51,7 +51,6 @@ export default function CustomerEditScreen() {
   const {
     beforePhotos,
     afterPhotos,
-    undatedPhotos,
     isLoading: isPhotosLoading,
     addPhoto,
     deletePhoto,
@@ -159,7 +158,7 @@ export default function CustomerEditScreen() {
   }, []);
 
   // Handle add photo
-  const handleAddPhoto = useCallback(async (entryId: string | null, type: PhotoType) => {
+  const handleAddPhoto = useCallback(async (entryId: string, type: PhotoType) => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: false,
@@ -229,26 +228,24 @@ export default function CustomerEditScreen() {
     const addedPhotoIds: string[] = [];
 
     // Helper to rollback on failure
-    // Order: delete entry first (which unlinks photos), then delete photo metadata
-    // This ensures that if entry deletion fails, photo metadata is preserved
+    // Order: delete photo metadata first, then delete entry (without cascading photo delete)
+    // This preserves photo files for retry while cleaning up metadata
     const rollback = async (errorMessage: string) => {
-      // 1. Delete the work log entry first
-      // Note: deleteWorkLogEntry unlinks photos (sets workLogEntryId to null) before deleting
-      const entryDeleteResult = await deleteWorkLogEntry(entry.id);
-      if (!entryDeleteResult.success) {
-        // Entry deletion failed - refresh state and show specific error
-        // Photo metadata is preserved for manual recovery
-        await refreshEntries();
-        await refreshPhotos();
-        throw new Error('作業記録の削除に失敗しました。再度お試しください。');
-      }
-
-      // 2. Delete metadata for successfully added photos (keep files for retry)
+      // 1. Delete metadata for successfully added photos (keep files for retry)
       for (const photoId of addedPhotoIds) {
         const deleteResult = await deletePhotoMetadataOnly(photoId);
         if (!deleteResult.success) {
           console.warn('Failed to delete photo metadata during rollback:', photoId);
         }
+      }
+
+      // 2. Delete the work log entry only (without deleting photos)
+      const entryDeleteResult = await deleteWorkLogEntryOnly(entry.id);
+      if (!entryDeleteResult.success) {
+        // Entry deletion failed - refresh state and show specific error
+        await refreshEntries();
+        await refreshPhotos();
+        throw new Error('作業記録の削除に失敗しました。再度お試しください。');
       }
 
       // Refresh to update state
@@ -315,7 +312,7 @@ export default function CustomerEditScreen() {
     if (!success) {
       Alert.alert('エラー', '作業記録の削除に失敗しました');
     } else {
-      // Refresh photos to update undated photos list
+      // Refresh photos to update photos list
       await refreshPhotos();
     }
     setDeleteEntryConfirm(null);
@@ -452,7 +449,6 @@ export default function CustomerEditScreen() {
             <WorkLogEntryList
               entries={workLogEntries}
               getPhotosByEntry={getPhotosByEntry}
-              undatedPhotos={undatedPhotos}
               onPhotoPress={handlePhotoPress}
               onAddPhoto={handleAddPhoto}
               onDeletePhoto={handleDeletePhotoPress}
@@ -491,7 +487,7 @@ export default function CustomerEditScreen() {
       <ConfirmDialog
         visible={deleteEntryConfirm !== null}
         title="作業日を削除"
-        message="この作業日を削除しますか？\n紐づいた写真は「日付未設定」に移動されます。"
+        message="この作業日を削除しますか？\n紐づいた写真も削除されます。"
         confirmText="削除"
         cancelText="キャンセル"
         destructive

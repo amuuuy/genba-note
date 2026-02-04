@@ -31,6 +31,15 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   setItem: jest.fn(),
 }));
 
+// Mock v6 migration cleanup function (preserve original migration export)
+jest.mock('@/storage/migrations/v6-remove-undated-photos', () => {
+  const original = jest.requireActual('@/storage/migrations/v6-remove-undated-photos');
+  return {
+    ...original,
+    cleanupOrphanedPhotos: jest.fn().mockResolvedValue({ deleted: 0 }),
+  };
+});
+
 // Mock asyncStorageService partially - we want real read-only mode behavior
 jest.mock('@/storage/asyncStorageService', () => {
   let readOnlyMode = false;
@@ -59,8 +68,8 @@ describe('migrationRunner', () => {
   });
 
   describe('CURRENT_SCHEMA_VERSION', () => {
-    it('should be defined and be 5 for current release', () => {
-      expect(CURRENT_SCHEMA_VERSION).toBe(5);
+    it('should be defined and be 6 for current release', () => {
+      expect(CURRENT_SCHEMA_VERSION).toBe(6);
     });
   });
 
@@ -212,6 +221,13 @@ describe('migrationRunner', () => {
         description: 'Migration 4->5',
         migrate: migrateFn5,
       });
+      const migrateFn6 = jest.fn().mockResolvedValue({ success: true });
+      registerMigration({
+        fromVersion: 5,
+        toVersion: 6,
+        description: 'Migration 5->6',
+        migrate: migrateFn6,
+      });
 
       mockedGetSchemaVersion.mockResolvedValue({ success: true, data: 0 });
       mockedSetSchemaVersion.mockResolvedValue({ success: true });
@@ -220,14 +236,15 @@ describe('migrationRunner', () => {
 
       expect(result.success).toBe(true);
       expect(result.startVersion).toBe(0);
-      expect(result.endVersion).toBe(5);
-      expect(result.migrationsRun).toBe(5);
+      expect(result.endVersion).toBe(6);
+      expect(result.migrationsRun).toBe(6);
       expect(result.readOnlyMode).toBe(false);
       expect(migrateFn1).toHaveBeenCalledTimes(1);
       expect(migrateFn2).toHaveBeenCalledTimes(1);
       expect(migrateFn3).toHaveBeenCalledTimes(1);
       expect(migrateFn4).toHaveBeenCalledTimes(1);
       expect(migrateFn5).toHaveBeenCalledTimes(1);
+      expect(migrateFn6).toHaveBeenCalledTimes(1);
     });
 
     it('should skip migrations if already at current version', async () => {
@@ -244,6 +261,24 @@ describe('migrationRunner', () => {
 
       expect(result.success).toBe(true);
       expect(result.migrationsRun).toBe(0);
+    });
+
+    it('should call cleanupOrphanedPhotos when already at current version', async () => {
+      // Import the mocked function to verify it was called
+      const { cleanupOrphanedPhotos } = jest.requireMock('@/storage/migrations/v6-remove-undated-photos');
+
+      registerMigration({
+        fromVersion: 0,
+        toVersion: 1,
+        description: 'Migration 0->1',
+        migrate: jest.fn(),
+      });
+
+      mockedGetSchemaVersion.mockResolvedValue({ success: true, data: CURRENT_SCHEMA_VERSION });
+
+      await runMigrations();
+
+      expect(cleanupOrphanedPhotos).toHaveBeenCalledTimes(1);
     });
 
     it('should run multiple migrations in sequence (v1 -> v2 mock)', async () => {
@@ -304,6 +339,12 @@ describe('migrationRunner', () => {
         description: 'Migration 4->5',
         migrate: async () => ({ success: true }),
       });
+      registerMigration({
+        fromVersion: 5,
+        toVersion: 6,
+        description: 'Migration 5->6',
+        migrate: async () => ({ success: true }),
+      });
 
       mockedGetSchemaVersion.mockResolvedValue({ success: true, data: 0 });
       mockedSetSchemaVersion.mockResolvedValue({ success: true });
@@ -315,6 +356,7 @@ describe('migrationRunner', () => {
       expect(mockedSetSchemaVersion).toHaveBeenCalledWith(3);
       expect(mockedSetSchemaVersion).toHaveBeenCalledWith(4);
       expect(mockedSetSchemaVersion).toHaveBeenCalledWith(5);
+      expect(mockedSetSchemaVersion).toHaveBeenCalledWith(6);
     });
   });
 
@@ -424,6 +466,12 @@ describe('migrationRunner', () => {
         description: 'Migration 4->5',
         migrate: async () => ({ success: true }),
       });
+      registerMigration({
+        fromVersion: 5,
+        toVersion: 6,
+        description: 'Migration 5->6',
+        migrate: async () => ({ success: true }),
+      });
 
       mockedGetSchemaVersion.mockResolvedValue({ success: true, data: 0 });
 
@@ -483,6 +531,12 @@ describe('migrationRunner', () => {
         description: 'Migration 4->5',
         migrate: async () => ({ success: true }),
       });
+      registerMigration({
+        fromVersion: 5,
+        toVersion: 6,
+        description: 'Migration 5->6',
+        migrate: async () => ({ success: true }),
+      });
 
       mockedGetSchemaVersion.mockResolvedValue({ success: true, data: 0 });
       mockedSetSchemaVersion.mockResolvedValue({ success: true });
@@ -527,6 +581,12 @@ describe('migrationRunner', () => {
         fromVersion: 4,
         toVersion: 5,
         description: 'Migration 4->5',
+        migrate: async () => ({ success: true }),
+      });
+      registerMigration({
+        fromVersion: 5,
+        toVersion: 6,
+        description: 'Migration 5->6',
         migrate: async () => ({ success: true }),
       });
 

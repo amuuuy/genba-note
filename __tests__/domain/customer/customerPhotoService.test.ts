@@ -78,6 +78,7 @@ describe('customerPhotoService', () => {
 
       const input: AddPhotoInput = {
         customerId: 'customer-1',
+        workLogEntryId: 'entry-1',
         type: 'before',
         sourceUri: 'file:///temp/photo.jpg',
         originalFilename: 'photo.jpg',
@@ -99,6 +100,7 @@ describe('customerPhotoService', () => {
 
       const input: AddPhotoInput = {
         customerId: 'customer-1',
+        workLogEntryId: 'entry-1',
         type: 'before',
         sourceUri: 'file:///temp/photo.jpg',
       };
@@ -384,6 +386,7 @@ describe('customerPhotoService', () => {
 
       const input: AddPhotoInput = {
         customerId: 'customer-1',
+        workLogEntryId: 'entry-1',
         type: 'before',
         sourceUri: 'file:///temp/photo.jpg',
       };
@@ -400,6 +403,7 @@ describe('customerPhotoService', () => {
 
       const input: AddPhotoInput = {
         customerId: 'customer-1',
+        workLogEntryId: 'entry-1',
         type: 'before',
         sourceUri: 'file:///temp/photo.jpg',
       };
@@ -423,6 +427,7 @@ describe('customerPhotoService', () => {
 
       const input: AddPhotoInput = {
         customerId: 'customer-1',
+        workLogEntryId: 'entry-1',
         type: 'before',
         sourceUri: 'file:///temp/photo.jpg',
       };
@@ -449,6 +454,7 @@ describe('customerPhotoService', () => {
 
       const input: AddPhotoInput = {
         customerId: 'customer-1',
+        workLogEntryId: 'entry-1',
         type: 'before',
         sourceUri: 'file:///temp/photo.jpg',
         originalFilename: 'photo.jpg',

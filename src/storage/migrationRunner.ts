@@ -23,8 +23,9 @@ import {
  * - v3: Add fax field
  * - v4: Add customer master and customer photos
  * - v5: Add work log entries for date-based photo grouping
+ * - v6: Remove undated photos (photos without work log entry assignment)
  */
-export const CURRENT_SCHEMA_VERSION = 5;
+export const CURRENT_SCHEMA_VERSION = 6;
 
 // === Migrations Initialization Flag ===
 let migrationsInitialized = false;
@@ -183,6 +184,18 @@ export async function runMigrations(): Promise<MigrationRunResult> {
 
   // Check if migration needed
   if (currentVersion >= CURRENT_SCHEMA_VERSION) {
+    // Even if no migration needed, run orphan cleanup
+    // This catches orphaned photos from failed deletions
+    try {
+      const { cleanupOrphanedPhotos } = await import(
+        './migrations/v6-remove-undated-photos'
+      );
+      await cleanupOrphanedPhotos();
+    } catch (error) {
+      // Log but don't fail - orphan cleanup is best-effort
+      console.warn('Failed to cleanup orphaned photos:', error);
+    }
+
     return {
       success: true,
       startVersion: currentVersion,

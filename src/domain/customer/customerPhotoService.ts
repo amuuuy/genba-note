@@ -142,6 +142,16 @@ export async function addPhoto(
   input: AddPhotoInput
 ): Promise<CustomerDomainResult<CustomerPhoto>> {
   try {
+    // Validate workLogEntryId is required for new photos (post-v6)
+    if (!input.workLogEntryId) {
+      return errorResult(
+        createCustomerServiceError(
+          'VALIDATION_ERROR',
+          '作業日が選択されていません。写真を追加するには作業日を指定してください。'
+        )
+      );
+    }
+
     // Validate limits before any file operation
     const validation = await validatePhotoLimits(input.sourceUri);
     if (!validation.success) {
@@ -462,48 +472,24 @@ export async function getPhotosByWorkLogEntry(
 }
 
 /**
- * Get undated photos for a customer (workLogEntryId is null)
- * Returns photos sorted by takenAt (newest first)
- */
-export async function getUndatedPhotosByCustomer(
-  customerId: string,
-  type?: PhotoType
-): Promise<CustomerDomainResult<CustomerPhoto[]>> {
-  try {
-    const photos = await getAllPhotosFromStorage();
-
-    let filtered = photos.filter(
-      (p) => p.customerId === customerId && p.workLogEntryId === null
-    );
-
-    if (type) {
-      filtered = filtered.filter((p) => p.type === type);
-    }
-
-    // Sort by takenAt (newest first)
-    filtered.sort((a, b) => b.takenAt - a.takenAt);
-
-    return successResult(filtered);
-  } catch (error) {
-    return errorResult(
-      createCustomerServiceError(
-        'STORAGE_ERROR',
-        'Failed to get undated photos',
-        { originalError: error instanceof Error ? error.message : String(error) }
-      )
-    );
-  }
-}
-
-/**
  * Update photo's work log entry association
- * Used to reassign photos between entries or to undated
+ * Used to reassign photos between entries (workLogEntryId required)
  */
 export async function updatePhotoWorkLogEntry(
   photoId: string,
-  workLogEntryId: string | null
+  workLogEntryId: string
 ): Promise<CustomerDomainResult<CustomerPhoto>> {
   try {
+    // Validate workLogEntryId is required (post-v6)
+    if (!workLogEntryId) {
+      return errorResult(
+        createCustomerServiceError(
+          'VALIDATION_ERROR',
+          '作業日が選択されていません。写真を移動するには作業日を指定してください。'
+        )
+      );
+    }
+
     const result = await photosQueue.enqueue(async () => {
       const photos = await getAllPhotosFromStorage();
       const index = photos.findIndex((p) => p.id === photoId);

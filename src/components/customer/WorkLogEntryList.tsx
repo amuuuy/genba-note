@@ -2,34 +2,25 @@
  * WorkLogEntryList Component
  *
  * Displays a list of work log entries grouped by date.
- * Includes an "undated" section for legacy photos and a button to add new entries.
+ * Includes a button to add new entries.
  */
 
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  ScrollView,
-} from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { WorkLogEntry } from '@/types/workLogEntry';
 import type { CustomerPhoto, PhotoType } from '@/types/customerPhoto';
 import { WorkLogEntrySection } from './WorkLogEntrySection';
-import { PhotoGallery } from './PhotoGallery';
 
 export interface WorkLogEntryListProps {
   /** All work log entries (sorted by date descending) */
   entries: WorkLogEntry[];
   /** Function to get photos for an entry */
   getPhotosByEntry: (entryId: string) => { before: CustomerPhoto[]; after: CustomerPhoto[] };
-  /** Undated photos (photos with null workLogEntryId) */
-  undatedPhotos: { before: CustomerPhoto[]; after: CustomerPhoto[] };
   /** Callback when a photo is pressed */
   onPhotoPress: (photo: CustomerPhoto) => void;
   /** Callback when add photo button is pressed */
-  onAddPhoto: (entryId: string | null, type: PhotoType) => void;
+  onAddPhoto: (entryId: string, type: PhotoType) => void;
   /** Callback when delete photo button is pressed */
   onDeletePhoto: (photo: CustomerPhoto) => void;
   /** Callback when add entry button is pressed */
@@ -50,7 +41,6 @@ export interface WorkLogEntryListProps {
 export const WorkLogEntryList: React.FC<WorkLogEntryListProps> = ({
   entries,
   getPhotosByEntry,
-  undatedPhotos,
   onPhotoPress,
   onAddPhoto,
   onDeletePhoto,
@@ -60,9 +50,7 @@ export const WorkLogEntryList: React.FC<WorkLogEntryListProps> = ({
   disabled = false,
   testID,
 }) => {
-  const hasUndatedPhotos =
-    undatedPhotos.before.length > 0 || undatedPhotos.after.length > 0;
-  const isEmpty = entries.length === 0 && !hasUndatedPhotos;
+  const isEmpty = entries.length === 0;
 
   return (
     <View style={styles.container} testID={testID}>
@@ -117,40 +105,6 @@ export const WorkLogEntryList: React.FC<WorkLogEntryListProps> = ({
         );
       })}
 
-      {/* Undated photos section */}
-      {hasUndatedPhotos && (
-        <View style={styles.undatedSection}>
-          <View style={styles.undatedHeader}>
-            <Ionicons name="calendar-outline" size={20} color="#8E8E93" />
-            <Text style={styles.undatedTitle}>日付未設定</Text>
-            <View style={styles.undatedBadge}>
-              <Text style={styles.undatedBadgeText}>
-                {undatedPhotos.before.length + undatedPhotos.after.length}枚
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.undatedContent}>
-            <PhotoGallery
-              photos={undatedPhotos.before}
-              type="before"
-              onPhotoPress={onPhotoPress}
-              onAddPress={() => onAddPhoto(null, 'before')}
-              onDeletePress={onDeletePhoto}
-              disabled={disabled}
-            />
-
-            <PhotoGallery
-              photos={undatedPhotos.after}
-              type="after"
-              onPhotoPress={onPhotoPress}
-              onAddPress={() => onAddPhoto(null, 'after')}
-              onDeletePress={onDeletePhoto}
-              disabled={disabled}
-            />
-          </View>
-        </View>
-      )}
     </View>
   );
 };
@@ -198,43 +152,5 @@ const styles = StyleSheet.create({
     color: '#C7C7CC',
     marginTop: 8,
     textAlign: 'center',
-  },
-  undatedSection: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    marginTop: 8,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#E5E5EA',
-  },
-  undatedHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#FFF9F0',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
-  },
-  undatedTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#8E8E93',
-    marginLeft: 8,
-  },
-  undatedBadge: {
-    backgroundColor: '#E5E5EA',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    marginLeft: 8,
-  },
-  undatedBadgeText: {
-    fontSize: 12,
-    color: '#666',
-  },
-  undatedContent: {
-    paddingTop: 12,
-    paddingBottom: 8,
   },
 });

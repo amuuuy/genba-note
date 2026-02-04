@@ -11,6 +11,7 @@ import { v2AddCarriedForwardAndContactPersonMigration } from './v2-add-carried-f
 import { v3AddFaxFieldMigration } from './v3-add-fax-field';
 import { v4AddCustomerMasterMigration } from './v4-add-customer-master';
 import { v5AddWorkLogEntriesMigration } from './v5-add-work-log-entries';
+import { v6RemoveUndatedPhotosMigration } from './v6-remove-undated-photos';
 
 // Register all migrations
 registerMigration(v1InitialMigration);
@@ -18,6 +19,7 @@ registerMigration(v2AddCarriedForwardAndContactPersonMigration);
 registerMigration(v3AddFaxFieldMigration);
 registerMigration(v4AddCustomerMasterMigration);
 registerMigration(v5AddWorkLogEntriesMigration);
+registerMigration(v6RemoveUndatedPhotosMigration);
 
 // Re-export for direct access if needed
 export {
@@ -26,4 +28,5 @@ export {
   v3AddFaxFieldMigration,
   v4AddCustomerMasterMigration,
   v5AddWorkLogEntriesMigration,
+  v6RemoveUndatedPhotosMigration,
 };

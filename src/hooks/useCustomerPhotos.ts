@@ -38,25 +38,23 @@ export interface UseCustomerPhotosReturn {
   beforePhotos: CustomerPhoto[];
   /** Photos taken after work (作業後) */
   afterPhotos: CustomerPhoto[];
-  /** Undated photos (workLogEntryId is null) grouped by type */
-  undatedPhotos: PhotosByType;
   /** Whether photos are loading */
   isLoading: boolean;
   /** Error message */
   error: string | null;
-  /** Add a new photo */
+  /** Add a new photo (requires workLogEntryId) */
   addPhoto: (
     type: PhotoType,
     sourceUri: string,
-    workLogEntryId?: string | null,
+    workLogEntryId: string,
     originalFilename?: string | null
   ) => Promise<boolean>;
   /** Delete a photo */
   deletePhoto: (photoId: string) => Promise<boolean>;
   /** Get photos by work log entry ID */
   getPhotosByEntry: (entryId: string) => PhotosByType;
-  /** Reassign a photo to a different work log entry (or undated) */
-  reassignPhoto: (photoId: string, workLogEntryId: string | null) => Promise<boolean>;
+  /** Reassign a photo to a different work log entry (workLogEntryId required) */
+  reassignPhoto: (photoId: string, workLogEntryId: string) => Promise<boolean>;
   /** Refresh the photos list */
   refresh: () => Promise<void>;
 }
@@ -119,15 +117,6 @@ export function useCustomerPhotos(customerId: string | null): UseCustomerPhotosR
     return state.allPhotos.filter((photo) => photo.type === 'after');
   }, [state.allPhotos]);
 
-  // Memoized undated photos (workLogEntryId is null)
-  const undatedPhotos = useMemo((): PhotosByType => {
-    const undated = state.allPhotos.filter((photo) => photo.workLogEntryId === null);
-    return {
-      before: undated.filter((photo) => photo.type === 'before'),
-      after: undated.filter((photo) => photo.type === 'after'),
-    };
-  }, [state.allPhotos]);
-
   /**
    * Get photos grouped by type for a specific work log entry
    */
@@ -145,14 +134,14 @@ export function useCustomerPhotos(customerId: string | null): UseCustomerPhotosR
   );
 
   /**
-   * Add a new photo
+   * Add a new photo (requires workLogEntryId)
    * @returns true if successful
    */
   const addPhoto = useCallback(
     async (
       type: PhotoType,
       sourceUri: string,
-      workLogEntryId?: string | null,
+      workLogEntryId: string,
       originalFilename?: string | null
     ): Promise<boolean> => {
       if (!customerId) {
@@ -177,11 +166,11 @@ export function useCustomerPhotos(customerId: string | null): UseCustomerPhotosR
   );
 
   /**
-   * Reassign a photo to a different work log entry (or undated)
+   * Reassign a photo to a different work log entry (workLogEntryId required)
    * @returns true if successful
    */
   const reassignPhoto = useCallback(
-    async (photoId: string, workLogEntryId: string | null): Promise<boolean> => {
+    async (photoId: string, workLogEntryId: string): Promise<boolean> => {
       const result = await updatePhotoWorkLogEntryService(photoId, workLogEntryId);
       if (result.success) {
         await refresh();
@@ -211,7 +200,6 @@ export function useCustomerPhotos(customerId: string | null): UseCustomerPhotosR
   return {
     beforePhotos,
     afterPhotos,
-    undatedPhotos,
     isLoading: state.isLoading,
     error: state.error,
     addPhoto,
