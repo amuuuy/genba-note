@@ -13,8 +13,8 @@ import {
   StyleSheet,
   Pressable,
   ActivityIndicator,
+  FlatList,
 } from 'react-native';
-import { FlashList } from '@shopify/flash-list';
 import { Ionicons } from '@expo/vector-icons';
 import type { UnitPrice } from '@/types/unitPrice';
 import { SearchBar, FilterChipGroup, type FilterOption } from '@/components/common';
@@ -204,7 +204,7 @@ export const UnitPricePickerModal: React.FC<UnitPricePickerModalProps> = ({
         )}
 
         {/* List */}
-        <FlashList
+        <FlatList
           data={unitPrices}
           renderItem={renderItem}
           keyExtractor={keyExtractor}

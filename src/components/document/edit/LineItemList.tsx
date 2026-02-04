@@ -2,7 +2,7 @@
  * LineItemList Component
  *
  * Displays a list of line items with add/edit/delete functionality.
- * Uses FlashList for performance with many items.
+ * Uses FlatList for list rendering.
  */
 
 import React, { useState, useCallback, memo } from 'react';

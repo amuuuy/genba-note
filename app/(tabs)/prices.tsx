@@ -2,7 +2,7 @@
  * Unit Price List Screen
  *
  * Screen for managing unit price master data:
- * - FlashList for high-performance scrolling
+ * - FlatList for list rendering
  * - Search and category filter
  * - Create/Edit/Delete operations
  * - FAB for quick creation
@@ -16,8 +16,8 @@ import {
   ActivityIndicator,
   Platform,
   Alert,
+  FlatList,
 } from 'react-native';
-import { FlashList } from '@shopify/flash-list';
 import { Ionicons } from '@expo/vector-icons';
 import type { UnitPrice } from '../../src/types/unitPrice';
 import type { UnitPriceInput } from '../../src/domain/unitPrice';
@@ -198,7 +198,7 @@ export default function UnitPricesScreen() {
           <ActivityIndicator size="large" color="#007AFF" />
         </View>
       ) : (
-        <FlashList
+        <FlatList
           data={unitPrices}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}

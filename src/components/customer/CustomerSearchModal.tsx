@@ -13,8 +13,8 @@ import {
   StyleSheet,
   Pressable,
   ActivityIndicator,
+  FlatList,
 } from 'react-native';
-import { FlashList } from '@shopify/flash-list';
 import { Ionicons } from '@expo/vector-icons';
 import type { Customer } from '@/types/customer';
 import { SearchBar } from '@/components/common';
@@ -197,7 +197,7 @@ export const CustomerSearchModal: React.FC<CustomerSearchModalProps> = ({
         </View>
 
         {/* List */}
-        <FlashList
+        <FlatList
           data={customers}
           renderItem={renderItem}
           keyExtractor={keyExtractor}

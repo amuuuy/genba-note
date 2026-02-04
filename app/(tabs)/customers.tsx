@@ -2,7 +2,7 @@
  * Customer List Screen
  *
  * Screen for managing customer master data:
- * - FlashList for high-performance scrolling
+ * - FlatList for list rendering
  * - Search functionality
  * - Create/Edit/Delete operations
  * - FAB for quick creation
@@ -16,8 +16,8 @@ import {
   ActivityIndicator,
   Platform,
   Alert,
+  FlatList,
 } from 'react-native';
-import { FlashList } from '@shopify/flash-list';
 import { router, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import type { Customer } from '../../src/types/customer';
@@ -144,7 +144,7 @@ export default function CustomersScreen() {
           <ActivityIndicator size="large" color="#007AFF" />
         </View>
       ) : (
-        <FlashList
+        <FlatList
           data={customers}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}

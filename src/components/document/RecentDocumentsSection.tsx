@@ -8,8 +8,7 @@
  */
 
 import React, { useCallback } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { FlashList } from '@shopify/flash-list';
+import { View, Text, StyleSheet, ActivityIndicator, FlatList } from 'react-native';
 import type { DocumentWithTotals } from '../../types';
 import { DocumentListItem } from './DocumentListItem';
 import { EmptyDocumentList } from './EmptyDocumentList';
@@ -72,15 +71,16 @@ export const RecentDocumentsSection: React.FC<RecentDocumentsSectionProps> = ({
           <ActivityIndicator size="large" color="#007AFF" />
         </View>
       ) : (
-        <FlashList
+        <FlatList
           data={documents}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
           ListEmptyComponent={renderEmpty}
           onRefresh={onRefresh}
           refreshing={isLoading}
-          drawDistance={250}
           scrollEnabled={false}
+          initialNumToRender={documents.length}
+          windowSize={21}
         />
       )}
     </View>
