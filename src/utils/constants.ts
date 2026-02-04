@@ -85,6 +85,7 @@ export const STORAGE_KEYS = {
   CUSTOMERS: '@genba_customers',
   CUSTOMER_PHOTOS: '@genba_customerPhotos',
   WORK_LOG_ENTRIES: '@genba_workLogEntries',
+  FINANCE_ENTRIES: '@genba_financeEntries',
 } as const;
 
 /**

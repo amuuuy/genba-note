@@ -114,3 +114,9 @@ export const photosQueue = createWriteQueue();
  * Protects: createWorkLogEntry, updateWorkLogEntry, deleteWorkLogEntry in workLogEntryService.
  */
 export const workLogEntriesQueue = createWriteQueue();
+
+/**
+ * Queue for finance entry write operations.
+ * Protects: saveFinanceEntry, deleteFinanceEntry in financeStorage.
+ */
+export const financeEntriesQueue = createWriteQueue();
