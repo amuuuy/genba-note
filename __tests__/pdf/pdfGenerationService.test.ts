@@ -42,6 +42,7 @@ jest.mock('expo-sharing', () => ({
 
 jest.mock('expo-file-system', () => ({
   deleteAsync: jest.fn(),
+  moveAsync: jest.fn(),
 }));
 
 import * as Print from 'expo-print';
@@ -304,6 +305,88 @@ describe('pdfGenerationService', () => {
 
         const calledHtml = (Print.printToFileAsync as jest.Mock).mock.calls[0][0].html;
         expect(calledHtml).not.toContain('@page');
+      });
+    });
+
+    describe('customFilename option (M19)', () => {
+      beforeEach(() => {
+        setProStatusOverride(true);
+        (Print.printToFileAsync as jest.Mock).mockResolvedValue({
+          uri: 'file:///tmp/random-uuid.pdf',
+        });
+        (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true);
+        (Sharing.shareAsync as jest.Mock).mockResolvedValue(undefined);
+        (FileSystem.deleteAsync as jest.Mock).mockResolvedValue(undefined);
+        (FileSystem.moveAsync as jest.Mock).mockResolvedValue(undefined);
+      });
+
+      it('renames file before sharing when customFilename is provided', async () => {
+        const input = createTestTemplateInput();
+        await generateAndSharePdf(input, { customFilename: 'my-report' });
+
+        expect(FileSystem.moveAsync).toHaveBeenCalledWith({
+          from: 'file:///tmp/random-uuid.pdf',
+          to: expect.stringContaining('my-report.pdf'),
+        });
+      });
+
+      it('shares the renamed file URI', async () => {
+        const input = createTestTemplateInput();
+        await generateAndSharePdf(input, { customFilename: 'my-report' });
+
+        const shareCall = (Sharing.shareAsync as jest.Mock).mock.calls[0];
+        expect(shareCall[0]).toContain('my-report.pdf');
+      });
+
+      it('does not rename when customFilename is not provided', async () => {
+        const input = createTestTemplateInput();
+        await generateAndSharePdf(input);
+
+        expect(FileSystem.moveAsync).not.toHaveBeenCalled();
+      });
+
+      it('falls back to original URI if moveAsync fails', async () => {
+        (FileSystem.moveAsync as jest.Mock).mockRejectedValue(new Error('Move failed'));
+
+        const input = createTestTemplateInput();
+        const result = await generateAndSharePdf(input, { customFilename: 'my-report' });
+
+        expect(result.success).toBe(true);
+        expect(Sharing.shareAsync).toHaveBeenCalledWith(
+          'file:///tmp/random-uuid.pdf',
+          expect.anything()
+        );
+      });
+
+      it('cleans up renamed file after sharing', async () => {
+        const input = createTestTemplateInput();
+        await generateAndSharePdf(input, { customFilename: 'my-report' });
+
+        expect(FileSystem.deleteAsync).toHaveBeenCalledWith(
+          expect.stringContaining('my-report.pdf'),
+          { idempotent: true }
+        );
+      });
+
+      it('renames to default name when customFilename is empty string', async () => {
+        const input = createTestTemplateInput();
+        await generateAndSharePdf(input, { customFilename: '' });
+
+        // Empty string triggers sanitizeFilename fallback to default name (EST-001_見積書.pdf)
+        expect(FileSystem.moveAsync).toHaveBeenCalled();
+        const moveCall = (FileSystem.moveAsync as jest.Mock).mock.calls[0][0];
+        const expectedFilename = encodeURIComponent('EST-001_見積書.pdf');
+        expect(moveCall.to).toContain(expectedFilename);
+      });
+
+      it('renames to default name when customFilename is whitespace only', async () => {
+        const input = createTestTemplateInput();
+        await generateAndSharePdf(input, { customFilename: '   ' });
+
+        expect(FileSystem.moveAsync).toHaveBeenCalled();
+        const moveCall = (FileSystem.moveAsync as jest.Mock).mock.calls[0][0];
+        const expectedFilename = encodeURIComponent('EST-001_見積書.pdf');
+        expect(moveCall.to).toContain(expectedFilename);
       });
     });
 

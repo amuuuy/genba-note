@@ -28,9 +28,10 @@ import { getDocument } from '@/domain/document';
 import { enrichDocumentWithTotals } from '@/domain/lineItem/calculationService';
 import { resolveIssuerInfo } from '@/pdf/issuerResolverService';
 // Import template service directly to avoid bundling expo-print/sharing dependencies in preview
-import { generateHtmlTemplate, deriveDisplayHtml, toggleOrientation } from '@/pdf/pdfTemplateService';
+import { generateHtmlTemplate, generateFilenameTitle, deriveDisplayHtml, toggleOrientation } from '@/pdf/pdfTemplateService';
 // Import PDF generation service for Pro feature
 import { generateAndSharePdf } from '@/pdf/pdfGenerationService';
+import { FilenameEditModal } from '@/components/document/FilenameEditModal';
 import { getPdfErrorMessage } from '@/constants/errorMessages';
 import type { Document, DocumentWithTotals, SensitiveIssuerSnapshot } from '@/types/document';
 import type { PreviewOrientation } from '@/pdf/types';
@@ -47,9 +48,16 @@ export default function DocumentPreviewScreen() {
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [orientation, setOrientation] = useState<PreviewOrientation>('PORTRAIT');
+  const [filenameModalVisible, setFilenameModalVisible] = useState(false);
 
   // Whether we're in preview mode (unsaved document)
   const isPreviewMode = !!previewData;
+
+  // Default filename for the modal (e.g., "EST-001_見積書")
+  const defaultFilename = useMemo(() => {
+    if (!documentWithTotals) return '';
+    return generateFilenameTitle(documentWithTotals.documentNo, documentWithTotals.type);
+  }, [documentWithTotals]);
 
   // Load document and generate HTML preview
   useEffect(() => {
@@ -128,33 +136,33 @@ export default function DocumentPreviewScreen() {
     setOrientation((prev) => toggleOrientation(prev));
   }, []);
 
-  // Handle PDF share button
-  const handleSharePdf = useCallback(async () => {
+  // Handle share button press -- open filename modal (M19)
+  const handleShareButtonPress = useCallback(() => {
+    setPdfError(null);
+    setFilenameModalVisible(true);
+  }, []);
+
+  // Handle confirmed filename from modal -- generate and share PDF (M19)
+  const handleFilenameConfirm = useCallback(async (customFilename: string) => {
+    setFilenameModalVisible(false);
+
     if (!documentWithTotals) return;
 
-    // Clear any previous error
-    setPdfError(null);
-
-    // Generate and share PDF (Pro check is enforced at service layer)
     setIsGenerating(true);
     try {
       const result = await generateAndSharePdf(
         { document: documentWithTotals, sensitiveSnapshot },
-        { orientation }
+        { orientation, customFilename }
       );
 
       if (!result.success && result.error) {
-        // Handle PRO_REQUIRED error by navigating to paywall
         if (result.error.code === 'PRO_REQUIRED') {
           router.push('/paywall');
           return;
         }
-        // Handle SHARE_CANCELLED silently (user action)
         if (result.error.code === 'SHARE_CANCELLED') {
           return;
         }
-        // Show user-friendly error message for other errors
-        // Use detailed message for VALIDATION_FAILED, otherwise use generic message
         const message =
           result.error.code === 'VALIDATION_FAILED' && result.error.message
             ? result.error.message
@@ -162,12 +170,16 @@ export default function DocumentPreviewScreen() {
         setPdfError(message);
       }
     } catch {
-      // Handle unexpected errors
       setPdfError('PDF生成中に予期しないエラーが発生しました。');
     } finally {
       setIsGenerating(false);
     }
   }, [documentWithTotals, sensitiveSnapshot, orientation]);
+
+  // Handle modal cancel
+  const handleFilenameCancel = useCallback(() => {
+    setFilenameModalVisible(false);
+  }, []);
 
   // Dismiss PDF error
   const handleDismissPdfError = useCallback(() => {
@@ -245,7 +257,7 @@ export default function DocumentPreviewScreen() {
           <View style={styles.pdfErrorContainer}>
             <Text style={styles.pdfErrorText}>{pdfError}</Text>
             <View style={styles.pdfErrorButtons}>
-              <Pressable onPress={handleSharePdf} style={styles.retryButton}>
+              <Pressable onPress={handleShareButtonPress} style={styles.retryButton}>
                 <Text style={styles.retryButtonText}>再試行</Text>
               </Pressable>
               <Pressable onPress={handleDismissPdfError} style={styles.dismissButton}>
@@ -259,7 +271,7 @@ export default function DocumentPreviewScreen() {
         {!isPreviewMode && (
           <Pressable
             style={[styles.shareButton, isGenerating && styles.shareButtonDisabled]}
-            onPress={handleSharePdf}
+            onPress={handleShareButtonPress}
             disabled={isGenerating}
           >
             {isGenerating ? (
@@ -276,6 +288,15 @@ export default function DocumentPreviewScreen() {
           </Text>
         </Pressable>
       </View>
+
+      {/* Filename Edit Modal (M19) */}
+      <FilenameEditModal
+        visible={filenameModalVisible}
+        defaultFilename={defaultFilename}
+        onConfirm={handleFilenameConfirm}
+        onCancel={handleFilenameCancel}
+        testID="filename-edit-modal"
+      />
     </View>
   );
 }

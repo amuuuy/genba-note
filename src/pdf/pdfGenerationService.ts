@@ -14,7 +14,8 @@ import * as FileSystem from 'expo-file-system';
 
 import type { PdfTemplateInput, PdfGenerationResult, PdfGenerationOptions, PreviewOrientation } from './types';
 import { DEFAULT_INVOICE_TEMPLATE_TYPE, DEFAULT_SEAL_SIZE } from './types';
-import { generateHtmlTemplate, injectLandscapeCss } from './pdfTemplateService';
+import { generateHtmlTemplate, generateFilenameTitle, injectLandscapeCss } from './pdfTemplateService';
+import { sanitizeFilename } from '@/utils/filenameUtils';
 import { checkProStatus } from './proGateService';
 import { validateDocumentForPdf, formatValidationError } from './pdfValidationService';
 import { getSettings } from '@/storage/asyncStorageService';
@@ -185,13 +186,34 @@ export async function generateAndSharePdf(
   }
 
   const fileUri = pdfResult.fileUri!;
+  let shareUri = fileUri;
+
+  // 4.5. Rename PDF if customFilename is provided (M19)
+  if (options?.customFilename !== undefined) {
+    try {
+      const sanitized = sanitizeFilename(
+        options.customFilename,
+        generateFilenameTitle(input.document.documentNo, input.document.type)
+      );
+      const dirPath = fileUri.substring(0, fileUri.lastIndexOf('/') + 1);
+      const targetUri = dirPath + encodeURIComponent(sanitized);
+      await FileSystem.moveAsync({ from: fileUri, to: targetUri });
+      shareUri = targetUri;
+    } catch {
+      // If rename fails, fall back to sharing the original temp file
+      shareUri = fileUri;
+    }
+  }
 
   // 5. Share PDF and cleanup
   try {
-    const shareResult = await sharePdf(fileUri);
+    const shareResult = await sharePdf(shareUri);
     return shareResult;
   } finally {
     // 6. Always cleanup temporary PDF file (security: remove sensitive data)
-    await cleanupPdfFile(fileUri);
+    await cleanupPdfFile(shareUri);
+    if (shareUri !== fileUri) {
+      await cleanupPdfFile(fileUri);
+    }
   }
 }

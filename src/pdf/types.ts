@@ -47,11 +47,13 @@ export type PreviewOrientation = 'PORTRAIT' | 'LANDSCAPE';
 /**
  * Options for PDF generation (extensible for future milestones).
  * M18: orientation
- * M19: customFilename (planned)
+ * M19: customFilename
  */
 export interface PdfGenerationOptions {
   /** Preview orientation - controls page size in PDF output */
   orientation?: PreviewOrientation;
+  /** Custom filename for the shared PDF (M19). Sanitized before use. */
+  customFilename?: string;
 }
 
 /**
