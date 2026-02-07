@@ -1,4 +1,4 @@
-import type { InvoiceTemplateType } from '@/pdf/types';
+import type { InvoiceTemplateType, SealSize, BackgroundDesign, DocumentTemplateId } from '@/pdf/types';
 import { DEFAULT_INVOICE_TEMPLATE_TYPE } from '@/pdf/types';
 
 /**
@@ -33,8 +33,20 @@ export interface AppSettings {
     nextInvoiceNumber: number;
   };
 
-  /** Invoice PDF template preference */
+  /** @deprecated Use defaultInvoiceTemplateId instead. Kept for backward compatibility with v6 data. */
   invoiceTemplateType: InvoiceTemplateType;
+
+  /** Seal (stamp) size for PDF documents */
+  sealSize: SealSize;
+
+  /** Background design pattern for PDF documents */
+  backgroundDesign: BackgroundDesign;
+
+  /** Default template for estimate (見積書) PDF output */
+  defaultEstimateTemplateId: DocumentTemplateId;
+
+  /** Default template for invoice (請求書) PDF output */
+  defaultInvoiceTemplateId: DocumentTemplateId;
 
   /** Schema version for data migration */
   schemaVersion: number;
@@ -79,6 +91,10 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     nextInvoiceNumber: 1,
   },
   invoiceTemplateType: DEFAULT_INVOICE_TEMPLATE_TYPE,
+  sealSize: 'MEDIUM',
+  backgroundDesign: 'NONE',
+  defaultEstimateTemplateId: 'FORMAL_STANDARD',
+  defaultInvoiceTemplateId: 'ACCOUNTING',
   schemaVersion: 1,
 };
 

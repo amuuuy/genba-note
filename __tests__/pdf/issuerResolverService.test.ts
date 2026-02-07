@@ -148,6 +148,10 @@ describe('issuerResolverService', () => {
               nextInvoiceNumber: 1,
             },
             invoiceTemplateType: 'ACCOUNTING',
+            sealSize: 'MEDIUM',
+            backgroundDesign: 'NONE',
+            defaultEstimateTemplateId: 'FORMAL_STANDARD',
+            defaultInvoiceTemplateId: 'ACCOUNTING',
             schemaVersion: 1,
           },
         });
@@ -227,6 +231,10 @@ describe('issuerResolverService', () => {
           nextInvoiceNumber: 1,
         },
         invoiceTemplateType: 'ACCOUNTING' as const,
+        sealSize: 'MEDIUM' as const,
+        backgroundDesign: 'NONE' as const,
+        defaultEstimateTemplateId: 'FORMAL_STANDARD' as const,
+        defaultInvoiceTemplateId: 'ACCOUNTING' as const,
         schemaVersion: 1,
       };
 
@@ -322,6 +330,10 @@ describe('issuerResolverService', () => {
           nextInvoiceNumber: 1,
         },
         invoiceTemplateType: 'ACCOUNTING' as const,
+        sealSize: 'MEDIUM' as const,
+        backgroundDesign: 'NONE' as const,
+        defaultEstimateTemplateId: 'FORMAL_STANDARD' as const,
+        defaultInvoiceTemplateId: 'ACCOUNTING' as const,
         schemaVersion: 1,
       };
 
@@ -459,6 +471,10 @@ describe('issuerResolverService', () => {
               nextInvoiceNumber: 1,
             },
             invoiceTemplateType: 'ACCOUNTING',
+            sealSize: 'MEDIUM',
+            backgroundDesign: 'NONE',
+            defaultEstimateTemplateId: 'FORMAL_STANDARD',
+            defaultInvoiceTemplateId: 'ACCOUNTING',
             schemaVersion: 1,
           },
         });
@@ -524,6 +540,10 @@ describe('issuerResolverService', () => {
           nextInvoiceNumber: 1,
         },
         invoiceTemplateType: 'ACCOUNTING' as const,
+        sealSize: 'MEDIUM' as const,
+        backgroundDesign: 'NONE' as const,
+        defaultEstimateTemplateId: 'FORMAL_STANDARD' as const,
+        defaultInvoiceTemplateId: 'ACCOUNTING' as const,
         schemaVersion: 1,
       };
 
@@ -629,6 +649,10 @@ describe('issuerResolverService', () => {
               nextInvoiceNumber: 1,
             },
             invoiceTemplateType: 'ACCOUNTING',
+            sealSize: 'MEDIUM',
+            backgroundDesign: 'NONE',
+            defaultEstimateTemplateId: 'FORMAL_STANDARD',
+            defaultInvoiceTemplateId: 'ACCOUNTING',
             schemaVersion: 1,
           },
         });
@@ -678,6 +702,10 @@ describe('issuerResolverService', () => {
               nextInvoiceNumber: 1,
             },
             invoiceTemplateType: 'ACCOUNTING',
+            sealSize: 'MEDIUM',
+            backgroundDesign: 'NONE',
+            defaultEstimateTemplateId: 'FORMAL_STANDARD',
+            defaultInvoiceTemplateId: 'ACCOUNTING',
             schemaVersion: 1,
           },
         });

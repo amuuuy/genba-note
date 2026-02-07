@@ -470,6 +470,108 @@ describe('asyncStorageService', () => {
     });
   });
 
+  describe('mergeSettingsWithDefaults - enum validation', () => {
+    it('should fallback to default for invalid sealSize', async () => {
+      const corruptSettings = {
+        ...DEFAULT_APP_SETTINGS,
+        sealSize: 'INVALID_SIZE',
+      };
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify(corruptSettings));
+
+      const result = await getSettings();
+      expect(result.success).toBe(true);
+      expect(result.data?.sealSize).toBe('MEDIUM');
+    });
+
+    it('should fallback to default for invalid backgroundDesign', async () => {
+      const corruptSettings = {
+        ...DEFAULT_APP_SETTINGS,
+        backgroundDesign: 'ZIGZAG',
+      };
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify(corruptSettings));
+
+      const result = await getSettings();
+      expect(result.success).toBe(true);
+      expect(result.data?.backgroundDesign).toBe('NONE');
+    });
+
+    it('should fallback to default for invalid defaultEstimateTemplateId', async () => {
+      const corruptSettings = {
+        ...DEFAULT_APP_SETTINGS,
+        defaultEstimateTemplateId: 'UNKNOWN_TEMPLATE',
+      };
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify(corruptSettings));
+
+      const result = await getSettings();
+      expect(result.success).toBe(true);
+      expect(result.data?.defaultEstimateTemplateId).toBe('FORMAL_STANDARD');
+    });
+
+    it('should derive defaultInvoiceTemplateId from invoiceTemplateType when missing', async () => {
+      const settingsWithoutNewField = {
+        ...DEFAULT_APP_SETTINGS,
+        invoiceTemplateType: 'SIMPLE',
+      };
+      delete (settingsWithoutNewField as Record<string, unknown>).defaultInvoiceTemplateId;
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify(settingsWithoutNewField));
+
+      const result = await getSettings();
+      expect(result.success).toBe(true);
+      expect(result.data?.defaultInvoiceTemplateId).toBe('SIMPLE');
+    });
+  });
+
+  describe('updateSettings - invoiceTemplateType sync', () => {
+    it('should sync defaultInvoiceTemplateId when invoiceTemplateType is updated alone', async () => {
+      const existingSettings: AppSettings = {
+        ...DEFAULT_APP_SETTINGS,
+        invoiceTemplateType: 'ACCOUNTING',
+        defaultInvoiceTemplateId: 'ACCOUNTING',
+      };
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify(existingSettings));
+      mockedAsyncStorage.setItem.mockResolvedValue();
+
+      const result = await updateSettings({ invoiceTemplateType: 'SIMPLE' });
+
+      expect(result.success).toBe(true);
+      expect(result.data?.invoiceTemplateType).toBe('SIMPLE');
+      expect(result.data?.defaultInvoiceTemplateId).toBe('SIMPLE');
+    });
+
+    it('should sync invoiceTemplateType when defaultInvoiceTemplateId is updated alone', async () => {
+      const existingSettings: AppSettings = {
+        ...DEFAULT_APP_SETTINGS,
+        invoiceTemplateType: 'ACCOUNTING',
+        defaultInvoiceTemplateId: 'ACCOUNTING',
+      };
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify(existingSettings));
+      mockedAsyncStorage.setItem.mockResolvedValue();
+
+      const result = await updateSettings({ defaultInvoiceTemplateId: 'SIMPLE' });
+
+      expect(result.success).toBe(true);
+      expect(result.data?.defaultInvoiceTemplateId).toBe('SIMPLE');
+      expect(result.data?.invoiceTemplateType).toBe('SIMPLE');
+    });
+
+    it('should not sync when defaultInvoiceTemplateId is set to non-legacy value', async () => {
+      const existingSettings: AppSettings = {
+        ...DEFAULT_APP_SETTINGS,
+        invoiceTemplateType: 'ACCOUNTING',
+        defaultInvoiceTemplateId: 'ACCOUNTING',
+      };
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify(existingSettings));
+      mockedAsyncStorage.setItem.mockResolvedValue();
+
+      const result = await updateSettings({ defaultInvoiceTemplateId: 'MODERN' });
+
+      expect(result.success).toBe(true);
+      expect(result.data?.defaultInvoiceTemplateId).toBe('MODERN');
+      // invoiceTemplateType stays unchanged since MODERN is not a legacy value
+      expect(result.data?.invoiceTemplateType).toBe('ACCOUNTING');
+    });
+  });
+
   // === Schema Version Tests ===
   describe('Schema version operations', () => {
     it('should return 0 when no version exists', async () => {

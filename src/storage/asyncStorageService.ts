@@ -13,6 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Document, DocumentFilter, DocumentSort } from '@/types/document';
 import { UnitPrice, UnitPriceFilter } from '@/types/unitPrice';
 import { AppSettings, DEFAULT_APP_SETTINGS } from '@/types/settings';
+import { SEAL_SIZES, BACKGROUND_DESIGNS, DOCUMENT_TEMPLATE_IDS } from '@/pdf/types';
 import { STORAGE_KEYS } from '@/utils/constants';
 import { deleteIssuerSnapshot } from './secureStorageService';
 import {
@@ -503,10 +504,16 @@ export async function searchUnitPrices(
 
 // === Settings Operations ===
 
+// Allowed enum values derived from single source of truth in pdf/types.ts
+const VALID_SEAL_SIZES: ReadonlySet<string> = new Set(SEAL_SIZES);
+const VALID_BACKGROUND_DESIGNS: ReadonlySet<string> = new Set(BACKGROUND_DESIGNS);
+const VALID_TEMPLATE_IDS: ReadonlySet<string> = new Set(DOCUMENT_TEMPLATE_IDS);
+
 /**
  * Deep merge settings with defaults to ensure all fields exist.
  * This prevents crashes when stored settings are missing fields
  * due to schema evolution or data corruption.
+ * Validates enum values and falls back to defaults for unknown values.
  */
 function mergeSettingsWithDefaults(stored: Partial<AppSettings>): AppSettings {
   return {
@@ -527,6 +534,15 @@ function mergeSettingsWithDefaults(stored: Partial<AppSettings>): AppSettings {
       nextInvoiceNumber: stored.numbering?.nextInvoiceNumber ?? DEFAULT_APP_SETTINGS.numbering.nextInvoiceNumber,
     },
     invoiceTemplateType: stored.invoiceTemplateType ?? DEFAULT_APP_SETTINGS.invoiceTemplateType,
+    sealSize: (stored.sealSize && VALID_SEAL_SIZES.has(stored.sealSize))
+      ? stored.sealSize : DEFAULT_APP_SETTINGS.sealSize,
+    backgroundDesign: (stored.backgroundDesign && VALID_BACKGROUND_DESIGNS.has(stored.backgroundDesign))
+      ? stored.backgroundDesign : DEFAULT_APP_SETTINGS.backgroundDesign,
+    defaultEstimateTemplateId: (stored.defaultEstimateTemplateId && VALID_TEMPLATE_IDS.has(stored.defaultEstimateTemplateId))
+      ? stored.defaultEstimateTemplateId : DEFAULT_APP_SETTINGS.defaultEstimateTemplateId,
+    defaultInvoiceTemplateId: (stored.defaultInvoiceTemplateId && VALID_TEMPLATE_IDS.has(stored.defaultInvoiceTemplateId))
+      ? stored.defaultInvoiceTemplateId
+      : (stored.invoiceTemplateType === 'SIMPLE' ? 'SIMPLE' : 'ACCOUNTING'),
     schemaVersion: stored.schemaVersion ?? DEFAULT_APP_SETTINGS.schemaVersion,
   };
 }
@@ -676,6 +692,17 @@ export async function updateSettings(
           ...partial.numbering,
         },
       };
+
+      // Sync invoiceTemplateType ↔ defaultInvoiceTemplateId (backward compatibility)
+      if (partial.invoiceTemplateType && !partial.defaultInvoiceTemplateId) {
+        updatedSettings.defaultInvoiceTemplateId =
+          partial.invoiceTemplateType === 'SIMPLE' ? 'SIMPLE' : 'ACCOUNTING';
+      } else if (partial.defaultInvoiceTemplateId && !partial.invoiceTemplateType) {
+        const id = partial.defaultInvoiceTemplateId;
+        if (id === 'ACCOUNTING' || id === 'SIMPLE') {
+          updatedSettings.invoiceTemplateType = id;
+        }
+      }
 
       return _saveSettingsInternal(updatedSettings);
     } catch (error) {

@@ -12,6 +12,7 @@ import { v3AddFaxFieldMigration } from './v3-add-fax-field';
 import { v4AddCustomerMasterMigration } from './v4-add-customer-master';
 import { v5AddWorkLogEntriesMigration } from './v5-add-work-log-entries';
 import { v6RemoveUndatedPhotosMigration } from './v6-remove-undated-photos';
+import { v7AddPdfCustomizationMigration } from './v7-add-pdf-customization';
 
 // Register all migrations
 registerMigration(v1InitialMigration);
@@ -20,6 +21,7 @@ registerMigration(v3AddFaxFieldMigration);
 registerMigration(v4AddCustomerMasterMigration);
 registerMigration(v5AddWorkLogEntriesMigration);
 registerMigration(v6RemoveUndatedPhotosMigration);
+registerMigration(v7AddPdfCustomizationMigration);
 
 // Re-export for direct access if needed
 export {
@@ -29,4 +31,5 @@ export {
   v4AddCustomerMasterMigration,
   v5AddWorkLogEntriesMigration,
   v6RemoveUndatedPhotosMigration,
+  v7AddPdfCustomizationMigration,
 };

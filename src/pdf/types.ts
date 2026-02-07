@@ -24,6 +24,46 @@ export type InvoiceTemplateType = (typeof InvoiceTemplateType)[keyof typeof Invo
 /** Default invoice template type */
 export const DEFAULT_INVOICE_TEMPLATE_TYPE: InvoiceTemplateType = 'ACCOUNTING';
 
+// === PDF Customization Types (M16) ===
+
+/** Seal (stamp) size values — single source of truth for type + runtime validation */
+export const SEAL_SIZES = ['SMALL', 'MEDIUM', 'LARGE'] as const;
+export type SealSize = (typeof SEAL_SIZES)[number];
+
+/** Background design values — single source of truth for type + runtime validation */
+export const BACKGROUND_DESIGNS = ['NONE', 'STRIPE', 'WAVE', 'GRID', 'DOTS'] as const;
+export type BackgroundDesign = (typeof BACKGROUND_DESIGNS)[number];
+
+/** Template ID values — single source of truth for type + runtime validation */
+export const DOCUMENT_TEMPLATE_IDS = ['FORMAL_STANDARD', 'ACCOUNTING', 'SIMPLE', 'MODERN', 'CLASSIC'] as const;
+export type DocumentTemplateId = (typeof DOCUMENT_TEMPLATE_IDS)[number];
+
+/** Preview orientation for document preview */
+export type PreviewOrientation = 'PORTRAIT' | 'LANDSCAPE';
+
+/**
+ * Seal size in pixels per template.
+ * SIMPLE uses smaller sizes; all others share the same scale.
+ *
+ * | Template         | SMALL | MEDIUM | LARGE |
+ * |------------------|-------|--------|-------|
+ * | FORMAL_STANDARD  |  45px |  70px  | 100px |
+ * | ACCOUNTING       |  45px |  70px  | 100px |
+ * | SIMPLE           |  30px |  50px  |  70px |
+ * | MODERN           |  45px |  70px  | 100px |
+ * | CLASSIC          |  45px |  70px  | 100px |
+ */
+const SEAL_SIZE_MAP: Record<SealSize, Record<DocumentTemplateId, number>> = {
+  SMALL:  { FORMAL_STANDARD: 45, ACCOUNTING: 45, SIMPLE: 30, MODERN: 45, CLASSIC: 45 },
+  MEDIUM: { FORMAL_STANDARD: 70, ACCOUNTING: 70, SIMPLE: 50, MODERN: 70, CLASSIC: 70 },
+  LARGE:  { FORMAL_STANDARD: 100, ACCOUNTING: 100, SIMPLE: 70, MODERN: 100, CLASSIC: 100 },
+};
+
+/** Resolve seal size to pixel value based on seal size and template */
+export function getSealSizePx(sealSize: SealSize, templateId: DocumentTemplateId): number {
+  return SEAL_SIZE_MAP[sealSize][templateId];
+}
+
 // === Template Input ===
 
 /**
@@ -41,6 +81,9 @@ export interface PdfTemplateInput {
 
   /** Invoice template type (only used for invoice documents in pdf mode) */
   invoiceTemplateType?: InvoiceTemplateType;
+
+  /** Document template ID for PDF output (M16). Ignored in screen mode. */
+  templateId?: DocumentTemplateId;
 }
 
 /**
