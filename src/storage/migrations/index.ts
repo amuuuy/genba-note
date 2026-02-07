@@ -13,6 +13,7 @@ import { v4AddCustomerMasterMigration } from './v4-add-customer-master';
 import { v5AddWorkLogEntriesMigration } from './v5-add-work-log-entries';
 import { v6RemoveUndatedPhotosMigration } from './v6-remove-undated-photos';
 import { v7AddPdfCustomizationMigration } from './v7-add-pdf-customization';
+import { v8AddCalendarEventsMigration } from './v8-add-calendar-events';
 
 // Register all migrations
 registerMigration(v1InitialMigration);
@@ -22,6 +23,7 @@ registerMigration(v4AddCustomerMasterMigration);
 registerMigration(v5AddWorkLogEntriesMigration);
 registerMigration(v6RemoveUndatedPhotosMigration);
 registerMigration(v7AddPdfCustomizationMigration);
+registerMigration(v8AddCalendarEventsMigration);
 
 // Re-export for direct access if needed
 export {
@@ -32,4 +34,5 @@ export {
   v5AddWorkLogEntriesMigration,
   v6RemoveUndatedPhotosMigration,
   v7AddPdfCustomizationMigration,
+  v8AddCalendarEventsMigration,
 };

@@ -25,8 +25,9 @@ import {
  * - v5: Add work log entries for date-based photo grouping
  * - v6: Remove undated photos (photos without work log entry assignment)
  * - v7: Add PDF customization fields (sealSize, backgroundDesign, template IDs)
+ * - v8: Add calendar events collection
  */
-export const CURRENT_SCHEMA_VERSION = 7;
+export const CURRENT_SCHEMA_VERSION = 8;
 
 // === Migrations Initialization Flag ===
 let migrationsInitialized = false;

@@ -318,3 +318,16 @@ export function extractDateParts(
     day: parseInt(dayStr, 10),
   };
 }
+
+/**
+ * Check if a date falls within a given year-month
+ * @param date - Date string in 'YYYY-MM-DD' format (or null)
+ * @param yearMonth - Year-month string in 'YYYY-MM' format
+ * @returns true if the date's year and month match, false if inputs are invalid
+ */
+export function isInMonth(date: string | null, yearMonth: string): boolean {
+  if (date === null) return false;
+  if (!/^\d{4}-\d{2}$/.test(yearMonth)) return false;
+  if (!isValidDateString(date)) return false;
+  return date.startsWith(yearMonth + '-');
+}

@@ -16,6 +16,7 @@ import {
   addMonths,
   getDaysAgo,
   extractDateParts,
+  isInMonth,
 } from '../../src/utils/dateUtils';
 
 describe('dateUtils', () => {
@@ -289,6 +290,42 @@ describe('dateUtils', () => {
       expect(extractDateParts(null)).toBeNull();
       expect(extractDateParts('invalid')).toBeNull();
       expect(extractDateParts('2026-02-30')).toBeNull();
+    });
+  });
+
+  describe('isInMonth', () => {
+    it('returns true when date is in the given month', () => {
+      expect(isInMonth('2026-01-15', '2026-01')).toBe(true);
+      expect(isInMonth('2026-01-01', '2026-01')).toBe(true);
+      expect(isInMonth('2026-01-31', '2026-01')).toBe(true);
+    });
+
+    it('returns false when date is in a different month', () => {
+      expect(isInMonth('2026-02-15', '2026-01')).toBe(false);
+      expect(isInMonth('2025-01-15', '2026-01')).toBe(false);
+    });
+
+    it('returns false for null date', () => {
+      expect(isInMonth(null, '2026-01')).toBe(false);
+    });
+
+    it('returns false for invalid yearMonth format', () => {
+      expect(isInMonth('2026-01-15', '')).toBe(false);
+      expect(isInMonth('2026-01-15', '2026')).toBe(false);
+      expect(isInMonth('2026-01-15', '2026-1')).toBe(false);
+      expect(isInMonth('2026-01-15', 'invalid')).toBe(false);
+      expect(isInMonth('2026-01-15', '2026-01-15')).toBe(false);
+    });
+
+    it('returns false for invalid date format', () => {
+      expect(isInMonth('invalid', '2026-01')).toBe(false);
+      expect(isInMonth('2026-1-15', '2026-01')).toBe(false);
+      expect(isInMonth('20260115', '2026-01')).toBe(false);
+    });
+
+    it('returns false for non-existent date', () => {
+      expect(isInMonth('2026-02-30', '2026-02')).toBe(false);
+      expect(isInMonth('2026-04-31', '2026-04')).toBe(false);
     });
   });
 });

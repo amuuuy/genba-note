@@ -126,3 +126,9 @@ export const financeEntriesQueue = createWriteQueue();
  * Protects: addFinancePhoto, deleteFinancePhoto in financePhotoStorage.
  */
 export const financePhotosQueue = createWriteQueue();
+
+/**
+ * Queue for calendar event write operations.
+ * Protects: addCalendarEvent, updateCalendarEvent, deleteCalendarEvent in calendarEventStorage.
+ */
+export const calendarEventsQueue = createWriteQueue();

@@ -90,6 +90,7 @@ export const STORAGE_KEYS = {
   WORK_LOG_ENTRIES: '@genba_workLogEntries',
   FINANCE_ENTRIES: '@genba_financeEntries',
   FINANCE_PHOTOS: '@genba_financePhotos',
+  CALENDAR_EVENTS: '@genba_calendarEvents',
 } as const;
 
 /**

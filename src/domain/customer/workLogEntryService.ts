@@ -61,6 +61,25 @@ function isValidWorkDate(workDate: string): boolean {
 // === Public API ===
 
 /**
+ * Get all work log entries from storage.
+ * Used by calendarAggregationService for virtual event generation.
+ */
+export async function getAllWorkLogEntries(): Promise<
+  CustomerDomainResult<WorkLogEntry[]>
+> {
+  try {
+    const entries = await getAllEntriesFromStorage();
+    return successResult(entries);
+  } catch (error) {
+    return errorResult(
+      createCustomerServiceError('STORAGE_ERROR', 'Failed to get all work log entries', {
+        originalError: error instanceof Error ? error.message : String(error),
+      })
+    );
+  }
+}
+
+/**
  * Create a new work log entry
  * Enforces unique (customerId, workDate) constraint
  */
