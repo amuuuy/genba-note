@@ -22,6 +22,7 @@ export function createValidSettingsFormValues(
     invoicePrefix: 'INV-',
     invoiceTemplateType: 'ACCOUNTING',
     sealSize: 'MEDIUM',
+    backgroundDesign: 'NONE',
     // SecureStore fields
     invoiceNumber: 'T1234567890123',
     bankName: 'テスト銀行',
@@ -50,6 +51,7 @@ export function createEmptySettingsFormValues(): SettingsFormValues {
     invoicePrefix: 'INV-',
     invoiceTemplateType: 'ACCOUNTING',
     sealSize: 'MEDIUM',
+    backgroundDesign: 'NONE',
     invoiceNumber: '',
     bankName: '',
     branchName: '',

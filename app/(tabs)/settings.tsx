@@ -26,6 +26,7 @@ import {
   SealImageSection,
   InvoiceTemplateSection,
   SealSizeSection,
+  BackgroundDesignSection,
 } from '@/components/settings';
 import type { SettingsFormValues } from '@/domain/settings/types';
 
@@ -37,6 +38,7 @@ export default function SettingsScreen() {
     toggleShowContactPerson,
     updateInvoiceTemplateType,
     updateSealSize,
+    updateBackgroundDesign,
     save,
     getFormattedNextNumber,
     reload,
@@ -124,6 +126,13 @@ export default function SettingsScreen() {
         <SealSizeSection
           value={state.values.sealSize}
           onChange={updateSealSize}
+          disabled={isFormDisabled}
+        />
+
+        {/* Background Design Section */}
+        <BackgroundDesignSection
+          value={state.values.backgroundDesign}
+          onChange={updateBackgroundDesign}
           disabled={isFormDisabled}
         />
 

@@ -165,6 +165,9 @@ export async function generateAndSharePdf(
   const sealSize = settingsResult.success
     ? settingsResult.data?.sealSize ?? DEFAULT_SEAL_SIZE
     : DEFAULT_SEAL_SIZE;
+  const backgroundDesign = settingsResult.success
+    ? settingsResult.data?.backgroundDesign ?? 'NONE'
+    : 'NONE';
 
   // 3. Generate HTML template with formal PDF theme
   let { html } = generateHtmlTemplate({
@@ -172,6 +175,7 @@ export async function generateAndSharePdf(
     mode: 'pdf',
     invoiceTemplateType,
     sealSize,
+    backgroundDesign,
   });
 
   // 3.5. Inject landscape CSS if orientation is LANDSCAPE

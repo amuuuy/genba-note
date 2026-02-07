@@ -102,6 +102,9 @@ export interface PdfTemplateInput {
 
   /** Seal size for PDF output (M17). Defaults to MEDIUM if not provided. */
   sealSize?: SealSize;
+
+  /** Background design for PDF output (M20). Defaults to NONE if not provided. */
+  backgroundDesign?: BackgroundDesign;
 }
 
 /**

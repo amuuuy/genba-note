@@ -235,6 +235,21 @@ describe('useSettingsEdit', () => {
       });
     });
 
+    describe('UPDATE_BACKGROUND_DESIGN action', () => {
+      it('updates backgroundDesign and sets isDirty', () => {
+        const state = createTestState();
+        const action: SettingsEditAction = {
+          type: 'UPDATE_BACKGROUND_DESIGN',
+          value: 'STRIPE',
+        };
+
+        const newState = settingsEditReducer(state, action);
+
+        expect(newState.values.backgroundDesign).toBe('STRIPE');
+        expect(newState.isDirty).toBe(true);
+      });
+    });
+
     describe('SET_ERRORS action', () => {
       it('sets the errors object', () => {
         const state = createTestState();

@@ -24,8 +24,9 @@
  */
 
 import type { DocumentWithTotals, SensitiveIssuerSnapshot } from '@/types/document';
-import type { SealSize } from './types';
+import type { SealSize, BackgroundDesign } from './types';
 import { getSealSizePx, DEFAULT_SEAL_SIZE } from './types';
+import { getBackgroundCss } from './backgroundDesigns';
 import {
   formatCurrency,
   formatDate,
@@ -739,9 +740,11 @@ function getTemplateStyles(accountingSealSizePx: number): string {
 export function generateInvoiceAccountingTemplate(
   doc: DocumentWithTotals,
   sensitiveSnapshot: SensitiveIssuerSnapshot | null,
-  sealSize?: SealSize
+  sealSize?: SealSize,
+  backgroundDesign?: BackgroundDesign
 ): string {
   const accountingSealSizePx = getSealSizePx(sealSize ?? DEFAULT_SEAL_SIZE, 'ACCOUNTING');
+  const accountingBackgroundCss = getBackgroundCss(backgroundDesign ?? 'NONE');
   const clientAddressHtml = doc.clientAddress
     ? `<div class="client-address">${escapeHtml(doc.clientAddress)}</div>`
     : '';
@@ -765,6 +768,7 @@ export function generateInvoiceAccountingTemplate(
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     ${getTemplateStyles(accountingSealSizePx)}
+    ${accountingBackgroundCss}
   </style>
 </head>
 <body>

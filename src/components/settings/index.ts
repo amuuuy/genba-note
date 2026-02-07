@@ -9,3 +9,4 @@ export { AccountTypePicker, type AccountTypePickerProps } from './AccountTypePic
 export { SealImageSection, type SealImageSectionProps } from './SealImageSection';
 export { InvoiceTemplateSection, type InvoiceTemplateSectionProps } from './InvoiceTemplateSection';
 export { SealSizeSection, type SealSizeSectionProps } from './SealSizeSection';
+export { BackgroundDesignSection, type BackgroundDesignSectionProps } from './BackgroundDesignSection';

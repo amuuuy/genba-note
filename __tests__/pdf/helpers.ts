@@ -13,7 +13,7 @@ import type {
   DocumentStatus,
   TaxRate,
 } from '@/types/document';
-import type { PdfTemplateInput, TemplateMode } from '@/pdf/types';
+import type { PdfTemplateInput, TemplateMode, InvoiceTemplateType, SealSize, BackgroundDesign } from '@/pdf/types';
 
 /**
  * Generate a unique test ID
@@ -185,6 +185,9 @@ export function createTestTemplateInput(
     document?: Partial<DocumentWithTotals>;
     sensitiveSnapshot?: SensitiveIssuerSnapshot | null;
     mode?: TemplateMode;
+    invoiceTemplateType?: InvoiceTemplateType;
+    sealSize?: SealSize;
+    backgroundDesign?: BackgroundDesign;
   } = {}
 ): PdfTemplateInput {
   return {
@@ -193,6 +196,9 @@ export function createTestTemplateInput(
       ? createTestSensitiveSnapshot()
       : overrides.sensitiveSnapshot,
     mode: overrides.mode,
+    invoiceTemplateType: overrides.invoiceTemplateType,
+    sealSize: overrides.sealSize,
+    backgroundDesign: overrides.backgroundDesign,
   };
 }
 
