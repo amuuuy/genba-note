@@ -19,6 +19,7 @@ import {
   createCustomerServiceError,
 } from './types';
 import { generateUUID } from '@/utils/uuid';
+import { isValidDateString } from '@/utils/dateUtils';
 import { STORAGE_KEYS } from '@/utils/constants';
 import { workLogEntriesQueue, photosQueue } from '@/utils/writeQueue';
 import { getReadOnlyMode } from '@/storage/readOnlyModeState';
@@ -55,19 +56,6 @@ async function saveAllEntriesToStorage(entries: WorkLogEntry[]): Promise<void> {
   );
 }
 
-/**
- * Validate workDate format (YYYY-MM-DD)
- */
-function isValidWorkDate(workDate: string): boolean {
-  const pattern = /^\d{4}-\d{2}-\d{2}$/;
-  if (!pattern.test(workDate)) {
-    return false;
-  }
-  // Validate it's a real date
-  const date = new Date(workDate + 'T00:00:00');
-  return !isNaN(date.getTime());
-}
-
 // === Public API ===
 
 /**
@@ -102,7 +90,7 @@ export async function createWorkLogEntry(
 
   try {
     // Validate workDate format
-    if (!isValidWorkDate(input.workDate)) {
+    if (!isValidDateString(input.workDate)) {
       return errorResult(
         createCustomerServiceError(
           'VALIDATION_ERROR',

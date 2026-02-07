@@ -40,6 +40,53 @@ describe('workLogEntryService', () => {
     setReadOnlyMode(false);
   });
 
+  describe('Date validation', () => {
+    beforeEach(() => {
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify([]));
+      mockedAsyncStorage.setItem.mockResolvedValue(undefined);
+    });
+
+    it('should reject non-existent date 2026-02-31', async () => {
+      const result = await createWorkLogEntry({
+        customerId: 'customer-1',
+        workDate: '2026-02-31',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('VALIDATION_ERROR');
+      expect(mockedAsyncStorage.setItem).not.toHaveBeenCalled();
+    });
+
+    it('should reject 2025-02-29 (non-leap year)', async () => {
+      const result = await createWorkLogEntry({
+        customerId: 'customer-1',
+        workDate: '2025-02-29',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('VALIDATION_ERROR');
+      expect(mockedAsyncStorage.setItem).not.toHaveBeenCalled();
+    });
+
+    it('should accept 2024-02-29 (leap year)', async () => {
+      const result = await createWorkLogEntry({
+        customerId: 'customer-1',
+        workDate: '2024-02-29',
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it('should accept valid date 2026-01-30', async () => {
+      const result = await createWorkLogEntry({
+        customerId: 'customer-1',
+        workDate: '2026-01-30',
+      });
+
+      expect(result.success).toBe(true);
+    });
+  });
+
   describe('Read-only mode', () => {
     it('should block createWorkLogEntry in read-only mode', async () => {
       setReadOnlyMode(true);
