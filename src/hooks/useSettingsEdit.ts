@@ -16,8 +16,8 @@ import {
   deleteSensitiveIssuerInfo,
 } from '@/storage/secureStorageService';
 import { formatDocumentNumber } from '@/domain/document/autoNumberingService';
-import type { InvoiceTemplateType, SealSize, BackgroundDesign, DocumentTemplateId } from '@/pdf/types';
-import { DEFAULT_INVOICE_TEMPLATE_TYPE, DEFAULT_SEAL_SIZE } from '@/pdf/types';
+import type { InvoiceTemplateType, SealSize, BackgroundDesign, DocumentTemplateId } from '@/types/settings';
+import { DEFAULT_INVOICE_TEMPLATE_TYPE, DEFAULT_SEAL_SIZE } from '@/types/settings';
 
 // Export types for external use
 export type { SettingsFormValues };

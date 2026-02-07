@@ -2,7 +2,7 @@
  * Settings Domain Types
  */
 
-import type { InvoiceTemplateType, SealSize, BackgroundDesign, DocumentTemplateId } from '@/pdf/types';
+import type { InvoiceTemplateType, SealSize, BackgroundDesign, DocumentTemplateId } from '@/types/settings';
 
 /**
  * Validation error for a specific field

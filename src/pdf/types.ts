@@ -3,46 +3,30 @@
  *
  * Types for PDF template generation, PDF generation service, and Pro feature gating.
  * Follows SPEC 2.7 for PDF output specifications.
+ *
+ * Settings-related types are defined in @/types/settings and re-exported here
+ * for backward compatibility.
  */
 
 import type { DocumentWithTotals, SensitiveIssuerSnapshot, DocumentType } from '@/types/document';
+import type { SealSize, BackgroundDesign, DocumentTemplateId, PreviewOrientation, InvoiceTemplateType } from '@/types/settings';
 
-// === Invoice Template Type ===
+// Re-export settings-related types for backward compatibility
+export {
+  InvoiceTemplateType,
+  DEFAULT_INVOICE_TEMPLATE_TYPE,
+  SEAL_SIZES,
+  DEFAULT_SEAL_SIZE,
+  BACKGROUND_DESIGNS,
+  DOCUMENT_TEMPLATE_IDS,
+} from '@/types/settings';
 
-/**
- * Invoice template type for PDF generation
- * - ACCOUNTING: Traditional Japanese accounting-style layout (current default)
- * - SIMPLE: Clean, minimal layout similar to estimate format
- */
-export const InvoiceTemplateType = {
-  ACCOUNTING: 'ACCOUNTING',
-  SIMPLE: 'SIMPLE',
-} as const;
-
-export type InvoiceTemplateType = (typeof InvoiceTemplateType)[keyof typeof InvoiceTemplateType];
-
-/** Default invoice template type */
-export const DEFAULT_INVOICE_TEMPLATE_TYPE: InvoiceTemplateType = 'ACCOUNTING';
-
-// === PDF Customization Types (M16) ===
-
-/** Seal (stamp) size values — single source of truth for type + runtime validation */
-export const SEAL_SIZES = ['SMALL', 'MEDIUM', 'LARGE'] as const;
-export type SealSize = (typeof SEAL_SIZES)[number];
-
-/** Default seal size */
-export const DEFAULT_SEAL_SIZE: SealSize = 'MEDIUM';
-
-/** Background design values — single source of truth for type + runtime validation */
-export const BACKGROUND_DESIGNS = ['NONE', 'STRIPE', 'WAVE', 'GRID', 'DOTS'] as const;
-export type BackgroundDesign = (typeof BACKGROUND_DESIGNS)[number];
-
-/** Template ID values — single source of truth for type + runtime validation */
-export const DOCUMENT_TEMPLATE_IDS = ['FORMAL_STANDARD', 'ACCOUNTING', 'SIMPLE', 'MODERN', 'CLASSIC'] as const;
-export type DocumentTemplateId = (typeof DOCUMENT_TEMPLATE_IDS)[number];
-
-/** Preview orientation for document preview */
-export type PreviewOrientation = 'PORTRAIT' | 'LANDSCAPE';
+export type {
+  SealSize,
+  BackgroundDesign,
+  DocumentTemplateId,
+  PreviewOrientation,
+} from '@/types/settings';
 
 /**
  * Options for PDF generation (extensible for future milestones).

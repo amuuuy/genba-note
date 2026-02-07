@@ -8,7 +8,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { FormSection } from '@/components/common/FormSection';
-import type { InvoiceTemplateType } from '@/pdf/types';
+import type { InvoiceTemplateType } from '@/types/settings';
 
 export interface InvoiceTemplateSectionProps {
   /** Current template type */

@@ -1,5 +1,39 @@
-import type { InvoiceTemplateType, SealSize, BackgroundDesign, DocumentTemplateId } from '@/pdf/types';
-import { DEFAULT_INVOICE_TEMPLATE_TYPE } from '@/pdf/types';
+// === Invoice Template Type ===
+
+/**
+ * Invoice template type for PDF generation
+ * - ACCOUNTING: Traditional Japanese accounting-style layout (current default)
+ * - SIMPLE: Clean, minimal layout similar to estimate format
+ */
+export const InvoiceTemplateType = {
+  ACCOUNTING: 'ACCOUNTING',
+  SIMPLE: 'SIMPLE',
+} as const;
+
+export type InvoiceTemplateType = (typeof InvoiceTemplateType)[keyof typeof InvoiceTemplateType];
+
+/** Default invoice template type */
+export const DEFAULT_INVOICE_TEMPLATE_TYPE: InvoiceTemplateType = 'ACCOUNTING';
+
+// === PDF Customization Types ===
+
+/** Seal (stamp) size values — single source of truth for type + runtime validation */
+export const SEAL_SIZES = ['SMALL', 'MEDIUM', 'LARGE'] as const;
+export type SealSize = (typeof SEAL_SIZES)[number];
+
+/** Default seal size */
+export const DEFAULT_SEAL_SIZE: SealSize = 'MEDIUM';
+
+/** Background design values — single source of truth for type + runtime validation */
+export const BACKGROUND_DESIGNS = ['NONE', 'STRIPE', 'WAVE', 'GRID', 'DOTS'] as const;
+export type BackgroundDesign = (typeof BACKGROUND_DESIGNS)[number];
+
+/** Template ID values — single source of truth for type + runtime validation */
+export const DOCUMENT_TEMPLATE_IDS = ['FORMAL_STANDARD', 'ACCOUNTING', 'SIMPLE', 'MODERN', 'CLASSIC'] as const;
+export type DocumentTemplateId = (typeof DOCUMENT_TEMPLATE_IDS)[number];
+
+/** Preview orientation for document preview */
+export type PreviewOrientation = 'PORTRAIT' | 'LANDSCAPE';
 
 /**
  * App settings stored in AsyncStorage

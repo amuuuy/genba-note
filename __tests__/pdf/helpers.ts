@@ -13,7 +13,8 @@ import type {
   DocumentStatus,
   TaxRate,
 } from '@/types/document';
-import type { PdfTemplateInput, TemplateMode, InvoiceTemplateType, SealSize, BackgroundDesign } from '@/pdf/types';
+import type { PdfTemplateInput, TemplateMode } from '@/pdf/types';
+import type { InvoiceTemplateType, SealSize, BackgroundDesign } from '@/types/settings';
 
 /**
  * Generate a unique test ID

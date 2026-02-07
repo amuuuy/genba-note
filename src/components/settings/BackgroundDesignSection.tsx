@@ -8,7 +8,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { FormSection } from '@/components/common/FormSection';
-import type { BackgroundDesign } from '@/pdf/types';
+import type { BackgroundDesign } from '@/types/settings';
 
 export interface BackgroundDesignSectionProps {
   /** Current background design */

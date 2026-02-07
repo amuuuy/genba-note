@@ -8,7 +8,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { FormSection } from '@/components/common/FormSection';
-import type { SealSize } from '@/pdf/types';
+import type { SealSize } from '@/types/settings';
 
 export interface SealSizeSectionProps {
   /** Current seal size */

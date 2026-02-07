@@ -13,7 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Document, DocumentFilter, DocumentSort } from '@/types/document';
 import { UnitPrice, UnitPriceFilter } from '@/types/unitPrice';
 import { AppSettings, DEFAULT_APP_SETTINGS } from '@/types/settings';
-import { SEAL_SIZES, BACKGROUND_DESIGNS, DOCUMENT_TEMPLATE_IDS } from '@/pdf/types';
+import { SEAL_SIZES, BACKGROUND_DESIGNS, DOCUMENT_TEMPLATE_IDS } from '@/types/settings';
 import { STORAGE_KEYS } from '@/utils/constants';
 import { deleteIssuerSnapshot } from './secureStorageService';
 import {
@@ -504,7 +504,7 @@ export async function searchUnitPrices(
 
 // === Settings Operations ===
 
-// Allowed enum values derived from single source of truth in pdf/types.ts
+// Allowed enum values derived from single source of truth in @/types/settings
 const VALID_SEAL_SIZES: ReadonlySet<string> = new Set(SEAL_SIZES);
 const VALID_BACKGROUND_DESIGNS: ReadonlySet<string> = new Set(BACKGROUND_DESIGNS);
 const VALID_TEMPLATE_IDS: ReadonlySet<string> = new Set(DOCUMENT_TEMPLATE_IDS);

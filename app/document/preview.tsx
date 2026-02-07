@@ -35,7 +35,7 @@ import { getSettings } from '@/storage/asyncStorageService';
 import { FilenameEditModal } from '@/components/document/FilenameEditModal';
 import { getPdfErrorMessage } from '@/constants/errorMessages';
 import type { Document, DocumentWithTotals, SensitiveIssuerSnapshot } from '@/types/document';
-import type { PreviewOrientation } from '@/pdf/types';
+import type { PreviewOrientation } from '@/types/settings';
 
 type ScreenState = 'loading' | 'error' | 'ready';
 

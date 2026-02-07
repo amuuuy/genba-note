@@ -6,7 +6,7 @@
 
 import { getBackgroundCss } from '@/pdf/backgroundDesigns';
 import { generateHtmlTemplate } from '@/pdf/pdfTemplateService';
-import type { BackgroundDesign } from '@/pdf/types';
+import type { BackgroundDesign } from '@/types/settings';
 import { createTestTemplateInput } from './helpers';
 
 describe('getBackgroundCss', () => {

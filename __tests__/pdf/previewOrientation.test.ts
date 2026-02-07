@@ -7,7 +7,8 @@
  * tests validate the exact same code paths as the UI.
  */
 
-import type { PreviewOrientation, PdfGenerationOptions } from '@/pdf/types';
+import type { PreviewOrientation } from '@/types/settings';
+import type { PdfGenerationOptions } from '@/pdf/types';
 import {
   toggleOrientation,
   deriveDisplayHtml,
