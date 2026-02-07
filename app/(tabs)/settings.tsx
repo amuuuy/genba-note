@@ -25,6 +25,7 @@ import {
   NumberingSettingsSection,
   SealImageSection,
   InvoiceTemplateSection,
+  SealSizeSection,
 } from '@/components/settings';
 import type { SettingsFormValues } from '@/domain/settings/types';
 
@@ -35,6 +36,7 @@ export default function SettingsScreen() {
     updateSealImage,
     toggleShowContactPerson,
     updateInvoiceTemplateType,
+    updateSealSize,
     save,
     getFormattedNextNumber,
     reload,
@@ -115,6 +117,13 @@ export default function SettingsScreen() {
         <SealImageSection
           sealImageUri={state.values.sealImageUri}
           onImageChange={updateSealImage}
+          disabled={isFormDisabled}
+        />
+
+        {/* Seal Size Section */}
+        <SealSizeSection
+          value={state.values.sealSize}
+          onChange={updateSealSize}
           disabled={isFormDisabled}
         />
 

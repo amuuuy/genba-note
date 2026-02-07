@@ -24,6 +24,8 @@
  */
 
 import type { DocumentWithTotals, SensitiveIssuerSnapshot } from '@/types/document';
+import type { SealSize } from './types';
+import { getSealSizePx, DEFAULT_SEAL_SIZE } from './types';
 import {
   formatCurrency,
   formatDate,
@@ -329,7 +331,7 @@ function renderNotesSection(doc: DocumentWithTotals): string {
 
 // === CSS Styles ===
 
-function getTemplateStyles(): string {
+function getTemplateStyles(accountingSealSizePx: number): string {
   return `
     * {
       margin: 0;
@@ -468,8 +470,8 @@ function getTemplateStyles(): string {
     }
 
     .seal-image {
-      width: 70px;
-      height: 70px;
+      width: ${accountingSealSizePx}px;
+      height: ${accountingSealSizePx}px;
       object-fit: contain;
       opacity: 0.85;
     }
@@ -736,8 +738,10 @@ function getTemplateStyles(): string {
  */
 export function generateInvoiceAccountingTemplate(
   doc: DocumentWithTotals,
-  sensitiveSnapshot: SensitiveIssuerSnapshot | null
+  sensitiveSnapshot: SensitiveIssuerSnapshot | null,
+  sealSize?: SealSize
 ): string {
+  const accountingSealSizePx = getSealSizePx(sealSize ?? DEFAULT_SEAL_SIZE, 'ACCOUNTING');
   const clientAddressHtml = doc.clientAddress
     ? `<div class="client-address">${escapeHtml(doc.clientAddress)}</div>`
     : '';
@@ -760,7 +764,7 @@ export function generateInvoiceAccountingTemplate(
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    ${getTemplateStyles()}
+    ${getTemplateStyles(accountingSealSizePx)}
   </style>
 </head>
 <body>

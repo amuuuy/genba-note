@@ -16,8 +16,8 @@ import {
   deleteSensitiveIssuerInfo,
 } from '@/storage/secureStorageService';
 import { formatDocumentNumber } from '@/domain/document/autoNumberingService';
-import type { InvoiceTemplateType } from '@/pdf/types';
-import { DEFAULT_INVOICE_TEMPLATE_TYPE } from '@/pdf/types';
+import type { InvoiceTemplateType, SealSize } from '@/pdf/types';
+import { DEFAULT_INVOICE_TEMPLATE_TYPE, DEFAULT_SEAL_SIZE } from '@/pdf/types';
 
 // Export types for external use
 export type { SettingsFormValues };
@@ -51,6 +51,7 @@ export type SettingsEditAction =
   | { type: 'UPDATE_SEAL_IMAGE'; uri: string | null }
   | { type: 'TOGGLE_SHOW_CONTACT_PERSON'; value: boolean }
   | { type: 'UPDATE_INVOICE_TEMPLATE_TYPE'; value: InvoiceTemplateType }
+  | { type: 'UPDATE_SEAL_SIZE'; value: SealSize }
   | { type: 'SET_ERRORS'; errors: SettingsFormErrors }
   | { type: 'CLEAR_ERRORS' }
   | { type: 'START_SAVING' }
@@ -72,6 +73,7 @@ const initialFormValues: SettingsFormValues = {
   invoicePrefix: 'INV-',
   sealImageUri: null,
   invoiceTemplateType: DEFAULT_INVOICE_TEMPLATE_TYPE,
+  sealSize: DEFAULT_SEAL_SIZE,
   invoiceNumber: '',
   bankName: '',
   branchName: '',
@@ -101,7 +103,7 @@ export function createInitialFormValues(
   appSettings: AppSettings,
   sensitiveSettings: SensitiveIssuerSettings | null
 ): SettingsFormValues {
-  const { issuer, numbering, invoiceTemplateType } = appSettings;
+  const { issuer, numbering, invoiceTemplateType, sealSize } = appSettings;
   const bankAccount = sensitiveSettings?.bankAccount;
 
   return {
@@ -117,6 +119,7 @@ export function createInitialFormValues(
     invoicePrefix: numbering.invoicePrefix,
     sealImageUri: issuer.sealImageUri ?? null,
     invoiceTemplateType: invoiceTemplateType ?? DEFAULT_INVOICE_TEMPLATE_TYPE,
+    sealSize: sealSize ?? DEFAULT_SEAL_SIZE,
     // SecureStore fields
     invoiceNumber: sensitiveSettings?.invoiceNumber ?? '',
     bankName: bankAccount?.bankName ?? '',
@@ -210,6 +213,16 @@ export function settingsEditReducer(
         isDirty: true,
       };
 
+    case 'UPDATE_SEAL_SIZE':
+      return {
+        ...state,
+        values: {
+          ...state.values,
+          sealSize: action.value,
+        },
+        isDirty: true,
+      };
+
     case 'SET_ERRORS':
       return {
         ...state,
@@ -258,6 +271,7 @@ export interface UseSettingsEditReturn {
   updateSealImage: (uri: string | null) => void;
   toggleShowContactPerson: (value: boolean) => void;
   updateInvoiceTemplateType: (value: InvoiceTemplateType) => void;
+  updateSealSize: (value: SealSize) => void;
   save: () => Promise<boolean>;
   validate: () => boolean;
   getFormattedNextNumber: (type: 'estimate' | 'invoice') => string;
@@ -355,6 +369,11 @@ export function useSettingsEdit(): UseSettingsEditReturn {
     dispatch({ type: 'UPDATE_INVOICE_TEMPLATE_TYPE', value });
   }, []);
 
+  // Update seal size
+  const updateSealSize = useCallback((value: SealSize) => {
+    dispatch({ type: 'UPDATE_SEAL_SIZE', value });
+  }, []);
+
   // Validate the form
   const validate = useCallback((): boolean => {
     const errors = validateSettingsForm(state.values);
@@ -434,6 +453,7 @@ export function useSettingsEdit(): UseSettingsEditReturn {
           invoicePrefix: state.values.invoicePrefix,
         } as AppSettings['numbering'],
         invoiceTemplateType: state.values.invoiceTemplateType,
+        sealSize: state.values.sealSize,
       });
 
       if (!appSettingsResult.success) {
@@ -501,6 +521,7 @@ export function useSettingsEdit(): UseSettingsEditReturn {
     updateSealImage,
     toggleShowContactPerson,
     updateInvoiceTemplateType,
+    updateSealSize,
     save,
     validate,
     getFormattedNextNumber,

@@ -30,6 +30,9 @@ export const DEFAULT_INVOICE_TEMPLATE_TYPE: InvoiceTemplateType = 'ACCOUNTING';
 export const SEAL_SIZES = ['SMALL', 'MEDIUM', 'LARGE'] as const;
 export type SealSize = (typeof SEAL_SIZES)[number];
 
+/** Default seal size */
+export const DEFAULT_SEAL_SIZE: SealSize = 'MEDIUM';
+
 /** Background design values — single source of truth for type + runtime validation */
 export const BACKGROUND_DESIGNS = ['NONE', 'STRIPE', 'WAVE', 'GRID', 'DOTS'] as const;
 export type BackgroundDesign = (typeof BACKGROUND_DESIGNS)[number];
@@ -84,6 +87,9 @@ export interface PdfTemplateInput {
 
   /** Document template ID for PDF output (M16). Ignored in screen mode. */
   templateId?: DocumentTemplateId;
+
+  /** Seal size for PDF output (M17). Defaults to MEDIUM if not provided. */
+  sealSize?: SealSize;
 }
 
 /**

@@ -10,8 +10,8 @@
  */
 
 import type { DocumentType, DocumentWithTotals, TaxRate, SensitiveIssuerSnapshot } from '@/types/document';
-import type { PdfTemplateInput, PdfTemplateResult, ColorScheme, TemplateMode, InvoiceTemplateType } from './types';
-import { ESTIMATE_COLORS, INVOICE_COLORS, FORMAL_COLORS, DEFAULT_INVOICE_TEMPLATE_TYPE } from './types';
+import type { PdfTemplateInput, PdfTemplateResult, ColorScheme, TemplateMode, InvoiceTemplateType, SealSize } from './types';
+import { ESTIMATE_COLORS, INVOICE_COLORS, FORMAL_COLORS, DEFAULT_INVOICE_TEMPLATE_TYPE, DEFAULT_SEAL_SIZE, getSealSizePx } from './types';
 import { getScreenThemeCss, getFormalThemeCss } from './themes';
 import { generateInvoiceAccountingTemplate } from './invoiceAccountingTemplate';
 
@@ -896,8 +896,10 @@ function generateScreenTemplate(
  */
 function generateInvoiceFormalTemplate(
   doc: DocumentWithTotals,
-  sensitiveSnapshot: SensitiveIssuerSnapshot | null
+  sensitiveSnapshot: SensitiveIssuerSnapshot | null,
+  sealSize?: SealSize
 ): string {
+  const simpleSealSizePx = getSealSizePx(sealSize ?? DEFAULT_SEAL_SIZE, 'SIMPLE');
   const themeCss = getFormalThemeCss(FORMAL_COLORS);
   const title = generateDocumentTitle(doc.type, 'pdf');
 
@@ -1042,8 +1044,8 @@ function generateInvoiceFormalTemplate(
     }
 
     .seal-image {
-      width: 50px;
-      height: 50px;
+      width: ${simpleSealSizePx}px;
+      height: ${simpleSealSizePx}px;
       object-fit: contain;
       opacity: 0.85;
     }
@@ -1328,19 +1330,21 @@ function generateInvoiceFormalTemplate(
 function generateFormalPdfTemplate(
   doc: DocumentWithTotals,
   sensitiveSnapshot: SensitiveIssuerSnapshot | null,
-  invoiceTemplateType: InvoiceTemplateType = DEFAULT_INVOICE_TEMPLATE_TYPE
+  invoiceTemplateType: InvoiceTemplateType = DEFAULT_INVOICE_TEMPLATE_TYPE,
+  sealSize?: SealSize
 ): string {
   // Invoice: route based on template type
   if (doc.type === 'invoice') {
     if (invoiceTemplateType === 'SIMPLE') {
       // Use the existing formal template (simpler layout)
-      return generateInvoiceFormalTemplate(doc, sensitiveSnapshot);
+      return generateInvoiceFormalTemplate(doc, sensitiveSnapshot, sealSize);
     }
     // Default: Use accounting-style layout
-    return generateInvoiceAccountingTemplate(doc, sensitiveSnapshot);
+    return generateInvoiceAccountingTemplate(doc, sensitiveSnapshot, sealSize);
   }
 
   // Estimate keeps the original formal layout
+  const estimateSealSizePx = getSealSizePx(sealSize ?? DEFAULT_SEAL_SIZE, 'FORMAL_STANDARD');
   const themeCss = getFormalThemeCss(FORMAL_COLORS);
   const title = generateDocumentTitle(doc.type, 'pdf');
 
@@ -1528,8 +1532,8 @@ function generateFormalPdfTemplate(
     /* Seal image container - positioned to right of info */
     .issuer-seal {
       flex-shrink: 0;
-      width: 70px;
-      height: 70px;
+      width: ${estimateSealSizePx}px;
+      height: ${estimateSealSizePx}px;
     }
 
     .seal-image {
@@ -1743,13 +1747,13 @@ function generateFormalPdfTemplate(
  * @param input.invoiceTemplateType - Invoice template type (only used for invoice documents in pdf mode)
  */
 export function generateHtmlTemplate(input: PdfTemplateInput): PdfTemplateResult {
-  const { document: doc, sensitiveSnapshot, mode = 'screen', invoiceTemplateType } = input;
+  const { document: doc, sensitiveSnapshot, mode = 'screen', invoiceTemplateType, sealSize } = input;
 
   let html: string;
 
   if (mode === 'pdf') {
     // Use formal PDF template for official documents
-    html = generateFormalPdfTemplate(doc, sensitiveSnapshot, invoiceTemplateType);
+    html = generateFormalPdfTemplate(doc, sensitiveSnapshot, invoiceTemplateType, sealSize);
   } else {
     // Use colorful screen template for preview
     const colors = getColorScheme(doc.type);

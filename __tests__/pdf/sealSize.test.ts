@@ -1,0 +1,207 @@
+/**
+ * Seal Size Tests
+ *
+ * Tests for getSealSizePx() mapping and dynamic CSS injection in PDF templates.
+ * Milestone 17: 印鑑サイズ選択（大・中・小）
+ */
+
+import { getSealSizePx } from '../../src/pdf/types';
+import type { SealSize, DocumentTemplateId } from '../../src/pdf/types';
+import { generateHtmlTemplate } from '../../src/pdf/pdfTemplateService';
+import { generateInvoiceAccountingTemplate } from '../../src/pdf/invoiceAccountingTemplate';
+import {
+  createTestDocumentWithTotals,
+  createTestIssuerSnapshot,
+  createTestSensitiveSnapshot,
+} from './helpers';
+
+// === getSealSizePx() mapping tests (3 sizes × 5 templates = 15 patterns) ===
+
+describe('getSealSizePx', () => {
+  // SMALL
+  it('returns 45 for SMALL + FORMAL_STANDARD', () => {
+    expect(getSealSizePx('SMALL', 'FORMAL_STANDARD')).toBe(45);
+  });
+  it('returns 45 for SMALL + ACCOUNTING', () => {
+    expect(getSealSizePx('SMALL', 'ACCOUNTING')).toBe(45);
+  });
+  it('returns 30 for SMALL + SIMPLE', () => {
+    expect(getSealSizePx('SMALL', 'SIMPLE')).toBe(30);
+  });
+  it('returns 45 for SMALL + MODERN', () => {
+    expect(getSealSizePx('SMALL', 'MODERN')).toBe(45);
+  });
+  it('returns 45 for SMALL + CLASSIC', () => {
+    expect(getSealSizePx('SMALL', 'CLASSIC')).toBe(45);
+  });
+
+  // MEDIUM (must match current hardcoded values)
+  it('returns 70 for MEDIUM + FORMAL_STANDARD', () => {
+    expect(getSealSizePx('MEDIUM', 'FORMAL_STANDARD')).toBe(70);
+  });
+  it('returns 70 for MEDIUM + ACCOUNTING', () => {
+    expect(getSealSizePx('MEDIUM', 'ACCOUNTING')).toBe(70);
+  });
+  it('returns 50 for MEDIUM + SIMPLE', () => {
+    expect(getSealSizePx('MEDIUM', 'SIMPLE')).toBe(50);
+  });
+  it('returns 70 for MEDIUM + MODERN', () => {
+    expect(getSealSizePx('MEDIUM', 'MODERN')).toBe(70);
+  });
+  it('returns 70 for MEDIUM + CLASSIC', () => {
+    expect(getSealSizePx('MEDIUM', 'CLASSIC')).toBe(70);
+  });
+
+  // LARGE
+  it('returns 100 for LARGE + FORMAL_STANDARD', () => {
+    expect(getSealSizePx('LARGE', 'FORMAL_STANDARD')).toBe(100);
+  });
+  it('returns 100 for LARGE + ACCOUNTING', () => {
+    expect(getSealSizePx('LARGE', 'ACCOUNTING')).toBe(100);
+  });
+  it('returns 70 for LARGE + SIMPLE', () => {
+    expect(getSealSizePx('LARGE', 'SIMPLE')).toBe(70);
+  });
+  it('returns 100 for LARGE + MODERN', () => {
+    expect(getSealSizePx('LARGE', 'MODERN')).toBe(100);
+  });
+  it('returns 100 for LARGE + CLASSIC', () => {
+    expect(getSealSizePx('LARGE', 'CLASSIC')).toBe(100);
+  });
+});
+
+// === HTML CSS injection tests ===
+
+// Minimal valid base64 PNG for seal image testing
+const SEAL_BASE64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwADhQGAWjR9awAAAABJRU5ErkJggg==';
+
+describe('Seal size CSS injection in templates', () => {
+  describe('Estimate FORMAL template', () => {
+    it('uses dynamic seal size from getSealSizePx for SMALL', () => {
+      const doc = createTestDocumentWithTotals({
+        type: 'estimate',
+        issuerSnapshot: createTestIssuerSnapshot({
+          sealImageBase64: SEAL_BASE64,
+        }),
+      });
+      const { html } = generateHtmlTemplate({
+        document: doc,
+        sensitiveSnapshot: createTestSensitiveSnapshot(),
+        mode: 'pdf',
+        sealSize: 'SMALL',
+      });
+      // FORMAL_STANDARD SMALL = 45px
+      expect(html).toContain('width: 45px');
+      expect(html).toContain('height: 45px');
+    });
+
+    it('uses dynamic seal size from getSealSizePx for LARGE', () => {
+      const doc = createTestDocumentWithTotals({
+        type: 'estimate',
+        issuerSnapshot: createTestIssuerSnapshot({
+          sealImageBase64: SEAL_BASE64,
+        }),
+      });
+      const { html } = generateHtmlTemplate({
+        document: doc,
+        sensitiveSnapshot: createTestSensitiveSnapshot(),
+        mode: 'pdf',
+        sealSize: 'LARGE',
+      });
+      // FORMAL_STANDARD LARGE = 100px
+      expect(html).toContain('width: 100px');
+      expect(html).toContain('height: 100px');
+    });
+
+    it('defaults to MEDIUM (70px) when sealSize is not provided', () => {
+      const doc = createTestDocumentWithTotals({
+        type: 'estimate',
+        issuerSnapshot: createTestIssuerSnapshot({
+          sealImageBase64: SEAL_BASE64,
+        }),
+      });
+      const { html } = generateHtmlTemplate({
+        document: doc,
+        sensitiveSnapshot: createTestSensitiveSnapshot(),
+        mode: 'pdf',
+      });
+      // FORMAL_STANDARD MEDIUM = 70px (matches current hardcoded value)
+      expect(html).toContain('width: 70px');
+      expect(html).toContain('height: 70px');
+    });
+  });
+
+  describe('Invoice SIMPLE template', () => {
+    it('uses dynamic seal size from getSealSizePx for LARGE', () => {
+      const doc = createTestDocumentWithTotals({
+        type: 'invoice',
+        issuerSnapshot: createTestIssuerSnapshot({
+          sealImageBase64: SEAL_BASE64,
+        }),
+      });
+      const { html } = generateHtmlTemplate({
+        document: doc,
+        sensitiveSnapshot: createTestSensitiveSnapshot(),
+        mode: 'pdf',
+        invoiceTemplateType: 'SIMPLE',
+        sealSize: 'LARGE',
+      });
+      // SIMPLE LARGE = 70px
+      expect(html).toContain('width: 70px');
+      expect(html).toContain('height: 70px');
+    });
+
+    it('defaults to MEDIUM (50px) when sealSize is not provided', () => {
+      const doc = createTestDocumentWithTotals({
+        type: 'invoice',
+        issuerSnapshot: createTestIssuerSnapshot({
+          sealImageBase64: SEAL_BASE64,
+        }),
+      });
+      const { html } = generateHtmlTemplate({
+        document: doc,
+        sensitiveSnapshot: createTestSensitiveSnapshot(),
+        mode: 'pdf',
+        invoiceTemplateType: 'SIMPLE',
+      });
+      // SIMPLE MEDIUM = 50px (matches current hardcoded value)
+      expect(html).toContain('width: 50px');
+      expect(html).toContain('height: 50px');
+    });
+  });
+
+  describe('Invoice ACCOUNTING template', () => {
+    it('uses dynamic seal size from getSealSizePx for SMALL', () => {
+      const doc = createTestDocumentWithTotals({
+        type: 'invoice',
+        issuerSnapshot: createTestIssuerSnapshot({
+          sealImageBase64: SEAL_BASE64,
+        }),
+      });
+      const html = generateInvoiceAccountingTemplate(
+        doc,
+        createTestSensitiveSnapshot(),
+        'SMALL'
+      );
+      // ACCOUNTING SMALL = 45px
+      expect(html).toContain('width: 45px');
+      expect(html).toContain('height: 45px');
+    });
+
+    it('defaults to MEDIUM (70px) when sealSize is not provided', () => {
+      const doc = createTestDocumentWithTotals({
+        type: 'invoice',
+        issuerSnapshot: createTestIssuerSnapshot({
+          sealImageBase64: SEAL_BASE64,
+        }),
+      });
+      const html = generateInvoiceAccountingTemplate(
+        doc,
+        createTestSensitiveSnapshot()
+      );
+      // ACCOUNTING MEDIUM = 70px (matches current hardcoded value)
+      expect(html).toContain('width: 70px');
+      expect(html).toContain('height: 70px');
+    });
+  });
+});

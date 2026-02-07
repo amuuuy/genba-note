@@ -2,7 +2,7 @@
  * Settings Domain Types
  */
 
-import type { InvoiceTemplateType } from '@/pdf/types';
+import type { InvoiceTemplateType, SealSize } from '@/pdf/types';
 
 /**
  * Validation error for a specific field
@@ -37,6 +37,8 @@ export interface SettingsFormValues {
   sealImageUri: string | null;
   /** Invoice PDF template preference */
   invoiceTemplateType: InvoiceTemplateType;
+  /** Seal (stamp) size for PDF output */
+  sealSize: SealSize;
 
   // SecureStore fields (sensitive)
   invoiceNumber: string;

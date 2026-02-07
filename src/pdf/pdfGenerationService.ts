@@ -13,7 +13,7 @@ import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
 
 import type { PdfTemplateInput, PdfGenerationResult } from './types';
-import { DEFAULT_INVOICE_TEMPLATE_TYPE } from './types';
+import { DEFAULT_INVOICE_TEMPLATE_TYPE, DEFAULT_SEAL_SIZE } from './types';
 import { generateHtmlTemplate } from './pdfTemplateService';
 import { checkProStatus } from './proGateService';
 import { validateDocumentForPdf, formatValidationError } from './pdfValidationService';
@@ -147,17 +147,21 @@ export async function generateAndSharePdf(
     };
   }
 
-  // 2.5. Load settings to get invoice template preference
+  // 2.5. Load settings to get invoice template preference and seal size
   const settingsResult = await getSettings();
   const invoiceTemplateType = settingsResult.success
     ? settingsResult.data?.invoiceTemplateType ?? DEFAULT_INVOICE_TEMPLATE_TYPE
     : DEFAULT_INVOICE_TEMPLATE_TYPE;
+  const sealSize = settingsResult.success
+    ? settingsResult.data?.sealSize ?? DEFAULT_SEAL_SIZE
+    : DEFAULT_SEAL_SIZE;
 
   // 3. Generate HTML template with formal PDF theme
   const { html } = generateHtmlTemplate({
     ...input,
     mode: 'pdf',
     invoiceTemplateType,
+    sealSize,
   });
 
   // 4. Generate PDF
