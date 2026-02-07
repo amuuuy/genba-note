@@ -45,6 +45,7 @@ export {
   validateDocument,
   getEditableFields,
   validateEditAllowed,
+  sanitizeDocumentType,
 } from './documentValidation';
 
 // === Status Transitions (pure functions) ===

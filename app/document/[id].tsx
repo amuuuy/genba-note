@@ -39,7 +39,7 @@ import {
 import { enrichDocumentWithTotals } from '@/domain/lineItem/calculationService';
 import { resolveIssuerInfo } from '@/pdf/issuerResolverService';
 import { getPdfErrorMessage } from '@/constants/errorMessages';
-import { changeDocumentStatus } from '@/domain/document';
+import { changeDocumentStatus, sanitizeDocumentType } from '@/domain/document';
 import { getSettings } from '@/storage/asyncStorageService';
 
 /**
@@ -56,7 +56,7 @@ export default function DocumentEditScreen() {
 
   const isNewDocument = id === 'new';
   const documentId = isNewDocument ? null : id ?? null;
-  const documentType = (type as DocumentType) ?? 'estimate';
+  const documentType = sanitizeDocumentType(type);
 
   // Document edit state
   const {

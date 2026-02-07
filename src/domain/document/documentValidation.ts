@@ -5,7 +5,7 @@
  * No side effects - all validation is based on input parameters only.
  */
 
-import type { Document, LineItem, DocumentStatus } from '@/types/document';
+import type { Document, LineItem, DocumentStatus, DocumentType } from '@/types/document';
 import type { ValidationError } from './types';
 import { createValidationError } from './types';
 import {
@@ -575,4 +575,11 @@ export function validateEditAllowed(
   }
 
   return null;
+}
+
+// === Input Sanitization ===
+
+/** Validate and sanitize document type from URL params */
+export function sanitizeDocumentType(type: string | undefined): DocumentType {
+  return (type === 'estimate' || type === 'invoice') ? type : 'estimate';
 }

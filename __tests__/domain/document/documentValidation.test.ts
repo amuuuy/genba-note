@@ -16,6 +16,7 @@ import {
   validateDocument,
   getEditableFields,
   validateEditAllowed,
+  sanitizeDocumentType,
 } from '@/domain/document/documentValidation';
 import {
   MAX_QUANTITY_MILLI,
@@ -612,6 +613,24 @@ describe('documentValidation', () => {
       };
       const error = validateEditAllowed(original, updated);
       expect(error).not.toBeNull();
+    });
+  });
+
+  describe('sanitizeDocumentType', () => {
+    it('returns estimate for type=estimate', () => {
+      expect(sanitizeDocumentType('estimate')).toBe('estimate');
+    });
+
+    it('returns invoice for type=invoice', () => {
+      expect(sanitizeDocumentType('invoice')).toBe('invoice');
+    });
+
+    it('falls back to estimate for undefined', () => {
+      expect(sanitizeDocumentType(undefined)).toBe('estimate');
+    });
+
+    it('falls back to estimate for invalid string', () => {
+      expect(sanitizeDocumentType('bogus')).toBe('estimate');
     });
   });
 });
