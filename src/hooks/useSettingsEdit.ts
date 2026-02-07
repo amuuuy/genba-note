@@ -16,7 +16,7 @@ import {
   deleteSensitiveIssuerInfo,
 } from '@/storage/secureStorageService';
 import { formatDocumentNumber } from '@/domain/document/autoNumberingService';
-import type { InvoiceTemplateType, SealSize, BackgroundDesign } from '@/pdf/types';
+import type { InvoiceTemplateType, SealSize, BackgroundDesign, DocumentTemplateId } from '@/pdf/types';
 import { DEFAULT_INVOICE_TEMPLATE_TYPE, DEFAULT_SEAL_SIZE } from '@/pdf/types';
 
 // Export types for external use
@@ -53,6 +53,8 @@ export type SettingsEditAction =
   | { type: 'UPDATE_INVOICE_TEMPLATE_TYPE'; value: InvoiceTemplateType }
   | { type: 'UPDATE_SEAL_SIZE'; value: SealSize }
   | { type: 'UPDATE_BACKGROUND_DESIGN'; value: BackgroundDesign }
+  | { type: 'UPDATE_DEFAULT_ESTIMATE_TEMPLATE_ID'; value: DocumentTemplateId }
+  | { type: 'UPDATE_DEFAULT_INVOICE_TEMPLATE_ID'; value: DocumentTemplateId }
   | { type: 'SET_ERRORS'; errors: SettingsFormErrors }
   | { type: 'CLEAR_ERRORS' }
   | { type: 'START_SAVING' }
@@ -76,6 +78,8 @@ const initialFormValues: SettingsFormValues = {
   invoiceTemplateType: DEFAULT_INVOICE_TEMPLATE_TYPE,
   sealSize: DEFAULT_SEAL_SIZE,
   backgroundDesign: 'NONE' as const,
+  defaultEstimateTemplateId: 'FORMAL_STANDARD' as const,
+  defaultInvoiceTemplateId: 'ACCOUNTING' as const,
   invoiceNumber: '',
   bankName: '',
   branchName: '',
@@ -105,7 +109,7 @@ export function createInitialFormValues(
   appSettings: AppSettings,
   sensitiveSettings: SensitiveIssuerSettings | null
 ): SettingsFormValues {
-  const { issuer, numbering, invoiceTemplateType, sealSize, backgroundDesign } = appSettings;
+  const { issuer, numbering, invoiceTemplateType, sealSize, backgroundDesign, defaultEstimateTemplateId, defaultInvoiceTemplateId } = appSettings;
   const bankAccount = sensitiveSettings?.bankAccount;
 
   return {
@@ -123,6 +127,8 @@ export function createInitialFormValues(
     invoiceTemplateType: invoiceTemplateType ?? DEFAULT_INVOICE_TEMPLATE_TYPE,
     sealSize: sealSize ?? DEFAULT_SEAL_SIZE,
     backgroundDesign: backgroundDesign ?? 'NONE',
+    defaultEstimateTemplateId: defaultEstimateTemplateId ?? 'FORMAL_STANDARD',
+    defaultInvoiceTemplateId: defaultInvoiceTemplateId ?? 'ACCOUNTING',
     // SecureStore fields
     invoiceNumber: sensitiveSettings?.invoiceNumber ?? '',
     bankName: bankAccount?.bankName ?? '',
@@ -212,6 +218,8 @@ export function settingsEditReducer(
         values: {
           ...state.values,
           invoiceTemplateType: action.value,
+          // Sync defaultInvoiceTemplateId for backward compatibility
+          defaultInvoiceTemplateId: action.value,
         },
         isDirty: true,
       };
@@ -232,6 +240,30 @@ export function settingsEditReducer(
         values: {
           ...state.values,
           backgroundDesign: action.value,
+        },
+        isDirty: true,
+      };
+
+    case 'UPDATE_DEFAULT_ESTIMATE_TEMPLATE_ID':
+      return {
+        ...state,
+        values: {
+          ...state.values,
+          defaultEstimateTemplateId: action.value,
+        },
+        isDirty: true,
+      };
+
+    case 'UPDATE_DEFAULT_INVOICE_TEMPLATE_ID':
+      return {
+        ...state,
+        values: {
+          ...state.values,
+          defaultInvoiceTemplateId: action.value,
+          // Sync legacy invoiceTemplateType for backward compatibility
+          invoiceTemplateType: (action.value === 'ACCOUNTING' || action.value === 'SIMPLE')
+            ? action.value as InvoiceTemplateType
+            : 'ACCOUNTING' as InvoiceTemplateType,
         },
         isDirty: true,
       };
@@ -286,6 +318,8 @@ export interface UseSettingsEditReturn {
   updateInvoiceTemplateType: (value: InvoiceTemplateType) => void;
   updateSealSize: (value: SealSize) => void;
   updateBackgroundDesign: (value: BackgroundDesign) => void;
+  updateDefaultEstimateTemplateId: (value: DocumentTemplateId) => void;
+  updateDefaultInvoiceTemplateId: (value: DocumentTemplateId) => void;
   save: () => Promise<boolean>;
   validate: () => boolean;
   getFormattedNextNumber: (type: 'estimate' | 'invoice') => string;
@@ -393,6 +427,16 @@ export function useSettingsEdit(): UseSettingsEditReturn {
     dispatch({ type: 'UPDATE_BACKGROUND_DESIGN', value });
   }, []);
 
+  // Update default estimate template ID (M21)
+  const updateDefaultEstimateTemplateId = useCallback((value: DocumentTemplateId) => {
+    dispatch({ type: 'UPDATE_DEFAULT_ESTIMATE_TEMPLATE_ID', value });
+  }, []);
+
+  // Update default invoice template ID (M21)
+  const updateDefaultInvoiceTemplateId = useCallback((value: DocumentTemplateId) => {
+    dispatch({ type: 'UPDATE_DEFAULT_INVOICE_TEMPLATE_ID', value });
+  }, []);
+
   // Validate the form
   const validate = useCallback((): boolean => {
     const errors = validateSettingsForm(state.values);
@@ -474,6 +518,8 @@ export function useSettingsEdit(): UseSettingsEditReturn {
         invoiceTemplateType: state.values.invoiceTemplateType,
         sealSize: state.values.sealSize,
         backgroundDesign: state.values.backgroundDesign,
+        defaultEstimateTemplateId: state.values.defaultEstimateTemplateId,
+        defaultInvoiceTemplateId: state.values.defaultInvoiceTemplateId,
       });
 
       if (!appSettingsResult.success) {
@@ -543,6 +589,8 @@ export function useSettingsEdit(): UseSettingsEditReturn {
     updateInvoiceTemplateType,
     updateSealSize,
     updateBackgroundDesign,
+    updateDefaultEstimateTemplateId,
+    updateDefaultInvoiceTemplateId,
     save,
     validate,
     getFormattedNextNumber,

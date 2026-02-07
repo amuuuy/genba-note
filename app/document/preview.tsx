@@ -31,6 +31,7 @@ import { resolveIssuerInfo } from '@/pdf/issuerResolverService';
 import { generateHtmlTemplate, generateFilenameTitle, deriveDisplayHtml, toggleOrientation } from '@/pdf/pdfTemplateService';
 // Import PDF generation service for Pro feature
 import { generateAndSharePdf } from '@/pdf/pdfGenerationService';
+import { getSettings } from '@/storage/asyncStorageService';
 import { FilenameEditModal } from '@/components/document/FilenameEditModal';
 import { getPdfErrorMessage } from '@/constants/errorMessages';
 import type { Document, DocumentWithTotals, SensitiveIssuerSnapshot } from '@/types/document';
@@ -105,13 +106,21 @@ export default function DocumentPreviewScreen() {
         };
         setDocumentWithTotals(documentForTemplate);
 
-        // 5. Generate HTML with resolved data
-        // 請求書の場合はPDFスタイル（会計様式）でプレビュー表示
-        const templateMode = documentForTemplate.type === 'invoice' ? 'pdf' : 'screen';
+        // 5. Load settings for template selection (M21)
+        const settingsResult = await getSettings();
+        const settings = settingsResult.success ? settingsResult.data : null;
+        const templateId = documentForTemplate.type === 'estimate'
+          ? settings?.defaultEstimateTemplateId ?? 'FORMAL_STANDARD'
+          : settings?.defaultInvoiceTemplateId ?? 'ACCOUNTING';
+
+        // 6. Generate HTML with resolved data using user's template preference
         const templateResult = generateHtmlTemplate({
           document: documentForTemplate,
           sensitiveSnapshot: issuerInfo.sensitiveSnapshot,
-          mode: templateMode,
+          mode: 'pdf',
+          templateId,
+          sealSize: settings?.sealSize,
+          backgroundDesign: settings?.backgroundDesign,
         });
         setHtml(templateResult.html);
 

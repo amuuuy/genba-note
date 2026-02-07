@@ -13,7 +13,7 @@ import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
 
 import type { PdfTemplateInput, PdfGenerationResult, PdfGenerationOptions, PreviewOrientation } from './types';
-import { DEFAULT_INVOICE_TEMPLATE_TYPE, DEFAULT_SEAL_SIZE } from './types';
+import { DEFAULT_SEAL_SIZE } from './types';
 import { generateHtmlTemplate, generateFilenameTitle, injectLandscapeCss } from './pdfTemplateService';
 import { sanitizeFilename } from '@/utils/filenameUtils';
 import { checkProStatus } from './proGateService';
@@ -157,23 +157,22 @@ export async function generateAndSharePdf(
     };
   }
 
-  // 2.5. Load settings to get invoice template preference and seal size
+  // 2.5. Load settings to get template preference, seal size, background design
   const settingsResult = await getSettings();
-  const invoiceTemplateType = settingsResult.success
-    ? settingsResult.data?.invoiceTemplateType ?? DEFAULT_INVOICE_TEMPLATE_TYPE
-    : DEFAULT_INVOICE_TEMPLATE_TYPE;
-  const sealSize = settingsResult.success
-    ? settingsResult.data?.sealSize ?? DEFAULT_SEAL_SIZE
-    : DEFAULT_SEAL_SIZE;
-  const backgroundDesign = settingsResult.success
-    ? settingsResult.data?.backgroundDesign ?? 'NONE'
-    : 'NONE';
+  const settings = settingsResult.success ? settingsResult.data : null;
+
+  // M21: Select template based on document type
+  const templateId = input.document.type === 'estimate'
+    ? settings?.defaultEstimateTemplateId ?? 'FORMAL_STANDARD'
+    : settings?.defaultInvoiceTemplateId ?? 'ACCOUNTING';
+  const sealSize = settings?.sealSize ?? DEFAULT_SEAL_SIZE;
+  const backgroundDesign = settings?.backgroundDesign ?? 'NONE';
 
   // 3. Generate HTML template with formal PDF theme
   let { html } = generateHtmlTemplate({
     ...input,
     mode: 'pdf',
-    invoiceTemplateType,
+    templateId,
     sealSize,
     backgroundDesign,
   });

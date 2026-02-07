@@ -8,5 +8,6 @@ export { NumberingSettingsSection, type NumberingSettingsSectionProps } from './
 export { AccountTypePicker, type AccountTypePickerProps } from './AccountTypePicker';
 export { SealImageSection, type SealImageSectionProps } from './SealImageSection';
 export { InvoiceTemplateSection, type InvoiceTemplateSectionProps } from './InvoiceTemplateSection';
+export { TemplateSelectionSection, type TemplateSelectionSectionProps } from './TemplateSelectionSection';
 export { SealSizeSection, type SealSizeSectionProps } from './SealSizeSection';
 export { BackgroundDesignSection, type BackgroundDesignSectionProps } from './BackgroundDesignSection';

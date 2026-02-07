@@ -25,8 +25,10 @@
 
 import type { DocumentWithTotals, SensitiveIssuerSnapshot } from '@/types/document';
 import type { SealSize, BackgroundDesign } from './types';
+import type { TemplateOptions } from './templates/templateRegistry';
 import { getSealSizePx, DEFAULT_SEAL_SIZE } from './types';
 import { getBackgroundCss } from './backgroundDesigns';
+import { getDocumentLabels } from './templates/documentLabels';
 import {
   formatCurrency,
   formatDate,
@@ -59,11 +61,13 @@ function hasBankInfo(snapshot: SensitiveIssuerSnapshot | null): boolean {
  * タイトルとメタ情報を1つのセクションに統合
  */
 function renderTitleWithMeta(doc: DocumentWithTotals): string {
+  const labels = getDocumentLabels(doc.type);
+  const title = doc.type === 'estimate' ? '見　積　書' : '請　求　書';
   return `
     <div class="title-section">
       <div class="title-row">
         <div class="title-spacer"></div>
-        <h1 class="document-title">請　求　書</h1>
+        <h1 class="document-title">${title}</h1>
         <div class="title-meta">
           <table class="meta-table">
             <tr>
@@ -71,7 +75,7 @@ function renderTitleWithMeta(doc: DocumentWithTotals): string {
               <td class="meta-value">${escapeHtml(doc.documentNo)}</td>
             </tr>
             <tr>
-              <td class="meta-label">請求日</td>
+              <td class="meta-label">${labels.dateLabel}</td>
               <td class="meta-value">${formatDate(doc.issueDate)}</td>
             </tr>
           </table>
@@ -91,6 +95,7 @@ function renderIssuerBlock(
   sensitiveSnapshot: SensitiveIssuerSnapshot | null
 ): string {
   const { issuerSnapshot } = doc;
+  const labels = getDocumentLabels(doc.type);
   const hasSeal = isValidImageDataUri(issuerSnapshot.sealImageBase64);
   const hasContact = !!issuerSnapshot.contactPerson;
 
@@ -123,8 +128,8 @@ function renderIssuerBlock(
     lines.push(`<div class="issuer-seal"><img src="${issuerSnapshot.sealImageBase64}" alt="印影" class="seal-image" /></div>`);
   }
 
-  // Invoice registration number (登録番号) - required for 適格請求書
-  if (sensitiveSnapshot?.invoiceNumber) {
+  // Invoice registration number (登録番号) - only for invoice (適格請求書)
+  if (labels.showRegistrationNumber && sensitiveSnapshot?.invoiceNumber) {
     lines.push(`<div class="issuer-registration">登録番号: ${escapeHtml(sensitiveSnapshot.invoiceNumber)}</div>`);
   }
 
@@ -152,6 +157,7 @@ function renderInfoBlock(
   doc: DocumentWithTotals,
   sensitiveSnapshot: SensitiveIssuerSnapshot | null
 ): string {
+  const labels = getDocumentLabels(doc.type);
   const rows: string[] = [];
 
   // Subject (件名)
@@ -164,18 +170,19 @@ function renderInfoBlock(
     `);
   }
 
-  // Due date (支払期限)
-  if (doc.dueDate) {
+  // Period field (支払期限 or 見積有効期限)
+  const periodValue = doc[labels.periodField];
+  if (periodValue) {
     rows.push(`
       <tr>
-        <td class="info-label">支払期限</td>
-        <td class="info-value">${formatDate(doc.dueDate)}</td>
+        <td class="info-label">${labels.periodLabel}</td>
+        <td class="info-value">${formatDate(periodValue)}</td>
       </tr>
     `);
   }
 
-  // Bank info (振込先)
-  if (hasBankInfo(sensitiveSnapshot)) {
+  // Bank info (振込先) - only for invoice
+  if (labels.showBankInfo && hasBankInfo(sensitiveSnapshot)) {
     const bankLines: string[] = [];
     if (sensitiveSnapshot!.bankName) {
       let bankLine = escapeHtml(sensitiveSnapshot!.bankName);
@@ -786,7 +793,7 @@ export function generateInvoiceAccountingTemplate(
     </div>
 
     <!-- Greeting -->
-    <div class="greeting-text">下記のとおり、御請求申し上げます。</div>
+    <div class="greeting-text">${escapeHtml(getDocumentLabels(doc.type).greeting)}</div>
 
     <!-- Info block (full width) -->
     ${infoSectionHtml}
@@ -808,4 +815,16 @@ export function generateInvoiceAccountingTemplate(
   </div>
 </body>
 </html>`;
+}
+
+/**
+ * TemplateGenerator-compatible wrapper for the registry.
+ * Adapts the existing function signature to match TemplateOptions interface.
+ */
+export function generateAccountingTemplate(
+  doc: DocumentWithTotals,
+  sensitiveSnapshot: SensitiveIssuerSnapshot | null,
+  options: TemplateOptions
+): string {
+  return generateInvoiceAccountingTemplate(doc, sensitiveSnapshot, options.sealSize, options.backgroundDesign);
 }

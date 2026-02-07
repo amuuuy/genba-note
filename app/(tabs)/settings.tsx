@@ -24,7 +24,7 @@ import {
   BankAccountSection,
   NumberingSettingsSection,
   SealImageSection,
-  InvoiceTemplateSection,
+  TemplateSelectionSection,
   SealSizeSection,
   BackgroundDesignSection,
 } from '@/components/settings';
@@ -36,9 +36,10 @@ export default function SettingsScreen() {
     updateField,
     updateSealImage,
     toggleShowContactPerson,
-    updateInvoiceTemplateType,
     updateSealSize,
     updateBackgroundDesign,
+    updateDefaultEstimateTemplateId,
+    updateDefaultInvoiceTemplateId,
     save,
     getFormattedNextNumber,
     reload,
@@ -164,10 +165,12 @@ export default function SettingsScreen() {
           disabled={isFormDisabled}
         />
 
-        {/* Invoice Template Section */}
-        <InvoiceTemplateSection
-          value={state.values.invoiceTemplateType}
-          onChange={updateInvoiceTemplateType}
+        {/* Template Selection Section (M21: per-doc-type template selection) */}
+        <TemplateSelectionSection
+          estimateTemplateId={state.values.defaultEstimateTemplateId}
+          invoiceTemplateId={state.values.defaultInvoiceTemplateId}
+          onEstimateChange={updateDefaultEstimateTemplateId}
+          onInvoiceChange={updateDefaultInvoiceTemplateId}
           disabled={isFormDisabled}
         />
 

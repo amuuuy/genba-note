@@ -139,6 +139,6 @@ export function escapeHtml(text: string): string {
 export function isValidImageDataUri(uri: string | null | undefined): boolean {
   if (!uri) return false;
   // Only allow safe raster image formats (no SVG to prevent XSS)
-  // Check prefix only - validating full base64 content is expensive and unnecessary
-  return /^data:image\/(png|jpeg|jpg|gif|webp);base64,[A-Za-z0-9+/]/.test(uri);
+  // Full match: reject URIs with quotes, spaces, or other non-Base64 chars to prevent attribute injection
+  return /^data:image\/(png|jpeg|jpg|gif|webp);base64,[A-Za-z0-9+/]+=*$/.test(uri);
 }
