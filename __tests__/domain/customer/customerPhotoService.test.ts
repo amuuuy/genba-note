@@ -9,10 +9,15 @@ import {
   getPhotosByCustomer,
   deletePhoto,
   deletePhotosByCustomer,
+  deletePhotoMetadataOnly,
   getPhotoDataUrlsForPdf,
   getTotalPhotoCount,
   validatePhotoLimits,
+  updatePhotoWorkLogEntry,
+  addPhotoRecord,
 } from '@/domain/customer/customerPhotoService';
+import { setReadOnlyMode } from '@/storage/readOnlyModeState';
+import { photosQueue } from '@/utils/writeQueue';
 import type { CustomerPhoto, AddPhotoInput } from '@/types/customerPhoto';
 import {
   STORAGE_KEYS,
@@ -63,6 +68,7 @@ function createTestPhoto(overrides?: Partial<CustomerPhoto>): CustomerPhoto {
 describe('customerPhotoService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    setReadOnlyMode(false);
   });
 
   describe('addPhoto', () => {
@@ -464,6 +470,148 @@ describe('customerPhotoService', () => {
 
       expect(result.success).toBe(true);
       expect(result.data?.customerId).toBe('customer-1');
+    });
+  });
+
+  describe('Read-only mode', () => {
+    it('should block addPhoto in read-only mode', async () => {
+      setReadOnlyMode(true);
+
+      const input: AddPhotoInput = {
+        customerId: 'customer-1',
+        workLogEntryId: 'entry-1',
+        type: 'before',
+        sourceUri: 'file:///temp/photo.jpg',
+      };
+
+      const result = await addPhoto(input);
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('READONLY_MODE');
+      expect(mockedAsyncStorage.setItem).not.toHaveBeenCalled();
+      expect(mockedImageUtils.copyCustomerPhotoToPermanentStorage).not.toHaveBeenCalled();
+    });
+
+    it('should block deletePhoto in read-only mode', async () => {
+      setReadOnlyMode(true);
+
+      const result = await deletePhoto('photo-1');
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('READONLY_MODE');
+      expect(mockedAsyncStorage.setItem).not.toHaveBeenCalled();
+      expect(mockedImageUtils.deleteStoredImage).not.toHaveBeenCalled();
+    });
+
+    it('should block deletePhotoMetadataOnly in read-only mode', async () => {
+      setReadOnlyMode(true);
+
+      const result = await deletePhotoMetadataOnly('photo-1');
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('READONLY_MODE');
+      expect(mockedAsyncStorage.setItem).not.toHaveBeenCalled();
+    });
+
+    it('should block deletePhotosByCustomer in read-only mode', async () => {
+      setReadOnlyMode(true);
+
+      const result = await deletePhotosByCustomer('customer-1');
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('READONLY_MODE');
+      expect(mockedAsyncStorage.setItem).not.toHaveBeenCalled();
+    });
+
+    it('should block updatePhotoWorkLogEntry in read-only mode', async () => {
+      setReadOnlyMode(true);
+
+      const result = await updatePhotoWorkLogEntry('photo-1', 'entry-2');
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('READONLY_MODE');
+      expect(mockedAsyncStorage.setItem).not.toHaveBeenCalled();
+    });
+
+    it('should block addPhotoRecord in read-only mode', async () => {
+      setReadOnlyMode(true);
+
+      const result = await addPhotoRecord({
+        customerId: 'customer-1',
+        workLogEntryId: 'entry-1',
+        type: 'before',
+        uri: 'file:///permanent/photo.jpg',
+        originalFilename: 'photo.jpg',
+        takenAt: Date.now(),
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('READONLY_MODE');
+      expect(mockedAsyncStorage.setItem).not.toHaveBeenCalled();
+    });
+
+    it('should block addPhoto when read-only mode activates during queue wait and clean up copied file', async () => {
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify([]));
+      mockedImageUtils.getFileSize.mockResolvedValue({ success: true, size: 1_000_000 });
+      mockedImageUtils.copyCustomerPhotoToPermanentStorage.mockResolvedValue(
+        'file:///permanent/path/photo.jpg'
+      );
+      mockedImageUtils.deleteStoredImage.mockResolvedValue(undefined);
+
+      // Block the queue with a prior job
+      let releaseBlocker!: () => void;
+      const blocker = new Promise<void>((resolve) => { releaseBlocker = resolve; });
+      const blockerJob = photosQueue.enqueue(async () => { await blocker; });
+
+      // Start addPhoto while queue is occupied (readOnly=false at entry)
+      const addPromise = addPhoto({
+        customerId: 'customer-1',
+        workLogEntryId: 'entry-1',
+        type: 'before',
+        sourceUri: 'file:///temp/photo.jpg',
+      });
+
+      // Switch to read-only while addPhoto waits in queue
+      setReadOnlyMode(true);
+
+      // Release the blocker
+      releaseBlocker();
+      await blockerJob;
+
+      const result = await addPromise;
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('READONLY_MODE');
+      expect(mockedAsyncStorage.setItem).not.toHaveBeenCalled();
+      // Copied file should be cleaned up
+      expect(mockedImageUtils.deleteStoredImage).toHaveBeenCalledWith(
+        'file:///permanent/path/photo.jpg'
+      );
+    });
+
+    it('should clean up copied file when queue throws exception after file copy', async () => {
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify([]));
+      mockedImageUtils.getFileSize.mockResolvedValue({ success: true, size: 1_000_000 });
+      mockedImageUtils.copyCustomerPhotoToPermanentStorage.mockResolvedValue(
+        'file:///permanent/path/photo.jpg'
+      );
+      mockedImageUtils.deleteStoredImage.mockResolvedValue(undefined);
+      // setItem throws inside queue
+      mockedAsyncStorage.setItem.mockRejectedValue(new Error('Storage full'));
+
+      const result = await addPhoto({
+        customerId: 'customer-1',
+        workLogEntryId: 'entry-1',
+        type: 'before',
+        sourceUri: 'file:///temp/photo.jpg',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('STORAGE_ERROR');
+      // Copied file should be cleaned up
+      expect(mockedImageUtils.deleteStoredImage).toHaveBeenCalledWith(
+        'file:///permanent/path/photo.jpg'
+      );
     });
   });
 });

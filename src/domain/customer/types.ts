@@ -16,7 +16,8 @@ export type CustomerServiceErrorCode =
   | 'PHOTO_SIZE_LIMIT_EXCEEDED'
   | 'FILE_NOT_FOUND'
   | 'DUPLICATE_WORK_DATE'
-  | 'WORK_LOG_ENTRY_NOT_FOUND';
+  | 'WORK_LOG_ENTRY_NOT_FOUND'
+  | 'READONLY_MODE';
 
 /**
  * Customer service error

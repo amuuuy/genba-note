@@ -21,8 +21,18 @@ import {
 import { generateUUID } from '@/utils/uuid';
 import { STORAGE_KEYS } from '@/utils/constants';
 import { workLogEntriesQueue, photosQueue } from '@/utils/writeQueue';
+import { getReadOnlyMode } from '@/storage/readOnlyModeState';
 
 // === Helper Functions ===
+
+function readOnlyError<T>(): CustomerDomainResult<T> {
+  return errorResult(
+    createCustomerServiceError(
+      'READONLY_MODE',
+      'App is in read-only mode. Cannot modify work log entries.'
+    )
+  );
+}
 
 /**
  * Get all work log entries from storage
@@ -86,6 +96,10 @@ export async function getAllWorkLogEntries(): Promise<
 export async function createWorkLogEntry(
   input: CreateWorkLogEntryInput
 ): Promise<CustomerDomainResult<WorkLogEntry>> {
+  if (getReadOnlyMode()) {
+    return readOnlyError();
+  }
+
   try {
     // Validate workDate format
     if (!isValidWorkDate(input.workDate)) {
@@ -109,6 +123,11 @@ export async function createWorkLogEntry(
 
     // Use queue to prevent RMW race conditions
     const queueResult = await workLogEntriesQueue.enqueue(async () => {
+      // Re-check read-only mode inside queue to handle mode changes during wait
+      if (getReadOnlyMode()) {
+        return { success: false as const, reason: 'readonly' };
+      }
+
       const entries = await getAllEntriesFromStorage();
 
       // Check for duplicate (customerId, workDate)
@@ -126,6 +145,9 @@ export async function createWorkLogEntry(
     });
 
     if (!queueResult.success) {
+      if (queueResult.reason === 'readonly') {
+        return readOnlyError();
+      }
       return errorResult(
         createCustomerServiceError(
           'DUPLICATE_WORK_DATE',
@@ -198,13 +220,22 @@ export async function updateWorkLogEntry(
   id: string,
   input: UpdateWorkLogEntryInput
 ): Promise<CustomerDomainResult<WorkLogEntry>> {
+  if (getReadOnlyMode()) {
+    return readOnlyError();
+  }
+
   try {
     const result = await workLogEntriesQueue.enqueue(async () => {
+      // Re-check read-only mode inside queue to handle mode changes during wait
+      if (getReadOnlyMode()) {
+        return { success: false as const, reason: 'readonly' as const };
+      }
+
       const entries = await getAllEntriesFromStorage();
       const index = entries.findIndex((e) => e.id === id);
 
       if (index === -1) {
-        return { success: false as const, reason: 'not_found' };
+        return { success: false as const, reason: 'not_found' as const };
       }
 
       const entry = entries[index];
@@ -218,6 +249,10 @@ export async function updateWorkLogEntry(
       await saveAllEntriesToStorage(entries);
       return { success: true as const, entry: updated };
     });
+
+    if (!result.success && result.reason === 'readonly') {
+      return readOnlyError();
+    }
 
     if (!result.success) {
       return errorResult(
@@ -252,20 +287,33 @@ export async function updateWorkLogEntry(
 export async function deleteWorkLogEntry(
   id: string
 ): Promise<CustomerDomainResult<void>> {
+  if (getReadOnlyMode()) {
+    return readOnlyError();
+  }
+
   try {
     // First, delete the entry to ensure it exists and can be deleted
     const result = await workLogEntriesQueue.enqueue(async () => {
+      // Re-check read-only mode inside queue to handle mode changes during wait
+      if (getReadOnlyMode()) {
+        return { success: false as const, reason: 'readonly' as const };
+      }
+
       const entries = await getAllEntriesFromStorage();
       const index = entries.findIndex((e) => e.id === id);
 
       if (index === -1) {
-        return { success: false as const, reason: 'not_found' };
+        return { success: false as const, reason: 'not_found' as const };
       }
 
       entries.splice(index, 1);
       await saveAllEntriesToStorage(entries);
       return { success: true as const };
     });
+
+    if (!result.success && result.reason === 'readonly') {
+      return readOnlyError();
+    }
 
     if (!result.success) {
       return errorResult(
@@ -279,6 +327,8 @@ export async function deleteWorkLogEntry(
     // Entry deleted successfully, now delete associated photos
     // Only delete metadata for photos whose files were successfully deleted
     // Photos with failed file deletions keep their metadata for cleanup retry
+    // NOTE: No read-only re-check here — entry is already deleted,
+    // so photo cleanup must proceed to avoid orphaned photos.
     await photosQueue.enqueue(async () => {
       const photosJson = await AsyncStorage.getItem(STORAGE_KEYS.CUSTOMER_PHOTOS);
       if (photosJson) {
@@ -332,19 +382,32 @@ export async function deleteWorkLogEntry(
 export async function deleteWorkLogEntryOnly(
   id: string
 ): Promise<CustomerDomainResult<void>> {
+  if (getReadOnlyMode()) {
+    return readOnlyError();
+  }
+
   try {
     const result = await workLogEntriesQueue.enqueue(async () => {
+      // Re-check read-only mode inside queue to handle mode changes during wait
+      if (getReadOnlyMode()) {
+        return { success: false as const, reason: 'readonly' as const };
+      }
+
       const entries = await getAllEntriesFromStorage();
       const index = entries.findIndex((e) => e.id === id);
 
       if (index === -1) {
-        return { success: false as const, reason: 'not_found' };
+        return { success: false as const, reason: 'not_found' as const };
       }
 
       entries.splice(index, 1);
       await saveAllEntriesToStorage(entries);
       return { success: true as const };
     });
+
+    if (!result.success && result.reason === 'readonly') {
+      return readOnlyError();
+    }
 
     if (!result.success) {
       return errorResult(
@@ -374,12 +437,26 @@ export async function deleteWorkLogEntryOnly(
 export async function deleteWorkLogEntriesByCustomer(
   customerId: string
 ): Promise<CustomerDomainResult<void>> {
+  if (getReadOnlyMode()) {
+    return readOnlyError();
+  }
+
   try {
-    await workLogEntriesQueue.enqueue(async () => {
+    const queueResult = await workLogEntriesQueue.enqueue(async () => {
+      // Re-check read-only mode inside queue to handle mode changes during wait
+      if (getReadOnlyMode()) {
+        return { success: false as const, readonly: true as const };
+      }
+
       const entries = await getAllEntriesFromStorage();
       const filtered = entries.filter((e) => e.customerId !== customerId);
       await saveAllEntriesToStorage(filtered);
+      return { success: true as const };
     });
+
+    if ('readonly' in queueResult && queueResult.readonly) {
+      return readOnlyError();
+    }
 
     return successResult(undefined);
   } catch (error) {

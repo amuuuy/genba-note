@@ -33,8 +33,18 @@ import {
   getFileSize,
 } from '@/utils/imageUtils';
 import { photosQueue } from '@/utils/writeQueue';
+import { getReadOnlyMode } from '@/storage/readOnlyModeState';
 
 // === Helper Functions ===
+
+function readOnlyError<T>(): CustomerDomainResult<T> {
+  return errorResult(
+    createCustomerServiceError(
+      'READONLY_MODE',
+      'App is in read-only mode. Cannot modify customer photos.'
+    )
+  );
+}
 
 /**
  * Get all photos from storage
@@ -141,6 +151,11 @@ export async function validatePhotoLimits(
 export async function addPhoto(
   input: AddPhotoInput
 ): Promise<CustomerDomainResult<CustomerPhoto>> {
+  if (getReadOnlyMode()) {
+    return readOnlyError();
+  }
+
+  let permanentUri: string | null = null;
   try {
     // Validate workLogEntryId is required for new photos (post-v6)
     if (!input.workLogEntryId) {
@@ -167,7 +182,7 @@ export async function addPhoto(
     }
 
     // Copy photo to permanent storage
-    const permanentUri = await copyCustomerPhotoToPermanentStorage(
+    permanentUri = await copyCustomerPhotoToPermanentStorage(
       input.sourceUri,
       input.customerId,
       input.type
@@ -222,6 +237,11 @@ export async function addPhoto(
     // Use queue to prevent RMW race conditions
     // Final count check inside queue to prevent concurrent additions exceeding limit
     const queueResult = await photosQueue.enqueue(async () => {
+      // Re-check read-only mode inside queue to handle mode changes during wait
+      if (getReadOnlyMode()) {
+        return { success: false as const, reason: 'readonly' };
+      }
+
       const photos = await getAllPhotosFromStorage();
 
       // Final count check inside queue (atomic with save)
@@ -233,6 +253,12 @@ export async function addPhoto(
       await saveAllPhotosToStorage(photos);
       return { success: true as const };
     });
+
+    // If readonly was detected inside queue, clean up and return error
+    if (!queueResult.success && queueResult.reason === 'readonly') {
+      await deleteStoredImage(permanentUri);
+      return readOnlyError();
+    }
 
     // If final count check failed, clean up the copied file
     if (!queueResult.success) {
@@ -247,6 +273,10 @@ export async function addPhoto(
 
     return successResult(photo);
   } catch (error) {
+    // Clean up copied file if it exists (exception may occur after file copy)
+    if (permanentUri) {
+      await deleteStoredImage(permanentUri).catch(() => {});
+    }
     return errorResult(
       createCustomerServiceError(
         'STORAGE_ERROR',
@@ -294,9 +324,18 @@ export async function getPhotosByCustomer(
 export async function deletePhoto(
   photoId: string
 ): Promise<CustomerDomainResult<void>> {
+  if (getReadOnlyMode()) {
+    return readOnlyError();
+  }
+
   try {
     // Use queue to prevent RMW race conditions
     const result = await photosQueue.enqueue(async () => {
+      // Re-check read-only mode inside queue to handle mode changes during wait
+      if (getReadOnlyMode()) {
+        return { found: false as const, readonly: true as const };
+      }
+
       const photos = await getAllPhotosFromStorage();
       const index = photos.findIndex((p) => p.id === photoId);
 
@@ -313,6 +352,10 @@ export async function deletePhoto(
 
       return { found: true as const, uri: photo.uri };
     });
+
+    if ('readonly' in result && result.readonly) {
+      return readOnlyError();
+    }
 
     if (!result.found) {
       return errorResult(
@@ -345,8 +388,17 @@ export async function deletePhoto(
 export async function deletePhotoMetadataOnly(
   photoId: string
 ): Promise<CustomerDomainResult<void>> {
+  if (getReadOnlyMode()) {
+    return readOnlyError();
+  }
+
   try {
     const result = await photosQueue.enqueue(async () => {
+      // Re-check read-only mode inside queue to handle mode changes during wait
+      if (getReadOnlyMode()) {
+        return { found: false as const, readonly: true as const };
+      }
+
       const photos = await getAllPhotosFromStorage();
       const index = photos.findIndex((p) => p.id === photoId);
 
@@ -359,6 +411,10 @@ export async function deletePhotoMetadataOnly(
 
       return { found: true as const };
     });
+
+    if ('readonly' in result && result.readonly) {
+      return readOnlyError();
+    }
 
     if (!result.found) {
       return errorResult(
@@ -387,9 +443,18 @@ export async function deletePhotoMetadataOnly(
 export async function deletePhotosByCustomer(
   customerId: string
 ): Promise<CustomerDomainResult<void>> {
+  if (getReadOnlyMode()) {
+    return readOnlyError();
+  }
+
   try {
     // Use queue to prevent RMW race conditions
-    await photosQueue.enqueue(async () => {
+    const queueResult = await photosQueue.enqueue(async () => {
+      // Re-check read-only mode inside queue to handle mode changes during wait
+      if (getReadOnlyMode()) {
+        return { success: false as const, readonly: true as const };
+      }
+
       const photos = await getAllPhotosFromStorage();
 
       // Filter out photos for this customer
@@ -397,7 +462,12 @@ export async function deletePhotosByCustomer(
 
       // Update storage
       await saveAllPhotosToStorage(remaining);
+      return { success: true as const };
     });
+
+    if ('readonly' in queueResult && queueResult.readonly) {
+      return readOnlyError();
+    }
 
     // Delete the customer's photo directory (outside queue - file ops are independent)
     await deleteCustomerPhotosDirectory(customerId);
@@ -479,6 +549,10 @@ export async function updatePhotoWorkLogEntry(
   photoId: string,
   workLogEntryId: string
 ): Promise<CustomerDomainResult<CustomerPhoto>> {
+  if (getReadOnlyMode()) {
+    return readOnlyError();
+  }
+
   try {
     // Validate workLogEntryId is required (post-v6)
     if (!workLogEntryId) {
@@ -491,11 +565,16 @@ export async function updatePhotoWorkLogEntry(
     }
 
     const result = await photosQueue.enqueue(async () => {
+      // Re-check read-only mode inside queue to handle mode changes during wait
+      if (getReadOnlyMode()) {
+        return { success: false as const, reason: 'readonly' as const };
+      }
+
       const photos = await getAllPhotosFromStorage();
       const index = photos.findIndex((p) => p.id === photoId);
 
       if (index === -1) {
-        return { success: false as const, reason: 'not_found' };
+        return { success: false as const, reason: 'not_found' as const };
       }
 
       const photo = photos[index];
@@ -508,6 +587,10 @@ export async function updatePhotoWorkLogEntry(
       await saveAllPhotosToStorage(photos);
       return { success: true as const, photo: updated };
     });
+
+    if (!result.success && result.reason === 'readonly') {
+      return readOnlyError();
+    }
 
     if (!result.success) {
       return errorResult(
@@ -541,6 +624,10 @@ export async function updatePhotoWorkLogEntry(
 export async function addPhotoRecord(
   input: AddPhotoRecordInput
 ): Promise<CustomerDomainResult<CustomerPhoto>> {
+  if (getReadOnlyMode()) {
+    return readOnlyError();
+  }
+
   try {
     // Verify file exists before creating metadata
     const fileSizeResult = await getFileSize(input.uri);
@@ -568,6 +655,11 @@ export async function addPhotoRecord(
     // Use queue to prevent RMW race conditions
     // Final count check inside queue (atomic with save)
     const queueResult = await photosQueue.enqueue(async () => {
+      // Re-check read-only mode inside queue to handle mode changes during wait
+      if (getReadOnlyMode()) {
+        return { success: false as const, reason: 'readonly' };
+      }
+
       const photos = await getAllPhotosFromStorage();
 
       // Final count check inside queue to prevent concurrent additions exceeding limit
@@ -579,6 +671,11 @@ export async function addPhotoRecord(
       await saveAllPhotosToStorage(photos);
       return { success: true as const };
     });
+
+    // If readonly was detected inside queue, return error without deleting file.
+    if (!queueResult.success && queueResult.reason === 'readonly') {
+      return readOnlyError();
+    }
 
     // If final count check failed, return error without deleting file.
     // The caller (modal) retains the file in tempPhotos for retry or cleanup on cancel.

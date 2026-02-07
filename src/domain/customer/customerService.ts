@@ -21,8 +21,18 @@ import {
 import { generateUUID } from '@/utils/uuid';
 import { STORAGE_KEYS } from '@/utils/constants';
 import { customersQueue } from '@/utils/writeQueue';
+import { getReadOnlyMode } from '@/storage/readOnlyModeState';
 
 // === Helper Functions ===
+
+function readOnlyError<T>(): CustomerDomainResult<T> {
+  return errorResult(
+    createCustomerServiceError(
+      'READONLY_MODE',
+      'App is in read-only mode. Cannot modify customer data.'
+    )
+  );
+}
 
 /**
  * Get all customers from storage
@@ -83,6 +93,10 @@ function matchesSearchText(customer: Customer, searchText: string): boolean {
 export async function createCustomer(
   input: CreateCustomerInput
 ): Promise<CustomerDomainResult<Customer>> {
+  if (getReadOnlyMode()) {
+    return readOnlyError();
+  }
+
   // Validate name before acquiring queue lock (fast fail)
   const nameError = validateName(input.name);
   if (nameError) {
@@ -90,6 +104,11 @@ export async function createCustomer(
   }
 
   return customersQueue.enqueue(async () => {
+    // Re-check read-only mode inside queue to handle mode changes during wait
+    if (getReadOnlyMode()) {
+      return readOnlyError();
+    }
+
     try {
       const customers = await getAllCustomersFromStorage();
 
@@ -182,6 +201,10 @@ export async function updateCustomer(
   id: string,
   input: UpdateCustomerInput
 ): Promise<CustomerDomainResult<Customer>> {
+  if (getReadOnlyMode()) {
+    return readOnlyError();
+  }
+
   // Validate name if provided (fast fail before queue)
   if (input.name !== undefined) {
     const nameError = validateName(input.name);
@@ -191,6 +214,11 @@ export async function updateCustomer(
   }
 
   return customersQueue.enqueue(async () => {
+    // Re-check read-only mode inside queue to handle mode changes during wait
+    if (getReadOnlyMode()) {
+      return readOnlyError();
+    }
+
     try {
       const customers = await getAllCustomersFromStorage();
       const index = customers.findIndex((c) => c.id === id);
@@ -241,7 +269,16 @@ export async function updateCustomer(
 export async function deleteCustomer(
   id: string
 ): Promise<CustomerDomainResult<void>> {
+  if (getReadOnlyMode()) {
+    return readOnlyError();
+  }
+
   return customersQueue.enqueue(async () => {
+    // Re-check read-only mode inside queue to handle mode changes during wait
+    if (getReadOnlyMode()) {
+      return readOnlyError();
+    }
+
     try {
       const customers = await getAllCustomersFromStorage();
       const index = customers.findIndex((c) => c.id === id);

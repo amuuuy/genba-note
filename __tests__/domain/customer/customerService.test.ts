@@ -12,6 +12,8 @@ import {
   deleteCustomer,
   searchCustomers,
 } from '@/domain/customer/customerService';
+import { setReadOnlyMode } from '@/storage/readOnlyModeState';
+import { customersQueue } from '@/utils/writeQueue';
 import type { Customer, CreateCustomerInput, UpdateCustomerInput } from '@/types/customer';
 import { STORAGE_KEYS } from '@/utils/constants';
 
@@ -47,6 +49,7 @@ function createTestCustomer(overrides?: Partial<Customer>): Customer {
 describe('customerService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    setReadOnlyMode(false);
   });
 
   describe('createCustomer', () => {
@@ -285,6 +288,64 @@ describe('customerService', () => {
 
       expect(result.success).toBe(true);
       expect(result.data).toHaveLength(0);
+    });
+  });
+
+  describe('Read-only mode', () => {
+    it('should block createCustomer in read-only mode', async () => {
+      setReadOnlyMode(true);
+
+      const result = await createCustomer({ name: 'New Customer' });
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('READONLY_MODE');
+      expect(mockedAsyncStorage.setItem).not.toHaveBeenCalled();
+    });
+
+    it('should block updateCustomer in read-only mode', async () => {
+      setReadOnlyMode(true);
+
+      const result = await updateCustomer('customer-1', { name: 'Updated' });
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('READONLY_MODE');
+      expect(mockedAsyncStorage.setItem).not.toHaveBeenCalled();
+    });
+
+    it('should block deleteCustomer in read-only mode', async () => {
+      setReadOnlyMode(true);
+
+      const result = await deleteCustomer('customer-1');
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('READONLY_MODE');
+      expect(mockedAsyncStorage.setItem).not.toHaveBeenCalled();
+    });
+
+    it('should block createCustomer when read-only mode activates during queue wait', async () => {
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify([]));
+      mockedAsyncStorage.setItem.mockResolvedValue(undefined);
+
+      // Block the queue with a prior job
+      let releaseBlocker!: () => void;
+      const blocker = new Promise<void>((resolve) => { releaseBlocker = resolve; });
+      const blockerJob = customersQueue.enqueue(async () => { await blocker; });
+
+      // Start createCustomer while queue is occupied (readOnly=false at entry)
+      const createPromise = createCustomer({ name: 'New Customer' });
+
+      // Switch to read-only while createCustomer waits in queue
+      setReadOnlyMode(true);
+
+      // Release the blocker so createCustomer's callback executes
+      releaseBlocker();
+      await blockerJob;
+
+      const result = await createPromise;
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('READONLY_MODE');
+      expect(mockedAsyncStorage.setItem).not.toHaveBeenCalled();
     });
   });
 });
