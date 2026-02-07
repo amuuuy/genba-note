@@ -571,6 +571,34 @@ describe('documentValidation', () => {
       expect(validateEditAllowed(original, updated)).toBeNull();
     });
 
+    it('should return error when editing customerId in paid status', () => {
+      const original = createTestDocument({
+        type: 'invoice',
+        status: 'paid',
+        paidAt: '2026-01-25',
+        validUntil: null,
+        customerId: 'cust-1',
+      });
+      const updated = { ...original, customerId: 'cust-2' };
+      const error = validateEditAllowed(original, updated);
+      expect(error).not.toBeNull();
+      expect(error?.code).toBe('EDIT_NOT_ALLOWED');
+    });
+
+    it('should return error when editing carriedForwardAmount in paid status', () => {
+      const original = createTestDocument({
+        type: 'invoice',
+        status: 'paid',
+        paidAt: '2026-01-25',
+        validUntil: null,
+        carriedForwardAmount: 1000,
+      });
+      const updated = { ...original, carriedForwardAmount: 2000 };
+      const error = validateEditAllowed(original, updated);
+      expect(error).not.toBeNull();
+      expect(error?.code).toBe('EDIT_NOT_ALLOWED');
+    });
+
     it('should detect changes in nested lineItems for paid status', () => {
       const original = createTestDocument({
         type: 'invoice',

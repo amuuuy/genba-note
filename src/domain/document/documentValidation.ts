@@ -472,6 +472,18 @@ export function validateDocument(
 // === Edit Permission ===
 
 /**
+ * Fields that are immutable (system-managed or identity) — never checked for edit permission.
+ * Using an exclusion list ensures new Document fields are automatically protected.
+ */
+const IMMUTABLE_FIELDS: Set<keyof Document> = new Set([
+  'id',
+  'documentNo',
+  'type',
+  'createdAt',
+  'updatedAt',
+]);
+
+/**
  * Fields that are always editable regardless of status
  */
 const ALWAYS_EDITABLE_FIELDS: Set<keyof Document> = new Set(['status']);
@@ -546,19 +558,9 @@ export function validateEditAllowed(
 
   // For paid status, check each field
   const editableFields = getEditableFields('paid');
-  const allFields: (keyof Document)[] = [
-    'clientName',
-    'clientAddress',
-    'subject',
-    'issueDate',
-    'validUntil',
-    'dueDate',
-    'paidAt',
-    'lineItems',
-    'notes',
-    'issuerSnapshot',
-    'status',
-  ];
+  const allFields = (Object.keys(original) as (keyof Document)[]).filter(
+    (field) => !IMMUTABLE_FIELDS.has(field)
+  );
 
   for (const field of allFields) {
     if (!editableFields.has(field)) {
