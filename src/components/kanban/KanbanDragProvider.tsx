@@ -11,6 +11,7 @@ import React, {
   useState,
   useCallback,
   useRef,
+  useMemo,
 } from 'react';
 import { Animated } from 'react-native';
 import type { DocumentWithTotals } from '@/types/document';
@@ -156,23 +157,39 @@ export const KanbanDragProvider: React.FC<KanbanDragProviderProps> = ({
     hoveredColumnIdRef.current = null;
   }, []);
 
+  const contextValue = useMemo(
+    () => ({
+      isDragging,
+      draggedDoc,
+      sourceColumnId,
+      hoveredColumnId,
+      ghostX,
+      ghostY,
+      startDrag,
+      updateDrag,
+      endDrag,
+      cancelDrag,
+      registerColumnLayout,
+      ghostCardSize,
+    }),
+    [
+      isDragging,
+      draggedDoc,
+      sourceColumnId,
+      hoveredColumnId,
+      ghostX,
+      ghostY,
+      startDrag,
+      updateDrag,
+      endDrag,
+      cancelDrag,
+      registerColumnLayout,
+      ghostCardSize,
+    ]
+  );
+
   return (
-    <KanbanDragContext.Provider
-      value={{
-        isDragging,
-        draggedDoc,
-        sourceColumnId,
-        hoveredColumnId,
-        ghostX,
-        ghostY,
-        startDrag,
-        updateDrag,
-        endDrag,
-        cancelDrag,
-        registerColumnLayout,
-        ghostCardSize,
-      }}
-    >
+    <KanbanDragContext.Provider value={contextValue}>
       {children}
     </KanbanDragContext.Provider>
   );

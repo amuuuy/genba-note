@@ -20,6 +20,9 @@ const SEAL_IMAGES_SUBDIR = 'seal_images';
 /** Subdirectory name for customer photos */
 const CUSTOMER_PHOTOS_SUBDIR = 'customer_photos';
 
+/** Subdirectory name for background images */
+const BACKGROUND_IMAGES_SUBDIR = 'background_images';
+
 /** Subdirectory name for finance photos */
 const FINANCE_PHOTOS_SUBDIR = 'finance_photos';
 
@@ -73,6 +76,33 @@ export async function copyImageToPermanentStorage(sourceUri: string): Promise<st
 }
 
 /**
+ * Copy background image to app's permanent storage
+ *
+ * @param sourceUri - Source image URI (from image picker)
+ * @returns New permanent URI, or null if copy fails
+ */
+export async function copyBackgroundImageToPermanentStorage(sourceUri: string): Promise<string | null> {
+  try {
+    const timestamp = Date.now();
+    const extension = sourceUri.split('.').pop() || 'png';
+    const filename = `bg_${timestamp}.${extension}`;
+
+    const destDir = new Directory(Paths.document, BACKGROUND_IMAGES_SUBDIR);
+    destDir.create({ intermediates: true, idempotent: true });
+
+    const sourceFile = new File(sourceUri);
+    const destFile = new File(destDir, filename);
+
+    sourceFile.copy(destFile);
+
+    return destFile.uri;
+  } catch (error) {
+    console.error('Failed to copy background image to permanent storage:', error);
+    return null;
+  }
+}
+
+/**
  * Delete stored image from app storage
  *
  * @param uri - Image URI to delete
@@ -109,6 +139,56 @@ export function getImageMimeType(uri: string): string {
     default:
       return 'image/png';
   }
+}
+
+/**
+ * Resolve background image data URL from settings.
+ * Validates the URI and converts to base64 data URL.
+ *
+ * @param backgroundDesign - Current background design selection
+ * @param backgroundImageUri - Stored image URI (or null)
+ * @returns Data URL string, or null if not applicable/invalid
+ */
+export async function resolveBackgroundImageDataUrl(
+  backgroundDesign: string | undefined,
+  backgroundImageUri: string | null | undefined
+): Promise<string | null> {
+  if (backgroundDesign !== 'IMAGE' || !backgroundImageUri) return null;
+  if (!isValidBackgroundImageUri(backgroundImageUri)) return null;
+  return imageUriToDataUrl(backgroundImageUri);
+}
+
+/** Allowed image extensions for background images */
+const ALLOWED_IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
+
+/**
+ * Validate that a background image URI is within the expected directory
+ * and has an allowed image extension.
+ *
+ * @param uri - URI to validate
+ * @returns true if URI is safe to read
+ */
+export function isValidBackgroundImageUri(uri: unknown): boolean {
+  if (typeof uri !== 'string' || !uri) return false;
+
+  // Must not contain path traversal (check both raw and URL-decoded)
+  if (uri.includes('..')) return false;
+  try {
+    if (decodeURIComponent(uri).includes('..')) return false;
+  } catch {
+    return false;
+  }
+
+  // Must be within the documents/background_images/ directory (with trailing slash boundary)
+  const expectedDir = new Directory(Paths.document, BACKGROUND_IMAGES_SUBDIR).uri;
+  const expectedDirWithSlash = expectedDir.endsWith('/') ? expectedDir : expectedDir + '/';
+  if (!uri.startsWith(expectedDirWithSlash)) return false;
+
+  // Must have an allowed image extension
+  const extension = uri.split('.').pop()?.toLowerCase();
+  if (!extension || !ALLOWED_IMAGE_EXTENSIONS.includes(extension)) return false;
+
+  return true;
 }
 
 /**

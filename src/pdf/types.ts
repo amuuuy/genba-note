@@ -89,6 +89,9 @@ export interface PdfTemplateInput {
 
   /** Background design for PDF output (M20). Defaults to NONE if not provided. */
   backgroundDesign?: BackgroundDesign;
+
+  /** Pre-loaded background image data URL for IMAGE design */
+  backgroundImageDataUrl?: string | null;
 }
 
 /**

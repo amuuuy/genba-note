@@ -273,7 +273,6 @@ export interface DocumentSort {
     | 'createdAt'
     | 'updatedAt'
     | 'documentNo'
-    | 'clientName'
-    | 'totalYen';
+    | 'clientName';
   direction: 'asc' | 'desc';
 }

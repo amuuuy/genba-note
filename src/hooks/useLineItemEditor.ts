@@ -6,7 +6,7 @@
  * Uses pure functions from lineItemService for consistency.
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import type { LineItem, TaxRate } from '@/types/document';
 import type { LineItemInput, LineItemServiceResult } from '@/domain/lineItem/lineItemService';
 import {
@@ -103,13 +103,17 @@ export function useLineItemEditor(
     isDirty: false,
   });
 
+  // Keep a ref to the latest lineItems to avoid stale closures in callbacks
+  const lineItemsRef = useRef(state.lineItems);
+  lineItemsRef.current = state.lineItems;
+
   // Memoized totals calculation
   const totals = useMemo(() => {
     return calculateDocumentTotals(state.lineItems);
   }, [state.lineItems]);
 
   const addItem = useCallback((input: LineItemInput): boolean => {
-    const result = addLineItem(state.lineItems, input);
+    const result = addLineItem(lineItemsRef.current, input);
     if (result.success && result.data) {
       setState((prev) => ({
         ...prev,
@@ -124,11 +128,11 @@ export function useLineItemEditor(
       errors: extractErrors(result),
     }));
     return false;
-  }, [state.lineItems]);
+  }, []);
 
   const updateItem = useCallback(
     (id: string, updates: Partial<LineItemInput>): boolean => {
-      const result = updateLineItem(state.lineItems, id, updates);
+      const result = updateLineItem(lineItemsRef.current, id, updates);
       if (result.success && result.data) {
         setState((prev) => ({
           ...prev,
@@ -144,11 +148,11 @@ export function useLineItemEditor(
       }));
       return false;
     },
-    [state.lineItems]
+    []
   );
 
   const removeItem = useCallback((id: string): boolean => {
-    const result = removeLineItem(state.lineItems, id);
+    const result = removeLineItem(lineItemsRef.current, id);
     if (result.success && result.data) {
       setState((prev) => ({
         ...prev,
@@ -163,11 +167,11 @@ export function useLineItemEditor(
       errors: extractErrors(result),
     }));
     return false;
-  }, [state.lineItems]);
+  }, []);
 
   const reorder = useCallback(
     (fromIndex: number, toIndex: number): boolean => {
-      const result = reorderLineItems(state.lineItems, fromIndex, toIndex);
+      const result = reorderLineItems(lineItemsRef.current, fromIndex, toIndex);
       if (result.success && result.data) {
         setState((prev) => ({
           ...prev,
@@ -183,11 +187,11 @@ export function useLineItemEditor(
       }));
       return false;
     },
-    [state.lineItems]
+    []
   );
 
   const duplicate = useCallback((id: string): boolean => {
-    const result = duplicateLineItem(state.lineItems, id);
+    const result = duplicateLineItem(lineItemsRef.current, id);
     if (result.success && result.data) {
       setState((prev) => ({
         ...prev,
@@ -202,7 +206,7 @@ export function useLineItemEditor(
       errors: extractErrors(result),
     }));
     return false;
-  }, [state.lineItems]);
+  }, []);
 
   const setLineItems = useCallback((items: LineItem[]) => {
     setState({

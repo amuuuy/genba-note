@@ -597,7 +597,7 @@ function generateScreenTemplate(
  * @param input.templateId - Template ID for PDF output (M21). Falls back to doc.type default.
  */
 export function generateHtmlTemplate(input: PdfTemplateInput): PdfTemplateResult {
-  const { document: doc, sensitiveSnapshot, mode = 'screen', templateId, invoiceTemplateType, sealSize, backgroundDesign } = input;
+  const { document: doc, sensitiveSnapshot, mode = 'screen', templateId, invoiceTemplateType, sealSize, backgroundDesign, backgroundImageDataUrl } = input;
 
   let html: string;
 
@@ -617,6 +617,7 @@ export function generateHtmlTemplate(input: PdfTemplateInput): PdfTemplateResult
     html = generator(doc, sensitiveSnapshot, {
       sealSize: sealSize ?? DEFAULT_SEAL_SIZE,
       backgroundDesign: backgroundDesign ?? 'NONE',
+      backgroundImageDataUrl,
     });
   } else {
     // Use colorful screen template for preview

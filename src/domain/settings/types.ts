@@ -41,6 +41,8 @@ export interface SettingsFormValues {
   sealSize: SealSize;
   /** Background design pattern for PDF output */
   backgroundDesign: BackgroundDesign;
+  /** Background image URI for IMAGE background design */
+  backgroundImageUri: string | null;
   /** Default template for estimate documents (M21) */
   defaultEstimateTemplateId: DocumentTemplateId;
   /** Default template for invoice documents (M21) */

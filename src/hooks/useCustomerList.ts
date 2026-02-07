@@ -4,7 +4,7 @@
  * Manages customer list state with CRUD operations.
  */
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useFocusEffect } from 'expo-router';
 import type { Customer, CustomerFilter, CreateCustomerInput, UpdateCustomerInput } from '@/types/customer';
 import {
@@ -83,7 +83,7 @@ export function useCustomerList(): UseCustomerListReturn {
   });
 
   // Track first useFocusEffect call to skip it (useEffect handles initial load)
-  const isFirstFocusRef = { current: true };
+  const isFirstFocusRef = useRef(true);
 
   const refresh = useCallback(async () => {
     setState((prev) => ({ ...prev, isLoading: true, error: null }));

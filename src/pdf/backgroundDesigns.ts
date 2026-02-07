@@ -28,7 +28,7 @@ function wrapBeforePseudo(backgroundProperty: string, opacity = BACKGROUND_OPACI
 }
 
 /** Pattern definitions: BackgroundDesign → CSS background property string */
-const PATTERN_MAP: Record<Exclude<BackgroundDesign, 'NONE'>, string> = {
+const PATTERN_MAP: Record<Exclude<BackgroundDesign, 'NONE' | 'IMAGE'>, string> = {
   STRIPE: 'background: repeating-linear-gradient(45deg, #000 0px, #000 1px, transparent 1px, transparent 10px);',
   WAVE: 'background: radial-gradient(ellipse 60px 30px at 30px 15px, transparent 24px, #000 25px, #000 26px, transparent 27px), radial-gradient(ellipse 60px 30px at 90px 45px, transparent 24px, #000 25px, #000 26px, transparent 27px); background-size: 60px 60px;',
   GRID: 'background: linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px); background-size: 20px 20px;',
@@ -39,12 +39,19 @@ const PATTERN_MAP: Record<Exclude<BackgroundDesign, 'NONE'>, string> = {
  * Generate CSS for a background design pattern.
  *
  * @param design - The background design to apply
+ * @param imageDataUrl - Pre-loaded data URL for IMAGE design (optional)
  * @returns CSS string to inject into a <style> tag, or empty string for NONE / unknown
  */
-export function getBackgroundCss(design: BackgroundDesign): string {
+export function getBackgroundCss(design: BackgroundDesign, imageDataUrl?: string | null): string {
   if (design === 'NONE') return '';
 
-  const pattern = PATTERN_MAP[design as Exclude<BackgroundDesign, 'NONE'>];
+  if (design === 'IMAGE') {
+    if (!imageDataUrl) return '';
+    const bgProp = `background-image: url('${imageDataUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat;`;
+    return wrapBeforePseudo(bgProp);
+  }
+
+  const pattern = PATTERN_MAP[design as Exclude<BackgroundDesign, 'NONE' | 'IMAGE'>];
   if (!pattern) return '';
 
   return wrapBeforePseudo(pattern);

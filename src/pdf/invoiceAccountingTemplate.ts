@@ -748,10 +748,11 @@ export function generateInvoiceAccountingTemplate(
   doc: DocumentWithTotals,
   sensitiveSnapshot: SensitiveIssuerSnapshot | null,
   sealSize?: SealSize,
-  backgroundDesign?: BackgroundDesign
+  backgroundDesign?: BackgroundDesign,
+  backgroundImageDataUrl?: string | null
 ): string {
   const accountingSealSizePx = getSealSizePx(sealSize ?? DEFAULT_SEAL_SIZE, 'ACCOUNTING');
-  const accountingBackgroundCss = getBackgroundCss(backgroundDesign ?? 'NONE');
+  const accountingBackgroundCss = getBackgroundCss(backgroundDesign ?? 'NONE', backgroundImageDataUrl);
   const clientAddressHtml = doc.clientAddress
     ? `<div class="client-address">${escapeHtml(doc.clientAddress)}</div>`
     : '';
@@ -826,5 +827,5 @@ export function generateAccountingTemplate(
   sensitiveSnapshot: SensitiveIssuerSnapshot | null,
   options: TemplateOptions
 ): string {
-  return generateInvoiceAccountingTemplate(doc, sensitiveSnapshot, options.sealSize, options.backgroundDesign);
+  return generateInvoiceAccountingTemplate(doc, sensitiveSnapshot, options.sealSize, options.backgroundDesign, options.backgroundImageDataUrl);
 }

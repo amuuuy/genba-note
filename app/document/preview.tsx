@@ -32,6 +32,7 @@ import { generateHtmlTemplate, generateFilenameTitle, deriveDisplayHtml, toggleO
 // Import PDF generation service for Pro feature
 import { generateAndSharePdf } from '@/pdf/pdfGenerationService';
 import { getSettings } from '@/storage/asyncStorageService';
+import { resolveBackgroundImageDataUrl } from '@/utils/imageUtils';
 import { FilenameEditModal } from '@/components/document/FilenameEditModal';
 import { getPdfErrorMessage } from '@/constants/errorMessages';
 import type { Document, DocumentWithTotals, SensitiveIssuerSnapshot } from '@/types/document';
@@ -113,6 +114,13 @@ export default function DocumentPreviewScreen() {
           ? settings?.defaultEstimateTemplateId ?? 'FORMAL_STANDARD'
           : settings?.defaultInvoiceTemplateId ?? 'ACCOUNTING';
 
+        // 5.5. Pre-load background image if IMAGE design is selected
+        const backgroundDesign = settings?.backgroundDesign;
+        const backgroundImageDataUrl = await resolveBackgroundImageDataUrl(
+          backgroundDesign,
+          settings?.backgroundImageUri ?? null
+        );
+
         // 6. Generate HTML with resolved data using user's template preference
         const templateResult = generateHtmlTemplate({
           document: documentForTemplate,
@@ -120,7 +128,8 @@ export default function DocumentPreviewScreen() {
           mode: 'pdf',
           templateId,
           sealSize: settings?.sealSize,
-          backgroundDesign: settings?.backgroundDesign,
+          backgroundDesign,
+          backgroundImageDataUrl,
         });
         setHtml(templateResult.html);
 

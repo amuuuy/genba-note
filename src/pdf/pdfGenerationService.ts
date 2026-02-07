@@ -19,6 +19,7 @@ import { sanitizeFilename } from '@/utils/filenameUtils';
 import { checkProStatus } from './proGateService';
 import { validateDocumentForPdf, formatValidationError } from './pdfValidationService';
 import { getSettings } from '@/storage/asyncStorageService';
+import { resolveBackgroundImageDataUrl } from '@/utils/imageUtils';
 
 /**
  * Generate PDF from HTML (internal function)
@@ -168,6 +169,12 @@ export async function generateAndSharePdf(
   const sealSize = settings?.sealSize ?? DEFAULT_SEAL_SIZE;
   const backgroundDesign = settings?.backgroundDesign ?? 'NONE';
 
+  // Pre-load background image as data URL if IMAGE design is selected
+  const backgroundImageDataUrl = await resolveBackgroundImageDataUrl(
+    backgroundDesign,
+    settings?.backgroundImageUri ?? null
+  );
+
   // 3. Generate HTML template with formal PDF theme
   let { html } = generateHtmlTemplate({
     ...input,
@@ -175,6 +182,7 @@ export async function generateAndSharePdf(
     templateId,
     sealSize,
     backgroundDesign,
+    backgroundImageDataUrl,
   });
 
   // 3.5. Inject landscape CSS if orientation is LANDSCAPE

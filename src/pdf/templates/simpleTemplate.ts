@@ -690,7 +690,7 @@ export function generateSimpleTemplate(
 ): string {
   const labels = getDocumentLabels(doc.type);
   const sealSizePx = getSealSizePx(options.sealSize ?? DEFAULT_SEAL_SIZE, 'SIMPLE');
-  const backgroundCss = getBackgroundCss(options.backgroundDesign);
+  const backgroundCss = getBackgroundCss(options.backgroundDesign, options.backgroundImageDataUrl);
   const themeCss = getFormalThemeCss(FORMAL_COLORS);
 
   // Title with full-width spaces

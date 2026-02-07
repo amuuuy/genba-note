@@ -185,6 +185,15 @@ export async function deleteFinanceEntry(id: string): Promise<FinanceResult<void
       }
 
       const entries = result.data ?? [];
+      const existingIndex = entries.findIndex((e) => e.id === id);
+
+      if (existingIndex === -1) {
+        return {
+          success: false as const,
+          error: createError('NOT_FOUND', `Finance entry not found: ${id}`),
+        };
+      }
+
       const filteredEntries = entries.filter((e) => e.id !== id);
 
       await AsyncStorage.setItem(

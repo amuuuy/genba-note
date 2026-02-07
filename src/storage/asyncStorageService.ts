@@ -543,6 +543,7 @@ function mergeSettingsWithDefaults(stored: Partial<AppSettings>): AppSettings {
       ? stored.sealSize : DEFAULT_APP_SETTINGS.sealSize,
     backgroundDesign: (stored.backgroundDesign && VALID_BACKGROUND_DESIGNS.has(stored.backgroundDesign))
       ? stored.backgroundDesign : DEFAULT_APP_SETTINGS.backgroundDesign,
+    backgroundImageUri: stored.backgroundImageUri ?? DEFAULT_APP_SETTINGS.backgroundImageUri,
     defaultEstimateTemplateId: (stored.defaultEstimateTemplateId && VALID_TEMPLATE_IDS.has(stored.defaultEstimateTemplateId))
       ? stored.defaultEstimateTemplateId : DEFAULT_APP_SETTINGS.defaultEstimateTemplateId,
     defaultInvoiceTemplateId: (stored.defaultInvoiceTemplateId && VALID_TEMPLATE_IDS.has(stored.defaultInvoiceTemplateId))

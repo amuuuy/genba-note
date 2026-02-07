@@ -27,7 +27,8 @@ export type ValidationErrorCode =
   | 'PAID_AT_BEFORE_ISSUE' // paidAt < issueDate
   | 'CALCULATION_OVERFLOW' // quantityMilli * unitPrice exceeds safe integer
   | 'TYPE_FIELD_MISMATCH' // field not allowed for document type (e.g., dueDate on estimate)
-  | 'EDIT_NOT_ALLOWED'; // editing forbidden field in current status
+  | 'EDIT_NOT_ALLOWED' // editing forbidden field in current status
+  | 'INVALID_CARRIED_FORWARD'; // carriedForwardAmount is negative, non-integer, or exceeds limit
 
 // === Status Transition Error Codes ===
 

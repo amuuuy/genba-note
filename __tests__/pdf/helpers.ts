@@ -189,6 +189,7 @@ export function createTestTemplateInput(
     invoiceTemplateType?: InvoiceTemplateType;
     sealSize?: SealSize;
     backgroundDesign?: BackgroundDesign;
+    backgroundImageDataUrl?: string | null;
   } = {}
 ): PdfTemplateInput {
   return {
@@ -200,6 +201,7 @@ export function createTestTemplateInput(
     invoiceTemplateType: overrides.invoiceTemplateType,
     sealSize: overrides.sealSize,
     backgroundDesign: overrides.backgroundDesign,
+    backgroundImageDataUrl: overrides.backgroundImageDataUrl,
   };
 }
 

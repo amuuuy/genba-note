@@ -648,7 +648,7 @@ export function generateClassicTemplate(
   options: TemplateOptions
 ): string {
   const sealSizePx = getSealSizePx(options.sealSize, 'CLASSIC');
-  const backgroundCss = getBackgroundCss(options.backgroundDesign);
+  const backgroundCss = getBackgroundCss(options.backgroundDesign, options.backgroundImageDataUrl);
 
   return `<!DOCTYPE html>
 <html lang="ja">

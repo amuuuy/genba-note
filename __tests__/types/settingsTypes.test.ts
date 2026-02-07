@@ -39,7 +39,7 @@ describe('Settings type definitions exported from @/types/settings', () => {
   });
 
   it('exports BACKGROUND_DESIGNS array', () => {
-    expect(BACKGROUND_DESIGNS).toEqual(['NONE', 'STRIPE', 'WAVE', 'GRID', 'DOTS']);
+    expect(BACKGROUND_DESIGNS).toEqual(['NONE', 'STRIPE', 'WAVE', 'GRID', 'DOTS', 'IMAGE']);
   });
 
   it('exports DOCUMENT_TEMPLATE_IDS array', () => {

@@ -25,7 +25,7 @@ export type SealSize = (typeof SEAL_SIZES)[number];
 export const DEFAULT_SEAL_SIZE: SealSize = 'MEDIUM';
 
 /** Background design values — single source of truth for type + runtime validation */
-export const BACKGROUND_DESIGNS = ['NONE', 'STRIPE', 'WAVE', 'GRID', 'DOTS'] as const;
+export const BACKGROUND_DESIGNS = ['NONE', 'STRIPE', 'WAVE', 'GRID', 'DOTS', 'IMAGE'] as const;
 export type BackgroundDesign = (typeof BACKGROUND_DESIGNS)[number];
 
 /** Template ID values — single source of truth for type + runtime validation */
@@ -75,6 +75,9 @@ export interface AppSettings {
 
   /** Background design pattern for PDF documents */
   backgroundDesign: BackgroundDesign;
+
+  /** Background image URI (local file path) for IMAGE background design */
+  backgroundImageUri: string | null;
 
   /** Default template for estimate (見積書) PDF output */
   defaultEstimateTemplateId: DocumentTemplateId;
@@ -127,6 +130,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   invoiceTemplateType: DEFAULT_INVOICE_TEMPLATE_TYPE,
   sealSize: 'MEDIUM',
   backgroundDesign: 'NONE',
+  backgroundImageUri: null,
   defaultEstimateTemplateId: 'FORMAL_STANDARD',
   defaultInvoiceTemplateId: 'ACCOUNTING',
   schemaVersion: 1,

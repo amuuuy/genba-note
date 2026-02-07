@@ -627,7 +627,7 @@ export function generateModernTemplate(
 ): string {
   const labels = getDocumentLabels(doc.type);
   const sealSizePx = getSealSizePx(options.sealSize ?? DEFAULT_SEAL_SIZE, 'MODERN');
-  const backgroundCss = getBackgroundCss(options.backgroundDesign);
+  const backgroundCss = getBackgroundCss(options.backgroundDesign, options.backgroundImageDataUrl);
   const css = getModernCss(sealSizePx);
 
   // Sections

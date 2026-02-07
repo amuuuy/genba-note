@@ -16,6 +16,7 @@ import {
   deleteSensitiveIssuerInfo,
 } from '@/storage/secureStorageService';
 import { formatDocumentNumber } from '@/domain/document/autoNumberingService';
+import { deleteStoredImage, isValidBackgroundImageUri } from '@/utils/imageUtils';
 import type { InvoiceTemplateType, SealSize, BackgroundDesign, DocumentTemplateId } from '@/types/settings';
 import { DEFAULT_INVOICE_TEMPLATE_TYPE, DEFAULT_SEAL_SIZE } from '@/types/settings';
 
@@ -53,6 +54,7 @@ export type SettingsEditAction =
   | { type: 'UPDATE_INVOICE_TEMPLATE_TYPE'; value: InvoiceTemplateType }
   | { type: 'UPDATE_SEAL_SIZE'; value: SealSize }
   | { type: 'UPDATE_BACKGROUND_DESIGN'; value: BackgroundDesign }
+  | { type: 'UPDATE_BACKGROUND_IMAGE_URI'; uri: string | null }
   | { type: 'UPDATE_DEFAULT_ESTIMATE_TEMPLATE_ID'; value: DocumentTemplateId }
   | { type: 'UPDATE_DEFAULT_INVOICE_TEMPLATE_ID'; value: DocumentTemplateId }
   | { type: 'SET_ERRORS'; errors: SettingsFormErrors }
@@ -78,6 +80,7 @@ const initialFormValues: SettingsFormValues = {
   invoiceTemplateType: DEFAULT_INVOICE_TEMPLATE_TYPE,
   sealSize: DEFAULT_SEAL_SIZE,
   backgroundDesign: 'NONE' as const,
+  backgroundImageUri: null,
   defaultEstimateTemplateId: 'FORMAL_STANDARD' as const,
   defaultInvoiceTemplateId: 'ACCOUNTING' as const,
   invoiceNumber: '',
@@ -109,7 +112,7 @@ export function createInitialFormValues(
   appSettings: AppSettings,
   sensitiveSettings: SensitiveIssuerSettings | null
 ): SettingsFormValues {
-  const { issuer, numbering, invoiceTemplateType, sealSize, backgroundDesign, defaultEstimateTemplateId, defaultInvoiceTemplateId } = appSettings;
+  const { issuer, numbering, invoiceTemplateType, sealSize, backgroundDesign, backgroundImageUri, defaultEstimateTemplateId, defaultInvoiceTemplateId } = appSettings;
   const bankAccount = sensitiveSettings?.bankAccount;
 
   return {
@@ -127,6 +130,7 @@ export function createInitialFormValues(
     invoiceTemplateType: invoiceTemplateType ?? DEFAULT_INVOICE_TEMPLATE_TYPE,
     sealSize: sealSize ?? DEFAULT_SEAL_SIZE,
     backgroundDesign: backgroundDesign ?? 'NONE',
+    backgroundImageUri: backgroundImageUri ?? null,
     defaultEstimateTemplateId: defaultEstimateTemplateId ?? 'FORMAL_STANDARD',
     defaultInvoiceTemplateId: defaultInvoiceTemplateId ?? 'ACCOUNTING',
     // SecureStore fields
@@ -244,6 +248,16 @@ export function settingsEditReducer(
         isDirty: true,
       };
 
+    case 'UPDATE_BACKGROUND_IMAGE_URI':
+      return {
+        ...state,
+        values: {
+          ...state.values,
+          backgroundImageUri: action.uri,
+        },
+        isDirty: true,
+      };
+
     case 'UPDATE_DEFAULT_ESTIMATE_TEMPLATE_ID':
       return {
         ...state,
@@ -318,6 +332,7 @@ export interface UseSettingsEditReturn {
   updateInvoiceTemplateType: (value: InvoiceTemplateType) => void;
   updateSealSize: (value: SealSize) => void;
   updateBackgroundDesign: (value: BackgroundDesign) => void;
+  updateBackgroundImageUri: (uri: string | null) => void;
   updateDefaultEstimateTemplateId: (value: DocumentTemplateId) => void;
   updateDefaultInvoiceTemplateId: (value: DocumentTemplateId) => void;
   save: () => Promise<boolean>;
@@ -427,6 +442,11 @@ export function useSettingsEdit(): UseSettingsEditReturn {
     dispatch({ type: 'UPDATE_BACKGROUND_DESIGN', value });
   }, []);
 
+  // Update background image URI
+  const updateBackgroundImageUri = useCallback((uri: string | null) => {
+    dispatch({ type: 'UPDATE_BACKGROUND_IMAGE_URI', uri });
+  }, []);
+
   // Update default estimate template ID (M21)
   const updateDefaultEstimateTemplateId = useCallback((value: DocumentTemplateId) => {
     dispatch({ type: 'UPDATE_DEFAULT_ESTIMATE_TEMPLATE_ID', value });
@@ -460,6 +480,12 @@ export function useSettingsEdit(): UseSettingsEditReturn {
     dispatch({ type: 'START_SAVING' });
 
     try {
+      // 0. Capture previous backgroundImageUri for post-save cleanup
+      const previousSettingsResult = await getSettings();
+      const previousBackgroundImageUri = previousSettingsResult.success
+        ? (previousSettingsResult.data?.backgroundImageUri ?? null)
+        : null;
+
       // 1. Get current SecureStore values for potential rollback
       const previousSensitiveResult = await getSensitiveIssuerInfo();
 
@@ -518,6 +544,7 @@ export function useSettingsEdit(): UseSettingsEditReturn {
         invoiceTemplateType: state.values.invoiceTemplateType,
         sealSize: state.values.sealSize,
         backgroundDesign: state.values.backgroundDesign,
+        backgroundImageUri: state.values.backgroundImageUri,
         defaultEstimateTemplateId: state.values.defaultEstimateTemplateId,
         defaultInvoiceTemplateId: state.values.defaultInvoiceTemplateId,
       });
@@ -550,6 +577,18 @@ export function useSettingsEdit(): UseSettingsEditReturn {
       }
 
       dispatch({ type: 'SAVE_SUCCESS' });
+
+      // Post-save cleanup: delete old background image if URI changed
+      if (
+        previousBackgroundImageUri &&
+        previousBackgroundImageUri !== state.values.backgroundImageUri &&
+        isValidBackgroundImageUri(previousBackgroundImageUri)
+      ) {
+        deleteStoredImage(previousBackgroundImageUri).catch((err) => {
+          console.warn('Failed to cleanup old background image:', err);
+        });
+      }
+
       return true;
     } catch (error) {
       const message =
@@ -589,6 +628,7 @@ export function useSettingsEdit(): UseSettingsEditReturn {
     updateInvoiceTemplateType,
     updateSealSize,
     updateBackgroundDesign,
+    updateBackgroundImageUri,
     updateDefaultEstimateTemplateId,
     updateDefaultInvoiceTemplateId,
     save,

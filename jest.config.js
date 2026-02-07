@@ -14,7 +14,11 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^expo-file-system$': '<rootDir>/__mocks__/expo-file-system.ts',
+    '^expo-file-system/legacy$': '<rootDir>/__mocks__/expo-file-system.ts',
   },
   collectCoverageFrom: ['src/**/*.{ts,tsx}', '!src/**/*.d.ts'],
   testEnvironment: 'node',
+  globals: {
+    __DEV__: true,
+  },
 };

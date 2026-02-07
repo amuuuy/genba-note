@@ -630,7 +630,7 @@ export function generateFormalStandardTemplate(
 ): string {
   const labels = getDocumentLabels(doc.type);
   const sealSizePx = getSealSizePx(options.sealSize ?? DEFAULT_SEAL_SIZE, 'FORMAL_STANDARD');
-  const backgroundCss = getBackgroundCss(options.backgroundDesign);
+  const backgroundCss = getBackgroundCss(options.backgroundDesign, options.backgroundImageDataUrl);
   const themeCss = getFormalThemeCss(FORMAL_COLORS);
   const css = getFormalStandardCss(sealSizePx);
 

@@ -38,6 +38,7 @@ export default function SettingsScreen() {
     toggleShowContactPerson,
     updateSealSize,
     updateBackgroundDesign,
+    updateBackgroundImageUri,
     updateDefaultEstimateTemplateId,
     updateDefaultInvoiceTemplateId,
     save,
@@ -134,6 +135,8 @@ export default function SettingsScreen() {
         <BackgroundDesignSection
           value={state.values.backgroundDesign}
           onChange={updateBackgroundDesign}
+          backgroundImageUri={state.values.backgroundImageUri}
+          onBackgroundImageChange={updateBackgroundImageUri}
           disabled={isFormDisabled}
         />
 

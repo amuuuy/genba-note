@@ -15,6 +15,7 @@ import { DEFAULT_SEAL_SIZE } from '@/pdf/types';
 export interface TemplateOptions {
   sealSize: SealSize;
   backgroundDesign: BackgroundDesign;
+  backgroundImageDataUrl?: string | null;
 }
 
 /**

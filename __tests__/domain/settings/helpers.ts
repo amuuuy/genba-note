@@ -23,6 +23,7 @@ export function createValidSettingsFormValues(
     invoiceTemplateType: 'ACCOUNTING',
     sealSize: 'MEDIUM',
     backgroundDesign: 'NONE',
+    backgroundImageUri: null,
     defaultEstimateTemplateId: 'FORMAL_STANDARD',
     defaultInvoiceTemplateId: 'ACCOUNTING',
     // SecureStore fields
@@ -54,6 +55,7 @@ export function createEmptySettingsFormValues(): SettingsFormValues {
     invoiceTemplateType: 'ACCOUNTING',
     sealSize: 'MEDIUM',
     backgroundDesign: 'NONE',
+    backgroundImageUri: null,
     defaultEstimateTemplateId: 'FORMAL_STANDARD',
     defaultInvoiceTemplateId: 'ACCOUNTING',
     invoiceNumber: '',

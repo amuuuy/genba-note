@@ -343,16 +343,21 @@ function calculateTotal(lineItems: LineItem[]): number {
 }
 
 /**
- * Validate document total amount
+ * Validate document total amount (including carriedForwardAmount)
  * @param lineItems - Array of line items
+ * @param carriedForwardAmount - Carried forward amount (can be null)
  * @returns ValidationError if total exceeds limit, null if valid
  */
-export function validateDocumentTotal(lineItems: LineItem[]): ValidationError | null {
-  if (lineItems.length === 0) {
+export function validateDocumentTotal(
+  lineItems: LineItem[],
+  carriedForwardAmount?: number | null
+): ValidationError | null {
+  if (lineItems.length === 0 && !carriedForwardAmount) {
     return null; // Empty is valid here (0 total)
   }
 
-  const total = calculateTotal(lineItems);
+  const lineItemTotal = calculateTotal(lineItems);
+  const total = lineItemTotal + (carriedForwardAmount ?? 0);
 
   if (total > MAX_TOTAL_YEN) {
     return createValidationError(
@@ -360,6 +365,46 @@ export function validateDocumentTotal(lineItems: LineItem[]): ValidationError | 
       `Document total exceeds maximum allowed (${MAX_TOTAL_YEN.toLocaleString()} yen)`,
       'lineItems',
       { total, max: MAX_TOTAL_YEN }
+    );
+  }
+
+  return null;
+}
+
+/**
+ * Validate carriedForwardAmount field
+ * @param amount - Carried forward amount (can be null)
+ * @returns ValidationError if invalid, null if valid
+ */
+export function validateCarriedForwardAmount(
+  amount: number | null
+): ValidationError | null {
+  if (amount === null) {
+    return null; // Optional field
+  }
+
+  if (!Number.isInteger(amount)) {
+    return createValidationError(
+      'INVALID_CARRIED_FORWARD',
+      'Carried forward amount must be an integer',
+      'carriedForwardAmount'
+    );
+  }
+
+  if (amount < 0) {
+    return createValidationError(
+      'INVALID_CARRIED_FORWARD',
+      'Carried forward amount must be non-negative',
+      'carriedForwardAmount'
+    );
+  }
+
+  if (amount > MAX_TOTAL_YEN) {
+    return createValidationError(
+      'INVALID_CARRIED_FORWARD',
+      `Carried forward amount exceeds maximum (${MAX_TOTAL_YEN.toLocaleString()} yen)`,
+      'carriedForwardAmount',
+      { amount, max: MAX_TOTAL_YEN }
     );
   }
 
@@ -456,13 +501,22 @@ export function validateDocument(
     }
   }
 
+  // Validate carriedForwardAmount
+  const carriedForwardError = validateCarriedForwardAmount(
+    document.carriedForwardAmount
+  );
+  if (carriedForwardError) errors.push(carriedForwardError);
+
   // Validate line items
   const lineItemErrors = validateLineItems(document.lineItems);
   errors.push(...lineItemErrors);
 
-  // Validate total only if line items are otherwise valid
-  if (lineItemErrors.length === 0) {
-    const totalError = validateDocumentTotal(document.lineItems);
+  // Validate total only if line items and carriedForwardAmount are otherwise valid
+  if (lineItemErrors.length === 0 && !carriedForwardError) {
+    const totalError = validateDocumentTotal(
+      document.lineItems,
+      document.carriedForwardAmount
+    );
     if (totalError) errors.push(totalError);
   }
 
