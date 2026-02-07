@@ -149,6 +149,35 @@ describe('asyncStorageService', () => {
       expect(mockedDeleteIssuerSnapshot).toHaveBeenCalledWith(doc.id);
     });
 
+    it('should NOT delete document when deleteIssuerSnapshot fails', async () => {
+      const doc = createTestDocument();
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify([doc]));
+      mockedDeleteIssuerSnapshot.mockResolvedValue({
+        success: false,
+        error: { code: 'DELETE_ERROR', message: 'SecureStore failure' },
+      });
+
+      const result = await deleteDocument(doc.id);
+
+      expect(result.success).toBe(false);
+      // AsyncStorage.setItem should NOT have been called (document not deleted)
+      expect(mockedAsyncStorage.setItem).not.toHaveBeenCalled();
+    });
+
+    it('should delete snapshot before document (snapshot succeeds, AsyncStorage write fails)', async () => {
+      const doc = createTestDocument();
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify([doc]));
+      mockedAsyncStorage.setItem.mockRejectedValue(new Error('AsyncStorage write failed'));
+      mockedDeleteIssuerSnapshot.mockResolvedValue({ success: true });
+
+      const result = await deleteDocument(doc.id);
+
+      // Snapshot was deleted but document write failed — partial state is acceptable
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('WRITE_ERROR');
+      expect(mockedDeleteIssuerSnapshot).toHaveBeenCalledWith(doc.id);
+    });
+
     it('should return all documents', async () => {
       const docs = [
         createTestDocument({ id: 'doc-1' }),

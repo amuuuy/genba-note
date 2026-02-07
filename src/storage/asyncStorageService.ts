@@ -181,8 +181,14 @@ export async function saveDocument(
 }
 
 /**
- * Delete document and its sensitive snapshot
+ * Delete document and its sensitive snapshot.
  * Serialized via documentsQueue to prevent RMW race conditions.
+ *
+ * Deletion order: SecureStore snapshot first, then AsyncStorage document.
+ * If SecureStore deletion fails, the document is NOT deleted (safe abort).
+ * If AsyncStorage deletion fails after SecureStore succeeds, the sensitive
+ * snapshot is already removed but the document remains — this partial state
+ * is acceptable because the snapshot is recreated on next document save/export.
  */
 export async function deleteDocument(id: string): Promise<StorageResult<void>> {
   if (getReadOnlyMode()) {
@@ -196,6 +202,19 @@ export async function deleteDocument(id: string): Promise<StorageResult<void>> {
     }
 
     try {
+      // Delete sensitive data first - if this fails, abort without touching the document
+      const snapshotResult = await deleteIssuerSnapshot(id);
+      if (!snapshotResult.success) {
+        return errorResult<void>(
+          createError(
+            'WRITE_ERROR',
+            `Failed to delete sensitive snapshot, document deletion aborted: ${snapshotResult.error?.message}`,
+            snapshotResult.error?.originalError
+          )
+        );
+      }
+
+      // Sensitive data deleted successfully - now delete the document
       const result = await getAllDocuments();
 
       if (!result.success) {
@@ -209,20 +228,6 @@ export async function deleteDocument(id: string): Promise<StorageResult<void>> {
         STORAGE_KEYS.DOCUMENTS,
         JSON.stringify(filteredDocuments)
       );
-
-      // Also delete the sensitive issuer snapshot
-      const snapshotResult = await deleteIssuerSnapshot(id);
-      if (!snapshotResult.success) {
-        // Snapshot deletion failed - document is already deleted but sensitive data remains
-        // Return error to notify caller that cleanup was incomplete
-        return errorResult<void>(
-          createError(
-            'WRITE_ERROR',
-            `Document deleted but failed to delete sensitive snapshot: ${snapshotResult.error?.message}`,
-            snapshotResult.error?.originalError
-          )
-        );
-      }
 
       return successResult(undefined);
     } catch (error) {
