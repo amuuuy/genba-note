@@ -108,6 +108,7 @@ describe('subscriptionService', () => {
   });
 
   afterEach(() => {
+    jest.restoreAllMocks();
     jest.useRealTimers();
   });
 
@@ -244,7 +245,7 @@ describe('subscriptionService', () => {
       expect(result.error?.code).toBe('RC_FETCH_ERROR');
     });
 
-    it('should return error when cache write fails', async () => {
+    it('should succeed with warning when cache write fails', async () => {
       const mockInfo = createMockCustomerInfo(true, new Date(MOCK_NOW + 30 * 24 * 60 * 60 * 1000));
       mockGetCustomerInfo.mockResolvedValue(mockInfo);
       mockedSecureStorage.saveSubscriptionCache.mockResolvedValue({
@@ -252,10 +253,31 @@ describe('subscriptionService', () => {
         error: { code: 'WRITE_ERROR', message: 'Write failed' },
       });
 
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
       const result = await verifySubscriptionOnline();
 
-      expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('CACHE_WRITE_ERROR');
+      expect(result.success).toBe(true);
+      expect(result.data?.isProActive).toBe(true);
+      expect(warnSpy).toHaveBeenCalled();
+      warnSpy.mockRestore();
+    });
+
+    it('should return online result with isProActive=false even when cache write fails', async () => {
+      const mockInfo = createMockCustomerInfo(false);
+      mockGetCustomerInfo.mockResolvedValue(mockInfo);
+      mockedSecureStorage.saveSubscriptionCache.mockResolvedValue({
+        success: false,
+        error: { code: 'WRITE_ERROR', message: 'Write failed' },
+      });
+
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      const result = await verifySubscriptionOnline();
+
+      expect(result.success).toBe(true);
+      expect(result.data?.isProActive).toBe(false);
+      warnSpy.mockRestore();
     });
 
     it('should return error when uptime fetch fails', async () => {
@@ -327,6 +349,24 @@ describe('subscriptionService', () => {
       expect(result.reason).toBe('offline_grace_period');
     });
 
+    it('should return online_verified when cache write fails but online verification succeeds', async () => {
+      const mockInfo = createMockCustomerInfo(true, new Date(MOCK_NOW + 30 * 24 * 60 * 60 * 1000));
+      mockGetCustomerInfo.mockResolvedValue(mockInfo);
+      mockedSecureStorage.saveSubscriptionCache.mockResolvedValue({
+        success: false,
+        error: { code: 'WRITE_ERROR', message: 'Write failed' },
+      });
+
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      const result = await getProStatus();
+
+      expect(result.isProAllowed).toBe(true);
+      expect(result.reason).toBe('online_verified');
+      expect(mockedOfflineValidation.validateProOffline).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
+    });
+
     it('should return offline validation result on fallback', async () => {
       mockGetCustomerInfo.mockRejectedValue(new Error('Network error'));
 
@@ -370,6 +410,25 @@ describe('subscriptionService', () => {
 
       expect(result.success).toBe(true);
       expect(mockedSecureStorage.saveSubscriptionCache).toHaveBeenCalled();
+    });
+
+    it('should return restore result even when cache write fails', async () => {
+      const expirationDate = new Date(MOCK_NOW + 30 * 24 * 60 * 60 * 1000);
+      const mockInfo = createMockCustomerInfo(true, expirationDate);
+      mockRestorePurchases.mockResolvedValue(mockInfo);
+      mockedSecureStorage.saveSubscriptionCache.mockResolvedValue({
+        success: false,
+        error: { code: 'WRITE_ERROR', message: 'Write failed' },
+      });
+
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      const result = await restorePurchases();
+
+      expect(result.success).toBe(true);
+      expect(result.data?.isProActive).toBe(true);
+      expect(warnSpy).toHaveBeenCalled();
+      warnSpy.mockRestore();
     });
 
     it('should return error when restore fails', async () => {

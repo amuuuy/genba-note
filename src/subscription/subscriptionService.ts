@@ -145,7 +145,7 @@ export async function verifySubscriptionOnline(): Promise<
   const { isProActive, expirationDate, serverTime } =
     extractSubscriptionData(customerInfo);
 
-  // Save to cache
+  // Save to cache (failure is non-fatal - online result is still valid)
   const saveResult = await saveToCache(
     isProActive,
     expirationDate,
@@ -153,7 +153,7 @@ export async function verifySubscriptionOnline(): Promise<
     uptimeResult.uptimeMs
   );
   if (!saveResult.success) {
-    return errorResult(saveResult.error!);
+    console.warn('[SubscriptionService] Cache write failed, using online result:', saveResult.error?.code);
   }
 
   return successResult({
@@ -240,7 +240,7 @@ export async function restorePurchases(): Promise<
   const { isProActive, expirationDate, serverTime } =
     extractSubscriptionData(customerInfo);
 
-  // Save to cache
+  // Save to cache (failure is non-fatal - restore result is still valid)
   const saveResult = await saveToCache(
     isProActive,
     expirationDate,
@@ -248,7 +248,7 @@ export async function restorePurchases(): Promise<
     uptimeResult.uptimeMs
   );
   if (!saveResult.success) {
-    return errorResult(saveResult.error!);
+    console.warn('[SubscriptionService] Cache write failed after restore:', saveResult.error?.code);
   }
 
   return successResult({
