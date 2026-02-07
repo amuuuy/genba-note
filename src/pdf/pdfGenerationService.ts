@@ -12,9 +12,9 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
 
-import type { PdfTemplateInput, PdfGenerationResult } from './types';
+import type { PdfTemplateInput, PdfGenerationResult, PdfGenerationOptions, PreviewOrientation } from './types';
 import { DEFAULT_INVOICE_TEMPLATE_TYPE, DEFAULT_SEAL_SIZE } from './types';
-import { generateHtmlTemplate } from './pdfTemplateService';
+import { generateHtmlTemplate, injectLandscapeCss } from './pdfTemplateService';
 import { checkProStatus } from './proGateService';
 import { validateDocumentForPdf, formatValidationError } from './pdfValidationService';
 import { getSettings } from '@/storage/asyncStorageService';
@@ -28,12 +28,20 @@ import { getSettings } from '@/storage/asyncStorageService';
  * @param html - HTML content to convert to PDF
  * @returns PdfGenerationResult with fileUri on success
  */
-async function generatePdf(html: string): Promise<PdfGenerationResult> {
+async function generatePdf(html: string, orientation?: PreviewOrientation): Promise<PdfGenerationResult> {
   try {
-    const result = await Print.printToFileAsync({
+    const printOptions: { html: string; base64: boolean; width?: number; height?: number } = {
       html,
       base64: false,
-    });
+    };
+
+    // A4 landscape dimensions in points (842 x 595)
+    if (orientation === 'LANDSCAPE') {
+      printOptions.width = 842;
+      printOptions.height = 595;
+    }
+
+    const result = await Print.printToFileAsync(printOptions);
 
     return {
       success: true,
@@ -121,7 +129,8 @@ async function cleanupPdfFile(fileUri: string): Promise<void> {
  * @returns PdfGenerationResult
  */
 export async function generateAndSharePdf(
-  input: Omit<PdfTemplateInput, 'mode'>
+  input: Omit<PdfTemplateInput, 'mode'>,
+  options?: PdfGenerationOptions
 ): Promise<PdfGenerationResult> {
   // 1. Enforce Pro status check at service layer
   const proResult = await checkProStatus();
@@ -157,15 +166,20 @@ export async function generateAndSharePdf(
     : DEFAULT_SEAL_SIZE;
 
   // 3. Generate HTML template with formal PDF theme
-  const { html } = generateHtmlTemplate({
+  let { html } = generateHtmlTemplate({
     ...input,
     mode: 'pdf',
     invoiceTemplateType,
     sealSize,
   });
 
-  // 4. Generate PDF
-  const pdfResult = await generatePdf(html);
+  // 3.5. Inject landscape CSS if orientation is LANDSCAPE
+  if (options?.orientation === 'LANDSCAPE') {
+    html = injectLandscapeCss(html);
+  }
+
+  // 4. Generate PDF (pass orientation for width/height)
+  const pdfResult = await generatePdf(html, options?.orientation);
   if (!pdfResult.success) {
     return pdfResult;
   }

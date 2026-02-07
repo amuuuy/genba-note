@@ -23,6 +23,7 @@ import {
   generateDocumentTitle,
   generateFilenameTitle,
   parseAddressWithPostalCode,
+  injectLandscapeCss,
 } from '@/pdf/pdfTemplateService';
 
 describe('pdfTemplateService', () => {
@@ -1311,6 +1312,80 @@ describe('pdfTemplateService', () => {
         // The CSS should define black background for notes-title
         expect(result.html).toMatch(/\.notes-title\s*\{[^}]*background:\s*#000/);
       });
+    });
+  });
+
+  // === M18: injectLandscapeCss ===
+  describe('injectLandscapeCss', () => {
+    it('injects @page landscape rule before closing </style> tag', () => {
+      const html = '<html><head><style>body { margin: 0; }</style></head><body></body></html>';
+      const result = injectLandscapeCss(html);
+      expect(result).toContain('@page { size: A4 landscape; }');
+      expect(result).toContain('</style>');
+      const ruleIndex = result.indexOf('@page { size: A4 landscape; }');
+      const closeIndex = result.indexOf('</style>');
+      expect(ruleIndex).toBeLessThan(closeIndex);
+    });
+
+    it('injects min-width for forced wider layout on narrow screens', () => {
+      const html = '<html><head><style>body { margin: 0; }</style></head><body></body></html>';
+      const result = injectLandscapeCss(html);
+      expect(result).toContain('min-width: 1130px');
+      expect(result).toContain('max-width: 1130px');
+    });
+
+    it('injects viewport meta tag for WebView zoom-out on narrow screens', () => {
+      const html = '<html><head><style>body { margin: 0; }</style></head><body></body></html>';
+      const result = injectLandscapeCss(html);
+      expect(result).toContain('<meta name="viewport" content="width=1130">');
+    });
+
+    it('replaces existing viewport meta when present', () => {
+      const html = '<html><head><meta name="viewport" content="width=device-width"><style>a{}</style></head><body></body></html>';
+      const result = injectLandscapeCss(html);
+      expect(result).toContain('<meta name="viewport" content="width=1130">');
+      expect(result).not.toContain('width=device-width');
+    });
+
+    it('handles HTML with multiple style blocks (injects before last </style>)', () => {
+      const html = '<html><head><style>a{}</style><style>b{}</style></head><body></body></html>';
+      const result = injectLandscapeCss(html);
+      const lastStyleClose = result.lastIndexOf('</style>');
+      const ruleIndex = result.indexOf('@page { size: A4 landscape; }');
+      expect(ruleIndex).toBeLessThan(lastStyleClose);
+    });
+
+    it('inserts <style> block and viewport meta before </head> when no </style> exists', () => {
+      const html = '<html><head></head><body></body></html>';
+      const result = injectLandscapeCss(html);
+      expect(result).toContain('@page { size: A4 landscape; }');
+      expect(result).toContain('min-width: 1130px');
+      expect(result).toContain('<style>');
+      expect(result).toContain('<meta name="viewport" content="width=1130">');
+    });
+
+    it('returns HTML unchanged when neither </style> nor </head> exists', () => {
+      const html = '<div>no head or style</div>';
+      const result = injectLandscapeCss(html);
+      expect(result).toBe(html);
+    });
+
+    it('does not inject landscape rules in default portrait template', () => {
+      const input = createTestTemplateInput({ mode: 'pdf' });
+      const { html } = generateHtmlTemplate(input);
+      expect(html).not.toContain('@page');
+      expect(html).toContain('max-width: 800px');
+    });
+
+    it('produces valid HTML with @page, container overrides, and viewport meta when applied to a real template', () => {
+      const input = createTestTemplateInput({ mode: 'pdf' });
+      const { html } = generateHtmlTemplate(input);
+      const result = injectLandscapeCss(html);
+      expect(result).toContain('@page { size: A4 landscape; }');
+      expect(result).toContain('min-width: 1130px');
+      expect(result).toContain('<meta name="viewport" content="width=1130">');
+      expect(result).toContain('<!DOCTYPE html>');
+      expect(result).toContain('</html>');
     });
   });
 });

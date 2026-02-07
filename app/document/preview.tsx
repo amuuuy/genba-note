@@ -18,20 +18,22 @@
  * - In preview mode, PDF sharing is disabled (document must be saved first)
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 
 import { getDocument } from '@/domain/document';
 import { enrichDocumentWithTotals } from '@/domain/lineItem/calculationService';
 import { resolveIssuerInfo } from '@/pdf/issuerResolverService';
 // Import template service directly to avoid bundling expo-print/sharing dependencies in preview
-import { generateHtmlTemplate } from '@/pdf/pdfTemplateService';
+import { generateHtmlTemplate, deriveDisplayHtml, toggleOrientation } from '@/pdf/pdfTemplateService';
 // Import PDF generation service for Pro feature
 import { generateAndSharePdf } from '@/pdf/pdfGenerationService';
 import { getPdfErrorMessage } from '@/constants/errorMessages';
 import type { Document, DocumentWithTotals, SensitiveIssuerSnapshot } from '@/types/document';
+import type { PreviewOrientation } from '@/pdf/types';
 
 type ScreenState = 'loading' | 'error' | 'ready';
 
@@ -44,6 +46,7 @@ export default function DocumentPreviewScreen() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const [orientation, setOrientation] = useState<PreviewOrientation>('PORTRAIT');
 
   // Whether we're in preview mode (unsaved document)
   const isPreviewMode = !!previewData;
@@ -114,6 +117,17 @@ export default function DocumentPreviewScreen() {
     loadPreview();
   }, [id, previewData]);
 
+  // Compute HTML for WebView display, applying landscape CSS when needed
+  const displayHtml = useMemo(
+    () => deriveDisplayHtml(html, orientation),
+    [html, orientation]
+  );
+
+  // Handle orientation toggle
+  const handleToggleOrientation = useCallback(() => {
+    setOrientation((prev) => toggleOrientation(prev));
+  }, []);
+
   // Handle PDF share button
   const handleSharePdf = useCallback(async () => {
     if (!documentWithTotals) return;
@@ -124,10 +138,10 @@ export default function DocumentPreviewScreen() {
     // Generate and share PDF (Pro check is enforced at service layer)
     setIsGenerating(true);
     try {
-      const result = await generateAndSharePdf({
-        document: documentWithTotals,
-        sensitiveSnapshot,
-      });
+      const result = await generateAndSharePdf(
+        { document: documentWithTotals, sensitiveSnapshot },
+        { orientation }
+      );
 
       if (!result.success && result.error) {
         // Handle PRO_REQUIRED error by navigating to paywall
@@ -153,7 +167,7 @@ export default function DocumentPreviewScreen() {
     } finally {
       setIsGenerating(false);
     }
-  }, [documentWithTotals, sensitiveSnapshot]);
+  }, [documentWithTotals, sensitiveSnapshot, orientation]);
 
   // Dismiss PDF error
   const handleDismissPdfError = useCallback(() => {
@@ -189,7 +203,7 @@ export default function DocumentPreviewScreen() {
       <WebView
         style={styles.webview}
         originWhitelist={['about:blank']}
-        source={{ html }}
+        source={{ html: displayHtml }}
         scrollEnabled={true}
         javaScriptEnabled={false}
         allowFileAccess={false}
@@ -206,6 +220,25 @@ export default function DocumentPreviewScreen() {
             </Text>
           </View>
         )}
+
+        {/* Orientation toggle button */}
+        <Pressable
+          style={styles.orientationToggle}
+          onPress={handleToggleOrientation}
+          accessibilityLabel={
+            orientation === 'PORTRAIT' ? '横向きに切り替え' : '縦向きに切り替え'
+          }
+          accessibilityRole="button"
+        >
+          <Ionicons
+            name={orientation === 'PORTRAIT' ? 'phone-portrait-outline' : 'phone-landscape-outline'}
+            size={20}
+            color="#007AFF"
+          />
+          <Text style={styles.orientationToggleText}>
+            {orientation === 'PORTRAIT' ? '縦向き' : '横向き'}
+          </Text>
+        </Pressable>
 
         {/* PDF Error Display - only show when not in preview mode */}
         {!isPreviewMode && pdfError && (
@@ -339,6 +372,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#C62828',
     fontWeight: '600',
+  },
+  orientationToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    borderRadius: 8,
+    backgroundColor: '#F0F7FF',
+  },
+  orientationToggleText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '500',
   },
   previewNotice: {
     backgroundColor: '#FFF3E0',

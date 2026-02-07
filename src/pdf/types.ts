@@ -45,6 +45,16 @@ export type DocumentTemplateId = (typeof DOCUMENT_TEMPLATE_IDS)[number];
 export type PreviewOrientation = 'PORTRAIT' | 'LANDSCAPE';
 
 /**
+ * Options for PDF generation (extensible for future milestones).
+ * M18: orientation
+ * M19: customFilename (planned)
+ */
+export interface PdfGenerationOptions {
+  /** Preview orientation - controls page size in PDF output */
+  orientation?: PreviewOrientation;
+}
+
+/**
  * Seal size in pixels per template.
  * SIMPLE uses smaller sizes; all others share the same scale.
  *

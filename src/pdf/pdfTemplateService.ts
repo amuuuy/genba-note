@@ -10,7 +10,7 @@
  */
 
 import type { DocumentType, DocumentWithTotals, TaxRate, SensitiveIssuerSnapshot } from '@/types/document';
-import type { PdfTemplateInput, PdfTemplateResult, ColorScheme, TemplateMode, InvoiceTemplateType, SealSize } from './types';
+import type { PdfTemplateInput, PdfTemplateResult, ColorScheme, TemplateMode, InvoiceTemplateType, SealSize, PreviewOrientation } from './types';
 import { ESTIMATE_COLORS, INVOICE_COLORS, FORMAL_COLORS, DEFAULT_INVOICE_TEMPLATE_TYPE, DEFAULT_SEAL_SIZE, getSealSizePx } from './types';
 import { getScreenThemeCss, getFormalThemeCss } from './themes';
 import { generateInvoiceAccountingTemplate } from './invoiceAccountingTemplate';
@@ -1764,4 +1764,81 @@ export function generateHtmlTemplate(input: PdfTemplateInput): PdfTemplateResult
     html,
     title: generateFilenameTitle(doc.documentNo, doc.type),
   };
+}
+
+// === Orientation CSS Injection (M18) ===
+
+/** Landscape CSS: @page for print + wider container for screen */
+const LANDSCAPE_CSS = [
+  '@page { size: A4 landscape; }',
+  '.document-container { max-width: 1130px; min-width: 1130px; }',
+].join('\n    ');
+
+/** Viewport meta tag for landscape: forces WebView to render at 1130px width */
+const LANDSCAPE_VIEWPORT_META = '<meta name="viewport" content="width=1130">';
+
+/**
+ * Inject landscape orientation rules into an existing HTML string.
+ *
+ * Two mechanisms ensure the landscape layout is visible:
+ * 1. CSS: `@page { size: A4 landscape }` for print/PDF context,
+ *    plus `.document-container { min-width: 1130px }` for wider layout.
+ * 2. Viewport meta: `<meta name="viewport" content="width=1130">` forces
+ *    the WebView to render at 1130px width, which auto-scales (zooms out)
+ *    on narrow mobile screens so the wider layout is visually apparent.
+ */
+export function injectLandscapeCss(html: string): string {
+  let result = html;
+
+  // 1. Inject CSS before the last </style> tag (or new <style> before </head>)
+  const styleCloseIndex = result.lastIndexOf('</style>');
+  if (styleCloseIndex !== -1) {
+    result =
+      result.slice(0, styleCloseIndex) +
+      '\n    ' + LANDSCAPE_CSS + '\n  ' +
+      result.slice(styleCloseIndex);
+  } else {
+    const headCloseIndex = result.indexOf('</head>');
+    if (headCloseIndex !== -1) {
+      result =
+        result.slice(0, headCloseIndex) +
+        `<style>${LANDSCAPE_CSS}</style>\n` +
+        result.slice(headCloseIndex);
+    }
+  }
+
+  // 2. Inject viewport meta tag in <head> for WebView zoom-out
+  //    Replace existing viewport meta if present, or insert before </head>
+  const existingViewport = result.match(/<meta\s+name="viewport"[^>]*>/);
+  if (existingViewport) {
+    result = result.replace(existingViewport[0], LANDSCAPE_VIEWPORT_META);
+  } else {
+    const headClose = result.indexOf('</head>');
+    if (headClose !== -1) {
+      result =
+        result.slice(0, headClose) +
+        LANDSCAPE_VIEWPORT_META + '\n' +
+        result.slice(headClose);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Toggle orientation between PORTRAIT and LANDSCAPE.
+ * Exported so that preview.tsx and tests share the same logic.
+ */
+export function toggleOrientation(current: PreviewOrientation): PreviewOrientation {
+  return current === 'PORTRAIT' ? 'LANDSCAPE' : 'PORTRAIT';
+}
+
+/**
+ * Derive the display HTML from orientation.
+ * Returns the raw HTML for PORTRAIT, or landscape-injected HTML for LANDSCAPE.
+ * Exported so that preview.tsx and tests share the same logic.
+ */
+export function deriveDisplayHtml(html: string, orientation: PreviewOrientation): string {
+  if (!html) return '';
+  return orientation === 'LANDSCAPE' ? injectLandscapeCss(html) : html;
 }

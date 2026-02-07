@@ -238,6 +238,75 @@ describe('pdfGenerationService', () => {
       });
     });
 
+    describe('orientation option (M18)', () => {
+      beforeEach(() => {
+        setProStatusOverride(true);
+        (Print.printToFileAsync as jest.Mock).mockResolvedValue({
+          uri: 'file:///generated.pdf',
+        });
+        (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true);
+        (Sharing.shareAsync as jest.Mock).mockResolvedValue(undefined);
+        (FileSystem.deleteAsync as jest.Mock).mockResolvedValue(undefined);
+      });
+
+      it('calls printToFileAsync WITHOUT width/height when orientation is not specified', async () => {
+        const input = createTestTemplateInput();
+        await generateAndSharePdf(input);
+
+        expect(Print.printToFileAsync).toHaveBeenCalledWith({
+          html: expect.any(String),
+          base64: false,
+        });
+      });
+
+      it('calls printToFileAsync WITHOUT width/height when orientation is PORTRAIT', async () => {
+        const input = createTestTemplateInput();
+        await generateAndSharePdf(input, { orientation: 'PORTRAIT' });
+
+        expect(Print.printToFileAsync).toHaveBeenCalledWith({
+          html: expect.any(String),
+          base64: false,
+        });
+      });
+
+      it('calls printToFileAsync WITH landscape dimensions when orientation is LANDSCAPE', async () => {
+        const input = createTestTemplateInput();
+        await generateAndSharePdf(input, { orientation: 'LANDSCAPE' });
+
+        expect(Print.printToFileAsync).toHaveBeenCalledWith({
+          html: expect.any(String),
+          base64: false,
+          width: 842,
+          height: 595,
+        });
+      });
+
+      it('injects landscape CSS (both @page and container width) into HTML when orientation is LANDSCAPE', async () => {
+        const input = createTestTemplateInput();
+        await generateAndSharePdf(input, { orientation: 'LANDSCAPE' });
+
+        const calledHtml = (Print.printToFileAsync as jest.Mock).mock.calls[0][0].html;
+        expect(calledHtml).toContain('@page { size: A4 landscape; }');
+        expect(calledHtml).toContain('min-width: 1130px');
+      });
+
+      it('does NOT inject @page CSS when orientation is PORTRAIT', async () => {
+        const input = createTestTemplateInput();
+        await generateAndSharePdf(input, { orientation: 'PORTRAIT' });
+
+        const calledHtml = (Print.printToFileAsync as jest.Mock).mock.calls[0][0].html;
+        expect(calledHtml).not.toContain('@page');
+      });
+
+      it('does NOT inject @page CSS when no options specified', async () => {
+        const input = createTestTemplateInput();
+        await generateAndSharePdf(input);
+
+        const calledHtml = (Print.printToFileAsync as jest.Mock).mock.calls[0][0].html;
+        expect(calledHtml).not.toContain('@page');
+      });
+    });
+
     describe('read-only mode compatibility', () => {
       /**
        * PDF generation should work in read-only mode because:
