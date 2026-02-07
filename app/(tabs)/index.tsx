@@ -2,9 +2,9 @@
  * Document List Screen - Creation Hub
  *
  * Main screen with Creation Hub design:
- * - App branding header with collapsible search
+ * - App branding header with collapsible search + view mode toggle
  * - Two large card buttons for document creation
- * - Recent documents section
+ * - Recent documents section (list view) or kanban board (kanban view)
  */
 
 import React, { useCallback, useState, useMemo } from 'react';
@@ -27,6 +27,7 @@ import {
   RecentDocumentsSection,
 } from '../../src/components/document';
 import { ConfirmDialog } from '../../src/components/common';
+import { KanbanBoard } from '../../src/components/kanban/KanbanBoard';
 
 /** Maximum number of recent documents to display */
 const MAX_RECENT_DOCUMENTS = 20;
@@ -43,6 +44,9 @@ interface DeleteConfirmState {
  * Main document list screen with Creation Hub design
  */
 export default function DocumentListScreen() {
+  // View mode state
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
+
   // Search state
   const [showSearchBar, setShowSearchBar] = useState(false);
 
@@ -116,6 +120,11 @@ export default function DocumentListScreen() {
     setSearchText('');
   }, [setSearchText]);
 
+  // Handle view mode toggle
+  const handleViewModeToggle = useCallback(() => {
+    setViewMode((prev) => (prev === 'list' ? 'kanban' : 'list'));
+  }, []);
+
   // Show error state
   if (error) {
     return (
@@ -130,35 +139,65 @@ export default function DocumentListScreen() {
 
   return (
     <GestureHandlerRootView style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <CreationHubHeader
-          showSearchBar={showSearchBar}
-          onSearchPress={handleSearchPress}
-          searchText={filterState.searchText}
-          onSearchTextChange={setSearchText}
-          onSearchClose={handleSearchClose}
-        />
+      {viewMode === 'list' ? (
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <CreationHubHeader
+            showSearchBar={showSearchBar}
+            onSearchPress={handleSearchPress}
+            searchText={filterState.searchText}
+            onSearchTextChange={setSearchText}
+            onSearchClose={handleSearchClose}
+            viewMode={viewMode}
+            onViewModeToggle={handleViewModeToggle}
+          />
 
-        <CreateDocumentCardGroup
-          onCreateEstimate={handleCreateEstimate}
-          onCreateInvoice={handleCreateInvoice}
-          disabled={isReadOnlyMode}
-        />
+          <CreateDocumentCardGroup
+            onCreateEstimate={handleCreateEstimate}
+            onCreateInvoice={handleCreateInvoice}
+            disabled={isReadOnlyMode}
+          />
 
-        <RecentDocumentsSection
-          documents={recentDocuments}
-          isLoading={isLoading}
-          isFiltered={isFiltered}
-          onDocumentPress={handleDocumentPress}
-          onDocumentDelete={handleDeleteTrigger}
-          disableDelete={isReadOnlyMode}
-          onRefresh={refresh}
-        />
-      </ScrollView>
+          <RecentDocumentsSection
+            documents={recentDocuments}
+            isLoading={isLoading}
+            isFiltered={isFiltered}
+            onDocumentPress={handleDocumentPress}
+            onDocumentDelete={handleDeleteTrigger}
+            disableDelete={isReadOnlyMode}
+            onRefresh={refresh}
+          />
+        </ScrollView>
+      ) : (
+        <View style={styles.kanbanContainer}>
+          <CreationHubHeader
+            showSearchBar={showSearchBar}
+            onSearchPress={handleSearchPress}
+            searchText={filterState.searchText}
+            onSearchTextChange={setSearchText}
+            onSearchClose={handleSearchClose}
+            viewMode={viewMode}
+            onViewModeToggle={handleViewModeToggle}
+          />
+
+          <CreateDocumentCardGroup
+            onCreateEstimate={handleCreateEstimate}
+            onCreateInvoice={handleCreateInvoice}
+            disabled={isReadOnlyMode}
+          />
+
+          <KanbanBoard
+            documents={recentDocuments}
+            isLoading={isLoading}
+            onDocumentPress={handleDocumentPress}
+            onRefresh={refresh}
+            disabled={isReadOnlyMode}
+          />
+        </View>
+      )}
 
       {/* Delete confirmation dialog */}
       <ConfirmDialog
@@ -185,6 +224,9 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+  },
+  kanbanContainer: {
+    flex: 1,
   },
   centerContainer: {
     flex: 1,

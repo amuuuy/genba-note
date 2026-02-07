@@ -26,6 +26,10 @@ export interface CreationHubHeaderProps {
   onSearchTextChange: (text: string) => void;
   /** Callback to close search bar */
   onSearchClose: () => void;
+  /** Current view mode (list or kanban) */
+  viewMode?: 'list' | 'kanban';
+  /** Callback when view mode toggle is pressed */
+  onViewModeToggle?: () => void;
   /** Test ID for testing */
   testID?: string;
 }
@@ -39,6 +43,8 @@ export const CreationHubHeader: React.FC<CreationHubHeaderProps> = ({
   searchText,
   onSearchTextChange,
   onSearchClose,
+  viewMode,
+  onViewModeToggle,
   testID,
 }) => {
   const animatedHeight = useRef(new Animated.Value(0)).current;
@@ -69,6 +75,28 @@ export const CreationHubHeader: React.FC<CreationHubHeaderProps> = ({
   return (
     <View style={styles.container} testID={testID}>
       <View style={styles.headerRow}>
+        {viewMode && onViewModeToggle && (
+          <Pressable
+            style={({ pressed }) => [
+              styles.searchIconButton,
+              pressed && styles.searchIconButtonPressed,
+            ]}
+            onPress={onViewModeToggle}
+            accessibilityLabel={
+              viewMode === 'list'
+                ? 'カンバン表示に切替'
+                : 'リスト表示に切替'
+            }
+            accessibilityRole="button"
+            testID="view-mode-toggle"
+          >
+            <Ionicons
+              name={viewMode === 'list' ? 'albums-outline' : 'list-outline'}
+              size={24}
+              color="#8E8E93"
+            />
+          </Pressable>
+        )}
         <Pressable
           style={({ pressed }) => [
             styles.searchIconButton,

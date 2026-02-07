@@ -56,3 +56,6 @@ export type {
 
 export { useFinanceChart } from './useFinanceChart';
 export type { UseFinanceChartReturn } from './useFinanceChart';
+
+export { useKanbanBoard, resolveHandleDrop } from './useKanbanBoard';
+export type { UseKanbanBoardReturn, HandleDropResult } from './useKanbanBoard';
