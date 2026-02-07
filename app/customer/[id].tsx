@@ -19,7 +19,7 @@ import {
   ScrollView,
   BackHandler,
 } from 'react-native';
-import { useLocalSearchParams, router, Stack, type Href } from 'expo-router';
+import { useLocalSearchParams, router, Stack, useFocusEffect, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -118,12 +118,16 @@ export default function CustomerEditScreen() {
   }, []);
 
   // Handle Android hardware back button
-  useEffect(() => {
-    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      return showUnsavedChangesAlert();
-    });
-    return () => subscription.remove();
-  }, [showUnsavedChangesAlert]);
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        return showUnsavedChangesAlert();
+      };
+
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription.remove();
+    }, [showUnsavedChangesAlert])
+  );
 
   // Handle save
   const handleSave = useCallback(async () => {
