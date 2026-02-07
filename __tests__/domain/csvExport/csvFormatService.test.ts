@@ -85,6 +85,70 @@ describe('csvFormatService', () => {
         expect(escapeField('a,b"c\nd')).toBe('"a,b""c\nd"');
       });
     });
+
+    describe('formula injection protection (B5)', () => {
+      it('should prefix = with single quote', () => {
+        expect(escapeField('=HYPERLINK("http://evil.com")')).toBe(
+          '"\'=HYPERLINK(""http://evil.com"")"'
+        );
+      });
+
+      it('should prefix + with single quote', () => {
+        expect(escapeField("+cmd|' /C calc'!A0")).toBe(
+          "'+cmd|' /C calc'!A0"
+        );
+      });
+
+      it('should prefix @ with single quote', () => {
+        expect(escapeField('@SUM(A1:A10)')).toBe("'@SUM(A1:A10)");
+      });
+
+      it('should prefix - with single quote for string values', () => {
+        expect(escapeField('-1+1')).toBe("'-1+1");
+      });
+
+      it('should prefix \\t with single quote', () => {
+        expect(escapeField('\t=cmd')).toBe("'\t=cmd");
+      });
+
+      it('should prefix \\r with single quote', () => {
+        // \r triggers both formula protection AND RFC 4180 quoting
+        expect(escapeField('\rDANGEROUS')).toBe("\"'\rDANGEROUS\"");
+      });
+
+      it('should prefix \\n with single quote', () => {
+        // \n triggers both formula protection AND RFC 4180 quoting
+        expect(escapeField('\n=SUM(A1)')).toBe("\"'\n=SUM(A1)\"");
+      });
+
+      it('should NOT prefix negative number', () => {
+        expect(escapeField(-500)).toBe('-500');
+      });
+
+      it('should prefix string that looks like negative number', () => {
+        expect(escapeField('-500')).toBe("'-500");
+      });
+
+      it('should not prefix empty string', () => {
+        expect(escapeField('')).toBe('');
+      });
+
+      it('should not prefix normal strings', () => {
+        expect(escapeField('hello')).toBe('hello');
+      });
+
+      it('should not prefix strings starting with other special chars', () => {
+        expect(escapeField('#comment')).toBe('#comment');
+      });
+
+      it('should handle = as only character', () => {
+        expect(escapeField('=')).toBe("'=");
+      });
+
+      it('should handle formula with comma (both protections apply)', () => {
+        expect(escapeField('=A1,B1')).toBe("\"'=A1,B1\"");
+      });
+    });
   });
 
   describe('formatCsvRow', () => {
@@ -136,6 +200,15 @@ describe('csvFormatService', () => {
 
       expect(result).toContain('2026-01-20');
       expect(result).toContain(',paid');
+    });
+
+    it('should sanitize malicious clientName (B5)', () => {
+      const row = createTestCsvRow({
+        clientName: '=HYPERLINK("http://evil.com")',
+      });
+      const result = formatCsvRow(row);
+
+      expect(result).toContain("\"'=HYPERLINK(\"\"http://evil.com\"\")\"");
     });
   });
 

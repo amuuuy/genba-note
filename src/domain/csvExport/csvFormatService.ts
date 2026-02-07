@@ -8,25 +8,43 @@
 import { UTF8_BOM, CRLF, CSV_HEADER, type CsvInvoiceRow } from './types';
 
 /**
- * Escape a single field value per RFC 4180
+ * Characters that trigger formula interpretation in spreadsheet software.
+ * String fields starting with these are prefixed with ' to neutralize.
  *
- * Rules:
- * - Fields containing comma, double-quote, or newline must be enclosed in double-quotes
- * - Double-quotes within fields must be escaped by doubling them
+ * @see OWASP CSV Injection prevention
+ */
+const FORMULA_PREFIXES = ['=', '+', '-', '@', '\t', '\r', '\n'];
+
+/**
+ * Escape a single field value for CSV output.
+ *
+ * Applies two layers of protection:
+ * 1. CSV formula injection (B5): string values starting with =, +, -, @, \t, or \r
+ *    are prefixed with a single quote (') to prevent spreadsheet formula execution.
+ *    Numeric values are exempt (negative numbers are safe).
+ * 2. RFC 4180 escaping: fields containing comma, double-quote, or newline
+ *    are enclosed in double-quotes, with internal double-quotes doubled.
  *
  * @param value - Field value (string or number)
- * @returns Escaped field string
+ * @returns Escaped field string safe for CSV output
  *
  * @example
  * escapeField('hello') => 'hello'
  * escapeField('hello, world') => '"hello, world"'
- * escapeField('say "hi"') => '"say ""hi"""'
- * escapeField('line1\nline2') => '"line1\nline2"'
+ * escapeField('=SUM(A1)') => "'=SUM(A1)"
+ * escapeField(-500) => '-500'       // number: no prefix
+ * escapeField('-500') => "'-500"    // string: prefixed
  */
 export function escapeField(value: string | number): string {
-  const str = String(value);
+  let str = String(value);
 
-  // Check if escaping is needed
+  // B5: CSV formula injection protection
+  // Only sanitize string values (numeric negatives like -500 are safe)
+  if (typeof value === 'string' && str.length > 0 && FORMULA_PREFIXES.includes(str[0])) {
+    str = "'" + str;
+  }
+
+  // RFC 4180: fields containing comma, double-quote, or newline must be quoted
   const needsEscape =
     str.includes(',') ||
     str.includes('"') ||
