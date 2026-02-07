@@ -11,6 +11,7 @@
 import React, { useCallback, useState } from 'react';
 import {
   View,
+  Text,
   StyleSheet,
   Pressable,
   ActivityIndicator,
@@ -27,6 +28,7 @@ import {
   EmptyUnitPriceList,
   UnitPriceListItem,
   UnitPriceEditorModal,
+  MaterialSearchModal,
 } from '../../src/components/unitPrice';
 import {
   SearchBar,
@@ -64,6 +66,9 @@ export default function UnitPricesScreen() {
 
   // Delete confirmation state
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
+
+  // Material research modal state
+  const [researchModalVisible, setResearchModalVisible] = useState(false);
 
   // Determine if list is filtered
   const isFiltered = Boolean(searchText || selectedCategory);
@@ -126,6 +131,16 @@ export default function UnitPricesScreen() {
     setEditingUnitPrice(null);
   }, []);
 
+  // Handle material research register
+  const handleResearchRegister = useCallback(async (input: UnitPriceInput) => {
+    const success = await createItem(input);
+    if (success) {
+      Alert.alert('登録完了', `「${input.name}」を単価マスタに登録しました`);
+    } else {
+      Alert.alert('エラー', '登録に失敗しました');
+    }
+  }, [createItem]);
+
   // Build category filter options
   const categoryOptions: FilterOption<string>[] = [
     { value: '', label: 'すべて' },
@@ -157,11 +172,29 @@ export default function UnitPricesScreen() {
   // Render header with search and filters
   const renderHeader = useCallback(() => (
     <View style={styles.header}>
-      <SearchBar
-        value={searchText}
-        onChangeText={setSearchText}
-        placeholder="品名で検索..."
-      />
+      <View style={styles.searchRow}>
+        <View style={styles.searchBarWrapper}>
+          <SearchBar
+            value={searchText}
+            onChangeText={setSearchText}
+            placeholder="品名で検索..."
+          />
+        </View>
+        <Pressable
+          style={({ pressed }) => [
+            styles.researchButton,
+            pressed && !isReadOnlyMode && styles.researchButtonPressed,
+            isReadOnlyMode && styles.researchButtonDisabled,
+          ]}
+          onPress={() => setResearchModalVisible(true)}
+          disabled={isReadOnlyMode}
+          accessibilityLabel="材料リサーチ"
+          accessibilityRole="button"
+        >
+          <Ionicons name="search-circle-outline" size={18} color="#007AFF" />
+          <Text style={styles.researchButtonText}>リサーチ</Text>
+        </Pressable>
+      </View>
       {categories.length > 0 && (
         <View style={styles.filterContainer}>
           <FilterChipGroup
@@ -234,6 +267,14 @@ export default function UnitPricesScreen() {
         testID="unit-price-editor-modal"
       />
 
+      {/* Material research modal */}
+      <MaterialSearchModal
+        visible={researchModalVisible}
+        onRegister={handleResearchRegister}
+        onClose={() => setResearchModalVisible(false)}
+        testID="material-search-modal"
+      />
+
       {/* Delete confirmation dialog */}
       <ConfirmDialog
         visible={deleteConfirm !== null}
@@ -261,6 +302,34 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#E5E5EA',
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  searchBarWrapper: {
+    flex: 1,
+  },
+  researchButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E3F2FD',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 4,
+  },
+  researchButtonPressed: {
+    opacity: 0.7,
+  },
+  researchButtonDisabled: {
+    opacity: 0.4,
+  },
+  researchButtonText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#007AFF',
   },
   filterContainer: {
     marginTop: 12,

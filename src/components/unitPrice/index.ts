@@ -12,3 +12,9 @@ export type { UnitPriceEditorModalProps } from './UnitPriceEditorModal';
 
 export { UnitPriceListItem } from './UnitPriceListItem';
 export type { UnitPriceListItemProps } from './UnitPriceListItem';
+
+export { MaterialSearchModal } from './MaterialSearchModal';
+export type { MaterialSearchModalProps } from './MaterialSearchModal';
+
+export { MaterialSearchResultItem } from './MaterialSearchResultItem';
+export type { MaterialSearchResultItemProps } from './MaterialSearchResultItem';
