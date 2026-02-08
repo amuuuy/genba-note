@@ -6,7 +6,7 @@
  */
 
 import React, { useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Animated, type GestureResponderEvent } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import type { DocumentWithTotals, DocumentType } from '../../types';
@@ -19,6 +19,8 @@ export interface DocumentListItemProps {
   onPress: (id: string) => void;
   /** Callback when delete action is triggered */
   onDelete: (id: string, clientName: string) => void;
+  /** Callback when photo icon is tapped (customerId passed) */
+  onPhotoPress?: (customerId: string) => void;
   /** Disable swipe-to-delete (e.g., in read-only mode) */
   disableDelete?: boolean;
   /** Test ID for testing */
@@ -43,7 +45,7 @@ function formatCurrency(amount: number): string {
  * Document list item with swipe-to-delete
  */
 export const DocumentListItem: React.FC<DocumentListItemProps> = React.memo(
-  ({ document, onPress, onDelete, disableDelete, testID }) => {
+  ({ document, onPress, onDelete, onPhotoPress, disableDelete, testID }) => {
     const swipeableRef = useRef<Swipeable>(null);
 
     const handlePress = useCallback(() => {
@@ -54,6 +56,13 @@ export const DocumentListItem: React.FC<DocumentListItemProps> = React.memo(
       swipeableRef.current?.close();
       onDelete(document.id, document.clientName);
     }, [document.id, document.clientName, onDelete]);
+
+    const handlePhotoPress = useCallback((e: GestureResponderEvent) => {
+      e.stopPropagation();
+      if (document.customerId && onPhotoPress) {
+        onPhotoPress(document.customerId);
+      }
+    }, [document.customerId, onPhotoPress]);
 
     const renderRightActions = useCallback(
       (
@@ -114,6 +123,18 @@ export const DocumentListItem: React.FC<DocumentListItemProps> = React.memo(
 
           <View style={styles.footer}>
             <Text style={styles.issueDate}>{document.issueDate}</Text>
+            {document.customerId && onPhotoPress && (
+              <Pressable
+                onPress={handlePhotoPress}
+                style={styles.photoButton}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="施工写真を開く"
+                accessibilityHint="現場写真を管理"
+                accessibilityRole="button"
+              >
+                <Ionicons name="camera-outline" size={18} color="#8E8E93" />
+              </Pressable>
+            )}
             <Text style={styles.total}>{formatCurrency(document.totalYen)}</Text>
           </View>
         </Pressable>
@@ -168,6 +189,9 @@ const styles = StyleSheet.create({
   issueDate: {
     fontSize: 13,
     color: '#8E8E93',
+  },
+  photoButton: {
+    padding: 4,
   },
   total: {
     fontSize: 16,

@@ -26,6 +26,8 @@ export interface StatusGroupedDocumentsSectionProps {
   isFiltered?: boolean;
   onDocumentPress: (id: string) => void;
   onDocumentDelete: (id: string, clientName: string) => void;
+  /** Callback when photo icon is tapped (customerId passed) */
+  onPhotoPress?: (customerId: string) => void;
   disableDelete?: boolean;
   onRefresh?: () => void;
   testID?: string;
@@ -65,19 +67,21 @@ const StatusGroupSection: React.FC<{
   documents: DocumentWithTotals[];
   onDocumentPress: (id: string) => void;
   onDocumentDelete: (id: string, clientName: string) => void;
+  onPhotoPress?: (customerId: string) => void;
   disableDelete: boolean;
 }> = React.memo(
-  ({ config, documents, onDocumentPress, onDocumentDelete, disableDelete }) => {
+  ({ config, documents, onDocumentPress, onDocumentDelete, onPhotoPress, disableDelete }) => {
     const renderItem = useCallback(
       ({ item }: { item: DocumentWithTotals }) => (
         <DocumentListItem
           document={item}
           onPress={onDocumentPress}
           onDelete={onDocumentDelete}
+          onPhotoPress={onPhotoPress}
           disableDelete={disableDelete}
         />
       ),
-      [onDocumentPress, onDocumentDelete, disableDelete]
+      [onDocumentPress, onDocumentDelete, onPhotoPress, disableDelete]
     );
 
     return (
@@ -109,6 +113,7 @@ export const StatusGroupedDocumentsSection: React.FC<
   isFiltered = false,
   onDocumentPress,
   onDocumentDelete,
+  onPhotoPress,
   disableDelete = false,
   testID,
 }) => {
@@ -145,6 +150,7 @@ export const StatusGroupedDocumentsSection: React.FC<
           documents={grouped[config.id]}
           onDocumentPress={onDocumentPress}
           onDocumentDelete={onDocumentDelete}
+          onPhotoPress={onPhotoPress}
           disableDelete={disableDelete}
         />
       ))}

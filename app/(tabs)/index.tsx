@@ -99,6 +99,11 @@ export default function DocumentListScreen() {
     router.push('/document/new?type=invoice');
   }, []);
 
+  // Handle photo icon press - navigate to customer detail (photo management)
+  const handlePhotoPress = useCallback((customerId: string) => {
+    router.push(`/customer/${customerId}`);
+  }, []);
+
   // Handle search toggle
   const handleSearchPress = useCallback(() => {
     setShowSearchBar(true);
@@ -157,6 +162,7 @@ export default function DocumentListScreen() {
             isFiltered={isFiltered}
             onDocumentPress={handleDocumentPress}
             onDocumentDelete={handleDeleteTrigger}
+            onPhotoPress={handlePhotoPress}
             disableDelete={isReadOnlyMode}
             onRefresh={refresh}
           />
