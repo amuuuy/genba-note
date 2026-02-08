@@ -27,3 +27,8 @@ export type { CreateDocumentCardGroupProps } from './CreateDocumentCardGroup';
 
 export { RecentDocumentsSection } from './RecentDocumentsSection';
 export type { RecentDocumentsSectionProps } from './RecentDocumentsSection';
+
+export { StatusGroupedDocumentsSection } from './StatusGroupedDocumentsSection';
+export type { StatusGroupedDocumentsSectionProps } from './StatusGroupedDocumentsSection';
+export { STATUS_GROUP_UI_CONFIGS } from './statusGroupConfig';
+export type { StatusGroupUIConfig } from './statusGroupConfig';

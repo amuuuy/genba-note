@@ -92,3 +92,17 @@ export type {
 export { convertEstimateToInvoice } from './conversionService';
 
 export type { ConversionResult } from './conversionService';
+
+// === Status Grouping (pure functions) ===
+
+export {
+  groupDocumentsByStatus,
+  getDocumentsForGroup,
+  STATUS_GROUPS,
+} from './statusGroupService';
+
+export type {
+  StatusGroupId,
+  StatusGroupDef,
+  GroupedDocuments,
+} from './statusGroupService';

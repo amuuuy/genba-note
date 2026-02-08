@@ -4,10 +4,10 @@
  * Main screen with Creation Hub design:
  * - App branding header with collapsible search + view mode toggle
  * - Two large card buttons for document creation
- * - Recent documents section (list view) or kanban board (kanban view)
+ * - Status-grouped document sections (list view) or kanban board (kanban view)
  */
 
-import React, { useCallback, useState, useMemo } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -17,20 +17,16 @@ import {
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import type { DocumentWithTotals } from '../../src/types';
 import { useDocumentFilter } from '../../src/hooks/useDocumentFilter';
 import { useDocumentList } from '../../src/hooks/useDocumentList';
 import { useReadOnlyMode } from '../../src/hooks/useReadOnlyMode';
 import {
   CreationHubHeader,
   CreateDocumentCardGroup,
-  RecentDocumentsSection,
+  StatusGroupedDocumentsSection,
 } from '../../src/components/document';
 import { ConfirmDialog } from '../../src/components/common';
 import { KanbanBoard } from '../../src/components/kanban/KanbanBoard';
-
-/** Maximum number of recent documents to display */
-const MAX_RECENT_DOCUMENTS = 20;
 
 /**
  * Delete confirmation state
@@ -68,12 +64,6 @@ export default function DocumentListScreen() {
   // Delete confirmation dialog state
   const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmState | null>(
     null
-  );
-
-  // Limit to recent documents
-  const recentDocuments = useMemo(
-    () => documents.slice(0, MAX_RECENT_DOCUMENTS),
-    [documents]
   );
 
   // Handle document press
@@ -161,8 +151,8 @@ export default function DocumentListScreen() {
             disabled={isReadOnlyMode}
           />
 
-          <RecentDocumentsSection
-            documents={recentDocuments}
+          <StatusGroupedDocumentsSection
+            documents={documents}
             isLoading={isLoading}
             isFiltered={isFiltered}
             onDocumentPress={handleDocumentPress}
@@ -190,7 +180,7 @@ export default function DocumentListScreen() {
           />
 
           <KanbanBoard
-            documents={recentDocuments}
+            documents={documents}
             isLoading={isLoading}
             onDocumentPress={handleDocumentPress}
             onRefresh={refresh}
