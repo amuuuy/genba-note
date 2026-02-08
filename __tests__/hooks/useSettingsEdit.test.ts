@@ -66,6 +66,7 @@ describe('useSettingsEdit', () => {
           sealImageUri: null,
           contactPerson: null,
           showContactPerson: true,
+          email: null,
         },
         numbering: {
           estimatePrefix: 'Q-',
@@ -92,6 +93,7 @@ describe('useSettingsEdit', () => {
       expect(formValues.representativeName).toBe('山田太郎');
       expect(formValues.address).toBe('東京都渋谷区');
       expect(formValues.phone).toBe('03-1234-5678');
+      expect(formValues.email).toBe('');
       expect(formValues.estimatePrefix).toBe('Q-');
       expect(formValues.invoicePrefix).toBe('I-');
       expect(formValues.invoiceNumber).toBe('T1234567890123');
@@ -105,6 +107,7 @@ describe('useSettingsEdit', () => {
     it('handles null sensitive settings gracefully', () => {
       const formValues = createInitialFormValues(DEFAULT_APP_SETTINGS, null);
 
+      expect(formValues.email).toBe('');
       expect(formValues.invoiceNumber).toBe('');
       expect(formValues.bankName).toBe('');
       expect(formValues.branchName).toBe('');
@@ -150,6 +153,7 @@ describe('useSettingsEdit', () => {
               sealImageUri: null,
               contactPerson: null,
               showContactPerson: true,
+              email: null,
             },
           },
           sensitiveSettings: {
@@ -168,6 +172,7 @@ describe('useSettingsEdit', () => {
 
         expect(newState.isLoading).toBe(false);
         expect(newState.values.companyName).toBe('株式会社テスト');
+        expect(newState.values.email).toBe('');
         expect(newState.values.invoiceNumber).toBe('T1234567890123');
         expect(newState.nextEstimateNumber).toBe(1);
         expect(newState.nextInvoiceNumber).toBe(1);

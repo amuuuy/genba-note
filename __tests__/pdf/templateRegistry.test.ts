@@ -22,6 +22,7 @@ const ALL_TEMPLATE_IDS: DocumentTemplateId[] = [
   'SIMPLE',
   'MODERN',
   'CLASSIC',
+  'CONSTRUCTION',
 ];
 
 const defaultOptions = { sealSize: 'MEDIUM' as const, backgroundDesign: 'NONE' as const };

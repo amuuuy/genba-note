@@ -70,6 +70,7 @@ async function getIssuerSnapshotFromSettings(): Promise<IssuerSnapshot> {
       contactPerson: settingsResult.data.issuer.showContactPerson
         ? settingsResult.data.issuer.contactPerson
         : null,
+      email: settingsResult.data.issuer.email ?? null,
     };
   }
   return {
@@ -80,6 +81,7 @@ async function getIssuerSnapshotFromSettings(): Promise<IssuerSnapshot> {
     fax: null,
     sealImageBase64: null,
     contactPerson: null,
+    email: null,
   };
 }
 

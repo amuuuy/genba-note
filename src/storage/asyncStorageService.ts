@@ -94,7 +94,13 @@ export async function getAllDocuments(): Promise<StorageResult<Document[]>> {
     }
 
     try {
-      const documents = JSON.parse(data) as Document[];
+      const documents = (JSON.parse(data) as Document[]).map((doc) => ({
+        ...doc,
+        issuerSnapshot: {
+          ...doc.issuerSnapshot,
+          email: doc.issuerSnapshot?.email ?? null,
+        },
+      }));
       return successResult(documents);
     } catch {
       return errorResult(createError('PARSE_ERROR', 'Failed to parse documents'));
@@ -531,6 +537,7 @@ function mergeSettingsWithDefaults(stored: Partial<AppSettings>): AppSettings {
       sealImageUri: stored.issuer?.sealImageUri ?? DEFAULT_APP_SETTINGS.issuer.sealImageUri,
       contactPerson: stored.issuer?.contactPerson ?? DEFAULT_APP_SETTINGS.issuer.contactPerson,
       showContactPerson: stored.issuer?.showContactPerson ?? DEFAULT_APP_SETTINGS.issuer.showContactPerson,
+      email: stored.issuer?.email ?? DEFAULT_APP_SETTINGS.issuer.email,
     },
     numbering: {
       estimatePrefix: stored.numbering?.estimatePrefix ?? DEFAULT_APP_SETTINGS.numbering.estimatePrefix,

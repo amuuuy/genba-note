@@ -27,7 +27,7 @@ import type { DocumentWithTotals, SensitiveIssuerSnapshot } from '@/types/docume
 import type { SealSize, BackgroundDesign } from './types';
 import type { TemplateOptions } from './templates/templateRegistry';
 import { getSealSizePx, DEFAULT_SEAL_SIZE } from './types';
-import { getBackgroundCss } from './backgroundDesigns';
+import { getBackgroundCss, getBackgroundHtml } from './backgroundDesigns';
 import { getDocumentLabels } from './templates/documentLabels';
 import {
   formatCurrency,
@@ -753,6 +753,7 @@ export function generateInvoiceAccountingTemplate(
 ): string {
   const accountingSealSizePx = getSealSizePx(sealSize ?? DEFAULT_SEAL_SIZE, 'ACCOUNTING');
   const accountingBackgroundCss = getBackgroundCss(backgroundDesign ?? 'NONE', backgroundImageDataUrl);
+  const accountingBackgroundHtml = getBackgroundHtml(backgroundDesign ?? 'NONE', backgroundImageDataUrl);
   const clientAddressHtml = doc.clientAddress
     ? `<div class="client-address">${escapeHtml(doc.clientAddress)}</div>`
     : '';
@@ -780,6 +781,7 @@ export function generateInvoiceAccountingTemplate(
   </style>
 </head>
 <body>
+  ${accountingBackgroundHtml}
   <div class="document-container">
     <!-- Title with meta info -->
     ${renderTitleWithMeta(doc)}

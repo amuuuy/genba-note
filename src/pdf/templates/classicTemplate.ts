@@ -19,7 +19,7 @@
 import type { DocumentWithTotals, SensitiveIssuerSnapshot } from '@/types/document';
 import type { TemplateOptions } from './templateRegistry';
 import { getSealSizePx, DEFAULT_SEAL_SIZE } from '@/pdf/types';
-import { getBackgroundCss } from '@/pdf/backgroundDesigns';
+import { getBackgroundCss, getBackgroundHtml } from '@/pdf/backgroundDesigns';
 import { getDocumentLabels } from './documentLabels';
 import {
   formatCurrency,
@@ -649,6 +649,7 @@ export function generateClassicTemplate(
 ): string {
   const sealSizePx = getSealSizePx(options.sealSize, 'CLASSIC');
   const backgroundCss = getBackgroundCss(options.backgroundDesign, options.backgroundImageDataUrl);
+  const backgroundHtml = getBackgroundHtml(options.backgroundDesign, options.backgroundImageDataUrl);
 
   return `<!DOCTYPE html>
 <html lang="ja">
@@ -661,6 +662,7 @@ export function generateClassicTemplate(
   </style>
 </head>
 <body>
+  ${backgroundHtml}
   <div class="document-container">
     <!-- Title with "御" prefix and double underline -->
     ${renderTitle(doc)}

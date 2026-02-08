@@ -18,7 +18,7 @@
 import type { DocumentWithTotals, SensitiveIssuerSnapshot } from '@/types/document';
 import type { TemplateOptions } from './templateRegistry';
 import { getSealSizePx, DEFAULT_SEAL_SIZE } from '@/pdf/types';
-import { getBackgroundCss } from '@/pdf/backgroundDesigns';
+import { getBackgroundCss, getBackgroundHtml } from '@/pdf/backgroundDesigns';
 import { getFormalThemeCss } from '@/pdf/themes';
 import { FORMAL_COLORS } from '@/pdf/types';
 import { getDocumentLabels } from './documentLabels';
@@ -631,6 +631,7 @@ export function generateFormalStandardTemplate(
   const labels = getDocumentLabels(doc.type);
   const sealSizePx = getSealSizePx(options.sealSize ?? DEFAULT_SEAL_SIZE, 'FORMAL_STANDARD');
   const backgroundCss = getBackgroundCss(options.backgroundDesign, options.backgroundImageDataUrl);
+  const backgroundHtml = getBackgroundHtml(options.backgroundDesign, options.backgroundImageDataUrl);
   const themeCss = getFormalThemeCss(FORMAL_COLORS);
   const css = getFormalStandardCss(sealSizePx);
 
@@ -690,6 +691,7 @@ export function generateFormalStandardTemplate(
   </style>
 </head>
 <body>
+  ${backgroundHtml}
   <div class="document-container">
     <!-- Title -->
     ${titleHtml}

@@ -51,11 +51,12 @@ export interface PdfGenerationOptions {
  * | SIMPLE           |  30px |  50px  |  70px |
  * | MODERN           |  45px |  70px  | 100px |
  * | CLASSIC          |  45px |  70px  | 100px |
+ * | CONSTRUCTION     |  45px |  70px  | 100px |
  */
 const SEAL_SIZE_MAP: Record<SealSize, Record<DocumentTemplateId, number>> = {
-  SMALL:  { FORMAL_STANDARD: 45, ACCOUNTING: 45, SIMPLE: 30, MODERN: 45, CLASSIC: 45 },
-  MEDIUM: { FORMAL_STANDARD: 70, ACCOUNTING: 70, SIMPLE: 50, MODERN: 70, CLASSIC: 70 },
-  LARGE:  { FORMAL_STANDARD: 100, ACCOUNTING: 100, SIMPLE: 70, MODERN: 100, CLASSIC: 100 },
+  SMALL:  { FORMAL_STANDARD: 45, ACCOUNTING: 45, SIMPLE: 30, MODERN: 45, CLASSIC: 45, CONSTRUCTION: 45 },
+  MEDIUM: { FORMAL_STANDARD: 70, ACCOUNTING: 70, SIMPLE: 50, MODERN: 70, CLASSIC: 70, CONSTRUCTION: 70 },
+  LARGE:  { FORMAL_STANDARD: 100, ACCOUNTING: 100, SIMPLE: 70, MODERN: 100, CLASSIC: 100, CONSTRUCTION: 100 },
 };
 
 /** Resolve seal size to pixel value based on seal size and template */

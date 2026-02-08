@@ -227,6 +227,7 @@ export default function DocumentEditScreen() {
         fax: null,
         sealImageBase64: null,
         contactPerson: null,
+        email: null,
       },
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -282,6 +283,7 @@ export default function DocumentEditScreen() {
             contactPerson: issuer.showContactPerson
               ? (resolvedIssuerSnapshot?.contactPerson ?? issuer.contactPerson ?? null)
               : null,
+            email: resolvedIssuerSnapshot?.email ?? issuer.email ?? null,
           };
         }
       } catch {
@@ -302,7 +304,10 @@ export default function DocumentEditScreen() {
         representativeName: null,
         address: null,
         phone: null,
+        fax: null,
         sealImageBase64: null,
+        contactPerson: null,
+        email: null,
       },
     } as Document;
 

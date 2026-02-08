@@ -66,6 +66,7 @@ function createTestDocument(overrides?: Partial<Document>): Document {
       fax: null,
       sealImageBase64: null,
       contactPerson: null,
+      email: null,
     },
     createdAt: Date.now(),
     updatedAt: Date.now(),

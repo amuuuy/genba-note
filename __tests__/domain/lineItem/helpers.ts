@@ -72,6 +72,7 @@ export function createTestDocumentWithLineItems(
       fax: null,
       sealImageBase64: null,
       contactPerson: null,
+      email: null,
     },
     createdAt: now,
     updatedAt: now,

@@ -11,6 +11,7 @@ import { generateFormalStandardTemplate } from './formalStandardTemplate';
 import { generateSimpleTemplate } from './simpleTemplate';
 import { generateModernTemplate } from './modernTemplate';
 import { generateClassicTemplate } from './classicTemplate';
+import { generateConstructionTemplate } from './constructionTemplate';
 import { generateAccountingTemplate } from '@/pdf/invoiceAccountingTemplate';
 
 registerTemplate('FORMAL_STANDARD', generateFormalStandardTemplate);
@@ -18,3 +19,4 @@ registerTemplate('ACCOUNTING', generateAccountingTemplate);
 registerTemplate('SIMPLE', generateSimpleTemplate);
 registerTemplate('MODERN', generateModernTemplate);
 registerTemplate('CLASSIC', generateClassicTemplate);
+registerTemplate('CONSTRUCTION', generateConstructionTemplate);

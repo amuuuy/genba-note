@@ -96,6 +96,9 @@ export interface IssuerSnapshot {
 
   /** Contact person name for document (optional) */
   contactPerson: string | null;
+
+  /** Email address (optional) */
+  email: string | null;
 }
 
 /**

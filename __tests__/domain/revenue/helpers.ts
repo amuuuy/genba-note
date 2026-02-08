@@ -36,6 +36,7 @@ export function createTestIssuerSnapshot(
     fax: null,
     sealImageBase64: null,
     contactPerson: null,
+    email: null,
     ...overrides,
   };
 }

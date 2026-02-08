@@ -1,31 +1,16 @@
 /**
- * Background Designs — Pure CSS background patterns for PDF output (M20)
+ * Background Designs — Background patterns for PDF output (M20)
  *
- * Generates CSS for body::before pseudo-element overlay.
+ * Uses real HTML <div> elements instead of CSS ::before pseudo-elements
+ * for reliable rendering in expo-print PDF generation.
  * All patterns use WebKit-safe CSS (no conic-gradient, backdrop-filter, or CSS Houdini).
  */
 
 import type { BackgroundDesign } from './types';
+import { isValidImageDataUri } from './templateUtils';
 
-/** Default opacity for background patterns — subtle enough to not impair readability */
-const BACKGROUND_OPACITY = 0.06;
-
-/** CSS wrapper for body::before overlay with a given background property */
-function wrapBeforePseudo(backgroundProperty: string, opacity = BACKGROUND_OPACITY): string {
-  return `
-    body::before {
-      content: '';
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: -1;
-      opacity: ${opacity};
-      ${backgroundProperty}
-      pointer-events: none;
-    }`;
-}
+/** Default opacity for background patterns — visible but doesn't impair readability */
+const BACKGROUND_OPACITY = 0.12;
 
 /** Pattern definitions: BackgroundDesign → CSS background property string */
 const PATTERN_MAP: Record<Exclude<BackgroundDesign, 'NONE' | 'IMAGE'>, string> = {
@@ -36,23 +21,58 @@ const PATTERN_MAP: Record<Exclude<BackgroundDesign, 'NONE' | 'IMAGE'>, string> =
 };
 
 /**
+ * Generate CSS class for the background overlay element.
+ *
+ * @returns CSS string defining the .bg-overlay class
+ */
+export function getBackgroundOverlayCss(): string {
+  return `
+    .bg-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+    .document-container {
+      position: relative;
+      z-index: 1;
+    }`;
+}
+
+/**
  * Generate CSS for a background design pattern.
  *
- * @param design - The background design to apply
- * @param imageDataUrl - Pre-loaded data URL for IMAGE design (optional)
- * @returns CSS string to inject into a <style> tag, or empty string for NONE / unknown
+ * @deprecated Use getBackgroundOverlayCss() + getBackgroundHtml() instead.
+ * Kept for backward compatibility; returns empty string.
  */
 export function getBackgroundCss(design: BackgroundDesign, imageDataUrl?: string | null): string {
   if (design === 'NONE') return '';
 
+  // Return overlay CSS class definition (not ::before pseudo-element)
+  return getBackgroundOverlayCss();
+}
+
+/**
+ * Generate HTML for a background design overlay element.
+ * Uses a real <div> element for reliable rendering in expo-print PDF generation.
+ *
+ * @param design - The background design to apply
+ * @param imageDataUrl - Pre-loaded data URL for IMAGE design (optional)
+ * @returns HTML string for the background overlay element, or empty string for NONE / unknown
+ */
+export function getBackgroundHtml(design: BackgroundDesign, imageDataUrl?: string | null): string {
+  if (design === 'NONE') return '';
+
   if (design === 'IMAGE') {
-    if (!imageDataUrl) return '';
-    const bgProp = `background-image: url('${imageDataUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat;`;
-    return wrapBeforePseudo(bgProp);
+    if (!imageDataUrl || !isValidImageDataUri(imageDataUrl)) return '';
+    return `<div class="bg-overlay" style="opacity: ${BACKGROUND_OPACITY}; background-image: url('${imageDataUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat;"></div>`;
   }
 
   const pattern = PATTERN_MAP[design as Exclude<BackgroundDesign, 'NONE' | 'IMAGE'>];
   if (!pattern) return '';
 
-  return wrapBeforePseudo(pattern);
+  return `<div class="bg-overlay" style="opacity: ${BACKGROUND_OPACITY}; ${pattern}"></div>`;
 }

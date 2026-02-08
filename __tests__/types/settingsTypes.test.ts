@@ -44,7 +44,7 @@ describe('Settings type definitions exported from @/types/settings', () => {
 
   it('exports DOCUMENT_TEMPLATE_IDS array', () => {
     expect(DOCUMENT_TEMPLATE_IDS).toEqual([
-      'FORMAL_STANDARD', 'ACCOUNTING', 'SIMPLE', 'MODERN', 'CLASSIC',
+      'FORMAL_STANDARD', 'ACCOUNTING', 'SIMPLE', 'MODERN', 'CLASSIC', 'CONSTRUCTION',
     ]);
   });
 });

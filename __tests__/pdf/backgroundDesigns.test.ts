@@ -1,102 +1,111 @@
 /**
  * Background Designs Tests
  *
- * Tests for CSS background pattern generation (M20).
+ * Tests for background pattern generation (M20).
+ * Updated for real <div> element approach (no ::before pseudo-elements).
  */
 
-import { getBackgroundCss } from '@/pdf/backgroundDesigns';
+import { getBackgroundCss, getBackgroundHtml, getBackgroundOverlayCss } from '@/pdf/backgroundDesigns';
 import { generateHtmlTemplate } from '@/pdf/pdfTemplateService';
 import type { BackgroundDesign } from '@/types/settings';
 import { createTestTemplateInput } from './helpers';
 
+describe('getBackgroundOverlayCss', () => {
+  it('returns CSS for .bg-overlay class', () => {
+    const css = getBackgroundOverlayCss();
+    expect(css).toContain('.bg-overlay');
+    expect(css).toContain('position: fixed');
+    expect(css).toContain('z-index: 0');
+    expect(css).toContain('pointer-events: none');
+    expect(css).toContain('.document-container');
+  });
+});
+
 describe('getBackgroundCss', () => {
+  it('returns empty string for NONE', () => {
+    expect(getBackgroundCss('NONE')).toBe('');
+  });
+
+  it('returns overlay CSS for active designs', () => {
+    const css = getBackgroundCss('STRIPE');
+    expect(css).toContain('.bg-overlay');
+  });
+});
+
+describe('getBackgroundHtml', () => {
   describe('NONE', () => {
-    it('returns empty string for NONE', () => {
-      expect(getBackgroundCss('NONE')).toBe('');
+    it('returns empty string', () => {
+      expect(getBackgroundHtml('NONE')).toBe('');
     });
   });
 
   describe('STRIPE', () => {
-    it('contains repeating-linear-gradient', () => {
-      const css = getBackgroundCss('STRIPE');
-      expect(css).toContain('repeating-linear-gradient');
+    it('returns div with repeating-linear-gradient', () => {
+      const html = getBackgroundHtml('STRIPE');
+      expect(html).toContain('<div class="bg-overlay"');
+      expect(html).toContain('repeating-linear-gradient');
     });
   });
 
   describe('WAVE', () => {
-    it('contains radial-gradient', () => {
-      const css = getBackgroundCss('WAVE');
-      expect(css).toContain('radial-gradient');
+    it('returns div with radial-gradient', () => {
+      const html = getBackgroundHtml('WAVE');
+      expect(html).toContain('<div class="bg-overlay"');
+      expect(html).toContain('radial-gradient');
     });
   });
 
   describe('GRID', () => {
-    it('contains linear-gradient', () => {
-      const css = getBackgroundCss('GRID');
-      expect(css).toContain('linear-gradient');
+    it('returns div with linear-gradient', () => {
+      const html = getBackgroundHtml('GRID');
+      expect(html).toContain('<div class="bg-overlay"');
+      expect(html).toContain('linear-gradient');
     });
   });
 
   describe('DOTS', () => {
-    it('contains radial-gradient', () => {
-      const css = getBackgroundCss('DOTS');
-      expect(css).toContain('radial-gradient');
+    it('returns div with radial-gradient', () => {
+      const html = getBackgroundHtml('DOTS');
+      expect(html).toContain('<div class="bg-overlay"');
+      expect(html).toContain('radial-gradient');
     });
   });
 
   describe('IMAGE', () => {
     const FAKE_DATA_URL = 'data:image/png;base64,iVBORw0KGgo=';
 
-    it('returns body::before with background-image when data URL provided', () => {
-      const css = getBackgroundCss('IMAGE', FAKE_DATA_URL);
-      expect(css).toContain('body::before');
-      expect(css).toContain('background-image');
-      expect(css).toContain(FAKE_DATA_URL);
+    it('returns div with background-image when data URL provided', () => {
+      const html = getBackgroundHtml('IMAGE', FAKE_DATA_URL);
+      expect(html).toContain('<div class="bg-overlay"');
+      expect(html).toContain('background-image');
+      expect(html).toContain(FAKE_DATA_URL);
     });
 
     it('contains background-size: cover', () => {
-      const css = getBackgroundCss('IMAGE', FAKE_DATA_URL);
-      expect(css).toContain('background-size: cover');
+      const html = getBackgroundHtml('IMAGE', FAKE_DATA_URL);
+      expect(html).toContain('background-size: cover');
     });
 
     it('returns empty string when no data URL provided', () => {
-      const css = getBackgroundCss('IMAGE');
-      expect(css).toBe('');
+      expect(getBackgroundHtml('IMAGE')).toBe('');
     });
 
     it('returns empty string when data URL is null', () => {
-      const css = getBackgroundCss('IMAGE', null);
-      expect(css).toBe('');
+      expect(getBackgroundHtml('IMAGE', null)).toBe('');
     });
   });
 
   describe('common structure for all patterns (except NONE)', () => {
     const PATTERNS: BackgroundDesign[] = ['STRIPE', 'WAVE', 'GRID', 'DOTS'];
 
-    it.each(PATTERNS)('%s contains body::before pseudo-element', (design) => {
-      const css = getBackgroundCss(design);
-      expect(css).toContain('body::before');
+    it.each(PATTERNS)('%s returns a div with class bg-overlay', (design) => {
+      const html = getBackgroundHtml(design);
+      expect(html).toContain('<div class="bg-overlay"');
     });
 
-    it.each(PATTERNS)('%s contains position: fixed', (design) => {
-      const css = getBackgroundCss(design);
-      expect(css).toContain('position: fixed');
-    });
-
-    it.each(PATTERNS)('%s contains z-index: -1', (design) => {
-      const css = getBackgroundCss(design);
-      expect(css).toContain('z-index: -1');
-    });
-
-    it.each(PATTERNS)('%s contains content declaration', (design) => {
-      const css = getBackgroundCss(design);
-      expect(css).toMatch(/content:\s*['"]{2}/);
-    });
-
-    it.each(PATTERNS)('%s covers full viewport (width: 100%%, height: 100%%)', (design) => {
-      const css = getBackgroundCss(design);
-      expect(css).toContain('width: 100%');
-      expect(css).toContain('height: 100%');
+    it.each(PATTERNS)('%s contains opacity style', (design) => {
+      const html = getBackgroundHtml(design);
+      expect(html).toContain('opacity:');
     });
   });
 
@@ -104,27 +113,24 @@ describe('getBackgroundCss', () => {
     const ALL_DESIGNS: BackgroundDesign[] = ['NONE', 'STRIPE', 'WAVE', 'GRID', 'DOTS', 'IMAGE'];
 
     it.each(ALL_DESIGNS)('%s does not contain conic-gradient', (design) => {
-      const css = getBackgroundCss(design);
-      expect(css).not.toContain('conic-gradient');
+      const html = getBackgroundHtml(design);
+      expect(html).not.toContain('conic-gradient');
     });
 
     it.each(ALL_DESIGNS)('%s does not contain backdrop-filter', (design) => {
-      const css = getBackgroundCss(design);
-      expect(css).not.toContain('backdrop-filter');
+      const html = getBackgroundHtml(design);
+      expect(html).not.toContain('backdrop-filter');
     });
   });
 
   describe('defense against invalid values', () => {
     it('returns empty string for unknown design value', () => {
-      // Cast to bypass TypeScript for runtime safety test
-      const css = getBackgroundCss('UNKNOWN' as BackgroundDesign);
-      expect(css).toBe('');
+      expect(getBackgroundHtml('UNKNOWN' as BackgroundDesign)).toBe('');
     });
   });
 });
 
 describe('background design integration with generateHtmlTemplate', () => {
-  // Design → unique CSS fragment for disambiguating similar patterns
   const FAKE_DATA_URL = 'data:image/png;base64,iVBORw0KGgo=';
 
   const DESIGN_UNIQUE_FRAGMENTS: Record<Exclude<BackgroundDesign, 'NONE'>, string> = {
@@ -135,7 +141,6 @@ describe('background design integration with generateHtmlTemplate', () => {
     IMAGE: 'background-image',
   };
 
-  // Template route definitions
   const TEMPLATES = [
     { name: 'estimate', docType: 'estimate' as const, invoiceTemplateType: undefined },
     { name: 'invoice SIMPLE', docType: 'invoice' as const, invoiceTemplateType: 'SIMPLE' as const },
@@ -145,9 +150,9 @@ describe('background design integration with generateHtmlTemplate', () => {
   const CSS_PATTERN_DESIGNS: Array<Exclude<BackgroundDesign, 'NONE' | 'IMAGE'>> = ['STRIPE', 'WAVE', 'GRID', 'DOTS'];
   const ACTIVE_DESIGNS: Array<Exclude<BackgroundDesign, 'NONE'>> = ['STRIPE', 'WAVE', 'GRID', 'DOTS', 'IMAGE'];
 
-  // Matrix: NONE × all templates → no injection
-  describe.each(TEMPLATES)('NONE × $name', ({ docType, invoiceTemplateType }) => {
-    it('does not inject body::before', () => {
+  // Matrix: NONE x all templates -> no bg-overlay div
+  describe.each(TEMPLATES)('NONE x $name', ({ docType, invoiceTemplateType }) => {
+    it('does not inject bg-overlay div', () => {
       const input = createTestTemplateInput({
         mode: 'pdf',
         backgroundDesign: 'NONE',
@@ -155,13 +160,13 @@ describe('background design integration with generateHtmlTemplate', () => {
         document: { type: docType },
       });
       const { html } = generateHtmlTemplate(input);
-      expect(html).not.toContain('body::before');
+      expect(html).not.toContain('bg-overlay');
     });
   });
 
-  // Matrix: CSS pattern designs × all templates → injection with unique CSS fragment
-  describe.each(TEMPLATES)('CSS pattern designs × $name', ({ docType, invoiceTemplateType }) => {
-    it.each(CSS_PATTERN_DESIGNS)('%s injects body::before with unique CSS fragment', (design) => {
+  // Matrix: CSS pattern designs x all templates -> bg-overlay div with unique CSS fragment
+  describe.each(TEMPLATES)('CSS pattern designs x $name', ({ docType, invoiceTemplateType }) => {
+    it.each(CSS_PATTERN_DESIGNS)('%s injects bg-overlay div with unique CSS fragment', (design) => {
       const input = createTestTemplateInput({
         mode: 'pdf',
         backgroundDesign: design,
@@ -169,14 +174,14 @@ describe('background design integration with generateHtmlTemplate', () => {
         document: { type: docType },
       });
       const { html } = generateHtmlTemplate(input);
-      expect(html).toContain('body::before');
+      expect(html).toContain('bg-overlay');
       expect(html).toContain(DESIGN_UNIQUE_FRAGMENTS[design]);
     });
   });
 
-  // IMAGE × all templates → injection with background-image when data URL provided
-  describe.each(TEMPLATES)('IMAGE × $name', ({ docType, invoiceTemplateType }) => {
-    it('injects body::before with background-image when data URL provided', () => {
+  // IMAGE x all templates -> bg-overlay div with background-image when data URL provided
+  describe.each(TEMPLATES)('IMAGE x $name', ({ docType, invoiceTemplateType }) => {
+    it('injects bg-overlay div with background-image when data URL provided', () => {
       const input = createTestTemplateInput({
         mode: 'pdf',
         backgroundDesign: 'IMAGE',
@@ -185,11 +190,11 @@ describe('background design integration with generateHtmlTemplate', () => {
         document: { type: docType },
       });
       const { html } = generateHtmlTemplate(input);
-      expect(html).toContain('body::before');
+      expect(html).toContain('bg-overlay');
       expect(html).toContain('background-image');
     });
 
-    it('does not inject body::before when no data URL', () => {
+    it('does not inject bg-overlay div when no data URL', () => {
       const input = createTestTemplateInput({
         mode: 'pdf',
         backgroundDesign: 'IMAGE',
@@ -197,7 +202,8 @@ describe('background design integration with generateHtmlTemplate', () => {
         document: { type: docType },
       });
       const { html } = generateHtmlTemplate(input);
-      expect(html).not.toContain('body::before');
+      // No data URL means no overlay inserted (empty string returned by getBackgroundHtml)
+      expect(html).not.toContain('<div class="bg-overlay"');
     });
   });
 
@@ -209,6 +215,6 @@ describe('background design integration with generateHtmlTemplate', () => {
       ...(design === 'IMAGE' ? { backgroundImageDataUrl: FAKE_DATA_URL } : {}),
     });
     const { html } = generateHtmlTemplate(input);
-    expect(html).not.toContain('body::before');
+    expect(html).not.toContain('bg-overlay');
   });
 });

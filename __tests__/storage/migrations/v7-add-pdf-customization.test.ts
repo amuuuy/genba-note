@@ -32,6 +32,7 @@ function createV6Settings(overrides: Record<string, unknown> = {}) {
       sealImageUri: null,
       contactPerson: null,
       showContactPerson: true,
+      email: null,
     },
     numbering: {
       estimatePrefix: 'EST-',

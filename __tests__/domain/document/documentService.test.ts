@@ -211,6 +211,7 @@ describe('documentService', () => {
           sealImageUri: null,
           contactPerson: null,
           showContactPerson: true,
+          email: null,
         },
       };
       mockedNumbering.generateDocumentNumber.mockResolvedValue({

@@ -55,6 +55,11 @@ const templateOptions: TemplateOption[] = [
     label: '和風クラシック',
     description: '明朝体・二重罫線・格子テーブル・御見積書',
   },
+  {
+    value: 'CONSTRUCTION',
+    label: '建設業向け',
+    description: '4カラムテーブル・御見積金額表示・透かし背景対応',
+  },
 ];
 
 function TemplateRadioGroup({

@@ -16,7 +16,7 @@
 import type { DocumentWithTotals, SensitiveIssuerSnapshot } from '@/types/document';
 import type { TemplateOptions } from './templateRegistry';
 import { getSealSizePx, DEFAULT_SEAL_SIZE } from '@/pdf/types';
-import { getBackgroundCss } from '@/pdf/backgroundDesigns';
+import { getBackgroundCss, getBackgroundHtml } from '@/pdf/backgroundDesigns';
 import { getDocumentLabels } from './documentLabels';
 import {
   formatCurrency,
@@ -628,6 +628,7 @@ export function generateModernTemplate(
   const labels = getDocumentLabels(doc.type);
   const sealSizePx = getSealSizePx(options.sealSize ?? DEFAULT_SEAL_SIZE, 'MODERN');
   const backgroundCss = getBackgroundCss(options.backgroundDesign, options.backgroundImageDataUrl);
+  const backgroundHtml = getBackgroundHtml(options.backgroundDesign, options.backgroundImageDataUrl);
   const css = getModernCss(sealSizePx);
 
   // Sections
@@ -653,6 +654,7 @@ export function generateModernTemplate(
   </style>
 </head>
 <body>
+  ${backgroundHtml}
   <div class="document-container">
     ${titleHtml}
     ${metaHtml}

@@ -26,8 +26,9 @@ import {
  * - v6: Remove undated photos (photos without work log entry assignment)
  * - v7: Add PDF customization fields (sealSize, backgroundDesign, template IDs)
  * - v8: Add calendar events collection
+ * - v9: Add email field to issuer information
  */
-export const CURRENT_SCHEMA_VERSION = 8;
+export const CURRENT_SCHEMA_VERSION = 9;
 
 // === Migrations Initialization Flag ===
 let migrationsInitialized = false;

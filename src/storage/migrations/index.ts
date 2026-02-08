@@ -14,6 +14,7 @@ import { v5AddWorkLogEntriesMigration } from './v5-add-work-log-entries';
 import { v6RemoveUndatedPhotosMigration } from './v6-remove-undated-photos';
 import { v7AddPdfCustomizationMigration } from './v7-add-pdf-customization';
 import { v8AddCalendarEventsMigration } from './v8-add-calendar-events';
+import { v9AddEmailFieldMigration } from './v9-add-email-field';
 
 // Register all migrations
 registerMigration(v1InitialMigration);
@@ -24,6 +25,7 @@ registerMigration(v5AddWorkLogEntriesMigration);
 registerMigration(v6RemoveUndatedPhotosMigration);
 registerMigration(v7AddPdfCustomizationMigration);
 registerMigration(v8AddCalendarEventsMigration);
+registerMigration(v9AddEmailFieldMigration);
 
 // Re-export for direct access if needed
 export {
@@ -35,4 +37,5 @@ export {
   v6RemoveUndatedPhotosMigration,
   v7AddPdfCustomizationMigration,
   v8AddCalendarEventsMigration,
+  v9AddEmailFieldMigration,
 };

@@ -346,6 +346,7 @@ describe('conversionService', () => {
               sealImageUri: null,
               contactPerson: null,
               showContactPerson: true,
+              email: null,
             },
           },
         });

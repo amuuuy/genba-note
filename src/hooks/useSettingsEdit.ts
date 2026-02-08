@@ -74,6 +74,7 @@ const initialFormValues: SettingsFormValues = {
   fax: '',
   contactPerson: '',
   showContactPerson: true,
+  email: '',
   estimatePrefix: 'EST-',
   invoicePrefix: 'INV-',
   sealImageUri: null,
@@ -124,6 +125,7 @@ export function createInitialFormValues(
     fax: issuer.fax ?? '',
     contactPerson: issuer.contactPerson ?? '',
     showContactPerson: issuer.showContactPerson ?? true,
+    email: issuer.email ?? '',
     estimatePrefix: numbering.estimatePrefix,
     invoicePrefix: numbering.invoicePrefix,
     sealImageUri: issuer.sealImageUri ?? null,
@@ -534,6 +536,7 @@ export function useSettingsEdit(): UseSettingsEditReturn {
           fax: state.values.fax || null,
           contactPerson: state.values.contactPerson || null,
           showContactPerson: state.values.showContactPerson,
+          email: state.values.email || null,
           sealImageUri: state.values.sealImageUri,
         },
         // Only update prefixes, NOT next numbers (managed by autoNumberingService)

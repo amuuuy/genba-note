@@ -45,6 +45,7 @@ describe('issuerResolverService', () => {
         fax: null,
         sealImageBase64: null,
         contactPerson: null,
+        email: null,
       };
       expect(hasIssuerSnapshotData(snapshot)).toBe(true);
     });
@@ -58,6 +59,7 @@ describe('issuerResolverService', () => {
         fax: null,
         sealImageBase64: null,
         contactPerson: null,
+        email: null,
       };
       expect(hasIssuerSnapshotData(snapshot)).toBe(true);
     });
@@ -71,6 +73,7 @@ describe('issuerResolverService', () => {
         fax: null,
         sealImageBase64: null,
         contactPerson: null,
+        email: null,
       };
       expect(hasIssuerSnapshotData(snapshot)).toBe(true);
     });
@@ -84,6 +87,35 @@ describe('issuerResolverService', () => {
         fax: null,
         sealImageBase64: null,
         contactPerson: null,
+        email: null,
+      };
+      expect(hasIssuerSnapshotData(snapshot)).toBe(true);
+    });
+
+    it('returns true when fax is present', () => {
+      const snapshot: IssuerSnapshot = {
+        companyName: null,
+        representativeName: null,
+        address: null,
+        phone: null,
+        fax: '03-9876-5432',
+        sealImageBase64: null,
+        contactPerson: null,
+        email: null,
+      };
+      expect(hasIssuerSnapshotData(snapshot)).toBe(true);
+    });
+
+    it('returns true when email is present', () => {
+      const snapshot: IssuerSnapshot = {
+        companyName: null,
+        representativeName: null,
+        address: null,
+        phone: null,
+        fax: null,
+        sealImageBase64: null,
+        contactPerson: null,
+        email: 'test@example.com',
       };
       expect(hasIssuerSnapshotData(snapshot)).toBe(true);
     });
@@ -97,6 +129,7 @@ describe('issuerResolverService', () => {
         fax: null,
         sealImageBase64: null,
         contactPerson: null,
+        email: null,
       };
       expect(hasIssuerSnapshotData(snapshot)).toBe(false);
     });
@@ -110,6 +143,7 @@ describe('issuerResolverService', () => {
         fax: null,
         sealImageBase64: null,
         contactPerson: null,
+        email: null,
       };
       expect(hasIssuerSnapshotData(snapshot)).toBe(false);
     });
@@ -140,6 +174,7 @@ describe('issuerResolverService', () => {
               sealImageUri: null,
               contactPerson: null,
               showContactPerson: true,
+              email: null,
             },
             numbering: {
               estimatePrefix: 'EST-',
@@ -212,6 +247,7 @@ describe('issuerResolverService', () => {
         fax: null,
         sealImageBase64: null,
         contactPerson: null,
+        email: null,
       };
 
       const settingsWithCompanyName = {
@@ -224,6 +260,7 @@ describe('issuerResolverService', () => {
           sealImageUri: null,
           contactPerson: null,
           showContactPerson: true,
+          email: null,
         },
         numbering: {
           estimatePrefix: 'EST-',
@@ -292,12 +329,76 @@ describe('issuerResolverService', () => {
           fax: null,
           sealImageBase64: null,
           contactPerson: null,
+          email: null,
         };
 
         const result = await resolveIssuerInfo(documentId, snapshotWithWhitespaceCompanyName);
 
         expect(result.issuerSnapshot.companyName).toBe('設定の会社名');
         expect(result.source).toBe('snapshot');
+      });
+    });
+
+    describe('when document snapshot has only email (should use snapshot path)', () => {
+      const emailOnlySnapshot: IssuerSnapshot = {
+        companyName: null,
+        representativeName: null,
+        address: null,
+        phone: null,
+        fax: null,
+        sealImageBase64: null,
+        contactPerson: null,
+        email: 'snapshot@example.com',
+      };
+
+      beforeEach(() => {
+        mockGetIssuerSnapshot.mockResolvedValue({
+          success: true,
+          data: null,
+        });
+        mockGetSettings.mockResolvedValue({
+          success: true,
+          data: {
+            issuer: {
+              companyName: '設定の会社名',
+              representativeName: null,
+              address: null,
+              phone: null,
+              fax: null,
+              sealImageUri: null,
+              contactPerson: null,
+              showContactPerson: true,
+              email: 'settings@example.com',
+            },
+            numbering: {
+              estimatePrefix: 'EST-',
+              invoicePrefix: 'INV-',
+              nextEstimateNumber: 1,
+              nextInvoiceNumber: 1,
+            },
+            invoiceTemplateType: 'ACCOUNTING' as const,
+            sealSize: 'MEDIUM' as const,
+            backgroundDesign: 'NONE' as const,
+            backgroundImageUri: null,
+            defaultEstimateTemplateId: 'FORMAL_STANDARD' as const,
+            defaultInvoiceTemplateId: 'ACCOUNTING' as const,
+            schemaVersion: 1,
+          },
+        });
+      });
+
+      it('uses snapshot path (not settings fallback) when only email is set', async () => {
+        const result = await resolveIssuerInfo(documentId, emailOnlySnapshot);
+
+        expect(result.source).toBe('snapshot');
+        expect(result.issuerSnapshot.email).toBe('snapshot@example.com');
+      });
+
+      it('preserves snapshot email even though settings have different email', async () => {
+        const result = await resolveIssuerInfo(documentId, emailOnlySnapshot);
+
+        expect(result.issuerSnapshot.email).toBe('snapshot@example.com');
+        expect(result.issuerSnapshot.email).not.toBe('settings@example.com');
       });
     });
 
@@ -310,6 +411,7 @@ describe('issuerResolverService', () => {
         fax: null,
         sealImageBase64: null,
         contactPerson: null,
+        email: null,
       };
 
       const settingsIssuer = {
@@ -321,6 +423,7 @@ describe('issuerResolverService', () => {
         sealImageUri: null,
         contactPerson: null,
         showContactPerson: true,
+        email: null,
       };
 
       const mockAppSettings: AppSettings = {
@@ -380,6 +483,7 @@ describe('issuerResolverService', () => {
           fax: null,
           sealImageBase64: null, // Mock returns null for seal image
           contactPerson: null, // showContactPerson is true but contactPerson is null in settings
+          email: null,
         });
       });
 
@@ -431,6 +535,7 @@ describe('issuerResolverService', () => {
         fax: null,
         sealImageBase64: null,
         contactPerson: null,
+        email: null,
       };
 
       const docSensitiveSnapshot: SensitiveIssuerSnapshot = {
@@ -466,6 +571,7 @@ describe('issuerResolverService', () => {
               sealImageUri: null,
               contactPerson: null,
               showContactPerson: true,
+              email: null,
             },
             numbering: {
               estimatePrefix: 'EST-',
@@ -524,6 +630,7 @@ describe('issuerResolverService', () => {
         fax: null,
         sealImageBase64: null,
         contactPerson: null,
+        email: null,
       };
 
       const emptySettings: AppSettings = {
@@ -536,6 +643,7 @@ describe('issuerResolverService', () => {
           sealImageUri: null,
           contactPerson: null,
           showContactPerson: true,
+          email: null,
         },
         numbering: {
           estimatePrefix: 'EST-',
@@ -578,6 +686,7 @@ describe('issuerResolverService', () => {
           fax: null,
           sealImageBase64: null,
           contactPerson: null,
+          email: null,
         });
       });
 
@@ -603,6 +712,7 @@ describe('issuerResolverService', () => {
         fax: null,
         sealImageBase64: null,
         contactPerson: null,
+        email: null,
       };
 
       it('returns empty data when getSettings fails', async () => {
@@ -629,6 +739,7 @@ describe('issuerResolverService', () => {
           fax: null,
           sealImageBase64: null,
           contactPerson: null,
+          email: null,
         });
         expect(result.source).toBe('settings');
       });
@@ -646,6 +757,7 @@ describe('issuerResolverService', () => {
               sealImageUri: null,
               contactPerson: null,
               showContactPerson: true,
+              email: null,
             },
             numbering: {
               estimatePrefix: 'EST-',
@@ -700,6 +812,7 @@ describe('issuerResolverService', () => {
               sealImageUri: null,
               contactPerson: null,
               showContactPerson: true,
+              email: null,
             },
             numbering: {
               estimatePrefix: 'EST-',

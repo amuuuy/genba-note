@@ -31,6 +31,8 @@ export interface SettingsFormValues {
   contactPerson: string;
   /** Whether to show contact person on documents */
   showContactPerson: boolean;
+  /** Email address */
+  email: string;
   estimatePrefix: string;
   invoicePrefix: string;
   /** Seal image URI (local file path) */

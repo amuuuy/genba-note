@@ -21,6 +21,8 @@ export interface IssuerInfoSectionProps {
   phone: string;
   /** Fax number */
   fax: string;
+  /** Email address */
+  email: string;
   /** Invoice registration number (T + 13 digits) */
   invoiceNumber: string;
   /** Contact person name */
@@ -34,6 +36,7 @@ export interface IssuerInfoSectionProps {
     address?: string;
     phone?: string;
     fax?: string;
+    email?: string;
     invoiceNumber?: string;
     contactPerson?: string;
   };
@@ -54,6 +57,7 @@ export const IssuerInfoSection: React.FC<IssuerInfoSectionProps> = ({
   address,
   phone,
   fax,
+  email,
   invoiceNumber,
   contactPerson,
   showContactPerson,
@@ -117,6 +121,18 @@ export const IssuerInfoSection: React.FC<IssuerInfoSectionProps> = ({
         placeholder="例: 03-1234-5679"
         keyboardType="phone-pad"
         testID="input-fax"
+      />
+
+      <FormInput
+        label="メールアドレス"
+        value={email}
+        onChangeText={(value) => onChange('email', value)}
+        error={errors.email}
+        disabled={disabled}
+        placeholder="例: info@example.com"
+        keyboardType="email-address"
+        testID="input-email"
+        autoCapitalize="none"
       />
 
       <FormInput

@@ -35,6 +35,7 @@ export function createValidSettingsFormValues(
     accountHolderName: 'カ）テストケンセツ',
     contactPerson: '',
     showContactPerson: true,
+    email: '',
     ...overrides,
   };
 }
@@ -66,5 +67,6 @@ export function createEmptySettingsFormValues(): SettingsFormValues {
     accountHolderName: '',
     contactPerson: '',
     showContactPerson: true,
+    email: '',
   };
 }

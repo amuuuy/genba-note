@@ -29,7 +29,7 @@ export const BACKGROUND_DESIGNS = ['NONE', 'STRIPE', 'WAVE', 'GRID', 'DOTS', 'IM
 export type BackgroundDesign = (typeof BACKGROUND_DESIGNS)[number];
 
 /** Template ID values — single source of truth for type + runtime validation */
-export const DOCUMENT_TEMPLATE_IDS = ['FORMAL_STANDARD', 'ACCOUNTING', 'SIMPLE', 'MODERN', 'CLASSIC'] as const;
+export const DOCUMENT_TEMPLATE_IDS = ['FORMAL_STANDARD', 'ACCOUNTING', 'SIMPLE', 'MODERN', 'CLASSIC', 'CONSTRUCTION'] as const;
 export type DocumentTemplateId = (typeof DOCUMENT_TEMPLATE_IDS)[number];
 
 /** Preview orientation for document preview */
@@ -53,6 +53,8 @@ export interface AppSettings {
     contactPerson: string | null;
     /** Whether to show contact person on documents */
     showContactPerson: boolean;
+    /** Email address (optional) */
+    email: string | null;
   };
 
   /** Document numbering settings */
@@ -120,6 +122,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     sealImageUri: null,
     contactPerson: null,
     showContactPerson: true,
+    email: null,
   },
   numbering: {
     estimatePrefix: 'EST-',

@@ -101,6 +101,7 @@ async function getIssuerSnapshotFromSettings(): Promise<IssuerSnapshot> {
       sealImageBase64: null, // Seal image is resolved dynamically for PDF generation
       // Only include contactPerson if showContactPerson is true
       contactPerson: issuer.showContactPerson ? issuer.contactPerson : null,
+      email: issuer.email ?? null,
     };
   }
   return {
@@ -111,6 +112,7 @@ async function getIssuerSnapshotFromSettings(): Promise<IssuerSnapshot> {
     fax: null,
     sealImageBase64: null,
     contactPerson: null,
+    email: null,
   };
 }
 

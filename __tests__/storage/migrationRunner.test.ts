@@ -68,8 +68,8 @@ describe('migrationRunner', () => {
   });
 
   describe('CURRENT_SCHEMA_VERSION', () => {
-    it('should be defined and be 8 for current release', () => {
-      expect(CURRENT_SCHEMA_VERSION).toBe(8);
+    it('should be defined and be 9 for current release', () => {
+      expect(CURRENT_SCHEMA_VERSION).toBe(9);
     });
   });
 
@@ -242,6 +242,13 @@ describe('migrationRunner', () => {
         description: 'Migration 7->8',
         migrate: migrateFn8,
       });
+      const migrateFn9 = jest.fn().mockResolvedValue({ success: true });
+      registerMigration({
+        fromVersion: 8,
+        toVersion: 9,
+        description: 'Migration 8->9',
+        migrate: migrateFn9,
+      });
 
       mockedGetSchemaVersion.mockResolvedValue({ success: true, data: 0 });
       mockedSetSchemaVersion.mockResolvedValue({ success: true });
@@ -250,8 +257,8 @@ describe('migrationRunner', () => {
 
       expect(result.success).toBe(true);
       expect(result.startVersion).toBe(0);
-      expect(result.endVersion).toBe(8);
-      expect(result.migrationsRun).toBe(8);
+      expect(result.endVersion).toBe(9);
+      expect(result.migrationsRun).toBe(9);
       expect(result.readOnlyMode).toBe(false);
       expect(migrateFn1).toHaveBeenCalledTimes(1);
       expect(migrateFn2).toHaveBeenCalledTimes(1);
@@ -261,6 +268,7 @@ describe('migrationRunner', () => {
       expect(migrateFn6).toHaveBeenCalledTimes(1);
       expect(migrateFn7).toHaveBeenCalledTimes(1);
       expect(migrateFn8).toHaveBeenCalledTimes(1);
+      expect(migrateFn9).toHaveBeenCalledTimes(1);
     });
 
     it('should skip migrations if already at current version', async () => {
@@ -373,6 +381,12 @@ describe('migrationRunner', () => {
         description: 'Migration 7->8',
         migrate: async () => ({ success: true }),
       });
+      registerMigration({
+        fromVersion: 8,
+        toVersion: 9,
+        description: 'Migration 8->9',
+        migrate: async () => ({ success: true }),
+      });
 
       mockedGetSchemaVersion.mockResolvedValue({ success: true, data: 0 });
       mockedSetSchemaVersion.mockResolvedValue({ success: true });
@@ -387,6 +401,7 @@ describe('migrationRunner', () => {
       expect(mockedSetSchemaVersion).toHaveBeenCalledWith(6);
       expect(mockedSetSchemaVersion).toHaveBeenCalledWith(7);
       expect(mockedSetSchemaVersion).toHaveBeenCalledWith(8);
+      expect(mockedSetSchemaVersion).toHaveBeenCalledWith(9);
     });
   });
 
@@ -514,6 +529,12 @@ describe('migrationRunner', () => {
         description: 'Migration 7->8',
         migrate: async () => ({ success: true }),
       });
+      registerMigration({
+        fromVersion: 8,
+        toVersion: 9,
+        description: 'Migration 8->9',
+        migrate: async () => ({ success: true }),
+      });
 
       mockedGetSchemaVersion.mockResolvedValue({ success: true, data: 0 });
 
@@ -591,6 +612,12 @@ describe('migrationRunner', () => {
         description: 'Migration 7->8',
         migrate: async () => ({ success: true }),
       });
+      registerMigration({
+        fromVersion: 8,
+        toVersion: 9,
+        description: 'Migration 8->9',
+        migrate: async () => ({ success: true }),
+      });
 
       mockedGetSchemaVersion.mockResolvedValue({ success: true, data: 0 });
       mockedSetSchemaVersion.mockResolvedValue({ success: true });
@@ -653,6 +680,12 @@ describe('migrationRunner', () => {
         fromVersion: 7,
         toVersion: 8,
         description: 'Migration 7->8',
+        migrate: async () => ({ success: true }),
+      });
+      registerMigration({
+        fromVersion: 8,
+        toVersion: 9,
+        description: 'Migration 8->9',
         migrate: async () => ({ success: true }),
       });
 

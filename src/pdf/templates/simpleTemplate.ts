@@ -20,7 +20,7 @@ import type { DocumentWithTotals, SensitiveIssuerSnapshot } from '@/types/docume
 import type { TemplateOptions } from './templateRegistry';
 import { getSealSizePx, DEFAULT_SEAL_SIZE } from '@/pdf/types';
 import { FORMAL_COLORS } from '@/pdf/types';
-import { getBackgroundCss } from '@/pdf/backgroundDesigns';
+import { getBackgroundCss, getBackgroundHtml } from '@/pdf/backgroundDesigns';
 import { getFormalThemeCss } from '@/pdf/themes';
 import { getDocumentLabels } from './documentLabels';
 import {
@@ -691,6 +691,7 @@ export function generateSimpleTemplate(
   const labels = getDocumentLabels(doc.type);
   const sealSizePx = getSealSizePx(options.sealSize ?? DEFAULT_SEAL_SIZE, 'SIMPLE');
   const backgroundCss = getBackgroundCss(options.backgroundDesign, options.backgroundImageDataUrl);
+  const backgroundHtml = getBackgroundHtml(options.backgroundDesign, options.backgroundImageDataUrl);
   const themeCss = getFormalThemeCss(FORMAL_COLORS);
 
   // Title with full-width spaces
@@ -727,6 +728,7 @@ export function generateSimpleTemplate(
   </style>
 </head>
 <body>
+  ${backgroundHtml}
   <div class="document-container">
     <!-- Title -->
     <div class="simple-title">${title}</div>
