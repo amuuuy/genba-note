@@ -7,7 +7,7 @@
  * - id=UUID for editing existing documents
  */
 
-import React, { useEffect, useCallback, useRef, useState } from 'react';
+import React, { useEffect, useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -29,9 +29,11 @@ import { useDocumentEdit } from '@/hooks/useDocumentEdit';
 import { useLineItemEditor } from '@/hooks/useLineItemEditor';
 import { useReadOnlyMode } from '@/hooks/useReadOnlyMode';
 import { DocumentEditForm, SaveActionSheet, PublishConfirmModal } from '@/components/document/edit';
+import { FilenameEditModal } from '@/components/document/FilenameEditModal';
 import { WarningDialog } from '@/components/common';
 import { checkProStatus } from '@/pdf/proGateService';
 import { generateAndSharePdf } from '@/pdf/pdfGenerationService';
+import { generateFilenameTitle } from '@/pdf/pdfTemplateService';
 import {
   validateDocumentForPdf,
   type PdfValidationResult,
@@ -82,6 +84,14 @@ export default function DocumentEditScreen() {
   const [isPublishing, setIsPublishing] = useState(false);
   const [isPro, setIsPro] = useState(true); // Default to true, update on mount
   const [pdfValidation, setPdfValidation] = useState<PdfValidationResult | null>(null);
+  const [showFilenameEdit, setShowFilenameEdit] = useState(false);
+  const [savedDocumentForPdf, setSavedDocumentForPdf] = useState<Document | null>(null);
+
+  // Default filename for the FilenameEditModal (e.g., "INV-040_請求書")
+  const defaultFilename = useMemo(() => {
+    if (!savedDocumentForPdf) return '';
+    return generateFilenameTitle(savedDocumentForPdf.documentNo, savedDocumentForPdf.type);
+  }, [savedDocumentForPdf]);
 
   // Check Pro status on mount
   useEffect(() => {
@@ -95,6 +105,9 @@ export default function DocumentEditScreen() {
   // Ref to latest isDirty for back handlers
   const isDirtyRef = useRef(state.isDirty);
   isDirtyRef.current = state.isDirty;
+  // Ref to latest isPublishing for back handlers
+  const isPublishingRef = useRef(isPublishing);
+  isPublishingRef.current = isPublishing;
 
   // Reset initialization flag when document ID changes
   useEffect(() => {
@@ -141,6 +154,10 @@ export default function DocumentEditScreen() {
 
   // Show confirmation dialog for unsaved changes
   const showUnsavedChangesAlert = useCallback((): boolean => {
+    // Block back navigation while PDF is being generated/shared
+    if (isPublishingRef.current) {
+      return true; // Prevent back during publish flow
+    }
     if (isDirtyRef.current) {
       Alert.alert(
         '未保存の変更があります',
@@ -294,7 +311,7 @@ export default function DocumentEditScreen() {
     setShowPublishConfirm(true);
   }, [isPro, state.documentNo, state.values, state.lineItems, state.issuerSnapshot]);
 
-  // Handle PDF publish confirmation
+  // Handle PDF publish confirmation (Phase 1: save → show filename modal)
   const handlePublishConfirm = useCallback(async () => {
     setIsPublishing(true);
 
@@ -307,8 +324,30 @@ export default function DocumentEditScreen() {
         return;
       }
 
-      // 2. Generate and share PDF FIRST (before changing status)
-      // Use temporary 'issued' status for PDF template only
+      // 2. Save succeeded → show filename edit modal
+      setSavedDocumentForPdf(savedDocument);
+      setShowPublishConfirm(false);
+      setShowFilenameEdit(true);
+      // isPublishing remains true through the entire flow
+    } catch {
+      Alert.alert('エラー', 'PDF発行中に予期しないエラーが発生しました');
+      setIsPublishing(false);
+      setShowPublishConfirm(false);
+    }
+  }, [save]);
+
+  // Handle filename confirmed (Phase 2: generate PDF → share → status change)
+  const handleFilenameConfirm = useCallback(async (customFilename: string) => {
+    setShowFilenameEdit(false);
+
+    const savedDocument = savedDocumentForPdf;
+    if (!savedDocument) {
+      setIsPublishing(false);
+      return;
+    }
+
+    try {
+      // 1. Generate and share PDF with custom filename
       const enriched = enrichDocumentWithTotals(savedDocument);
       const issuerInfo = await resolveIssuerInfo(savedDocument.id, savedDocument.issuerSnapshot);
       const documentForPdf = {
@@ -317,54 +356,55 @@ export default function DocumentEditScreen() {
         issuerSnapshot: issuerInfo.issuerSnapshot,
       };
 
-      const result = await generateAndSharePdf({
-        document: documentForPdf,
-        sensitiveSnapshot: issuerInfo.sensitiveSnapshot,
-      });
+      const result = await generateAndSharePdf(
+        {
+          document: documentForPdf,
+          sensitiveSnapshot: issuerInfo.sensitiveSnapshot,
+        },
+        { customFilename }
+      );
 
-      // 3. Handle PDF generation/share result
+      // 2. Handle PDF generation/share result
       if (!result.success && result.error) {
-        // PDF failed or was cancelled - do NOT change status
         if (result.error.code === 'PRO_REQUIRED') {
           router.push('/paywall');
         } else if (result.error.code !== 'SHARE_CANCELLED') {
-          // Use detailed message for VALIDATION_FAILED, otherwise use generic message
           const message =
             result.error.code === 'VALIDATION_FAILED' && result.error.message
               ? result.error.message
               : getPdfErrorMessage(result.error.code);
           Alert.alert('PDF生成エラー', message);
         }
-        // Status remains unchanged (draft or current)
         return;
       }
 
-      // 4. PDF shared successfully - change status to 'issued' if applicable
-      // Only change status if current status is 'draft' (domain rule: draft → issued)
-      // Skip if already 'issued' or other statuses (sent/paid)
+      // 3. PDF shared successfully - change status to 'issued' if applicable
       if (savedDocument.status === 'draft') {
         const statusResult = await changeDocumentStatus(savedDocument.id, 'issued');
         if (!statusResult.success) {
-          // Status change failed but PDF was shared - inform user
           Alert.alert(
             '注意',
             'PDFは共有されましたが、ステータスの更新に失敗しました。手動で「発行済」に変更してください。'
           );
         }
       }
-      // If already 'issued', 'sent', or 'paid', status remains unchanged (PDF re-share)
 
-      // 5. Navigate to the document (for both new and existing)
-      // For new documents: replace with saved document route
-      // For existing documents: refresh to show updated status
+      // 4. Navigate to the document
       router.replace(`/document/${savedDocument.id}`);
     } catch {
       Alert.alert('エラー', 'PDF発行中に予期しないエラーが発生しました');
     } finally {
       setIsPublishing(false);
-      setShowPublishConfirm(false);
+      setSavedDocumentForPdf(null);
     }
-  }, [save]);
+  }, [savedDocumentForPdf]);
+
+  // Handle filename modal cancel
+  const handleFilenameCancel = useCallback(() => {
+    setShowFilenameEdit(false);
+    setIsPublishing(false);
+    setSavedDocumentForPdf(null);
+  }, []);
 
   // Handle action sheet trigger
   const handleActionSheetOpen = useCallback(() => {
@@ -474,15 +514,17 @@ export default function DocumentEditScreen() {
       <Stack.Screen
         options={{
           title: screenTitle,
+          gestureEnabled: !isPublishing,
           headerLeft: () => (
             <Pressable
               onPress={handleBackPress}
               hitSlop={8}
               style={styles.headerButton}
+              disabled={isPublishing}
               accessibilityLabel="戻る"
               accessibilityRole="button"
             >
-              <Ionicons name="chevron-back" size={28} color="#007AFF" />
+              <Ionicons name="chevron-back" size={28} color={isPublishing ? '#C7C7CC' : '#007AFF'} />
             </Pressable>
           ),
           headerRight: () => (
@@ -544,7 +586,7 @@ export default function DocumentEditScreen() {
           onLineItemUpdate={lineItemEditor.updateItem}
           onLineItemRemove={lineItemEditor.removeItem}
           onStatusTransition={handleStatusTransition}
-          disabled={state.isSaving || isReadOnlyMode}
+          disabled={state.isSaving || isPublishing || isReadOnlyMode}
         />
       </KeyboardAvoidingView>
 
@@ -579,8 +621,17 @@ export default function DocumentEditScreen() {
         isPublishing={isPublishing}
         currentStatus={state.status}
         onConfirm={handlePublishConfirm}
-        onCancel={() => setShowPublishConfirm(false)}
+        onCancel={() => { if (!isPublishing) setShowPublishConfirm(false); }}
         validationResult={pdfValidation ?? undefined}
+      />
+
+      {/* Filename edit modal for PDF sharing */}
+      <FilenameEditModal
+        visible={showFilenameEdit}
+        defaultFilename={defaultFilename}
+        onConfirm={handleFilenameConfirm}
+        onCancel={handleFilenameCancel}
+        testID="edit-filename-modal"
       />
     </GestureHandlerRootView>
   );
