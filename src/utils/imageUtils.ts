@@ -9,7 +9,6 @@
  */
 
 import { File, Paths, Directory } from 'expo-file-system';
-import { readAsStringAsync, EncodingType } from 'expo-file-system/legacy';
 
 import type { PhotoType } from '../types/customerPhoto';
 import { generateUUID } from './uuid';
@@ -34,11 +33,12 @@ const FINANCE_PHOTOS_SUBDIR = 'finance_photos';
  */
 export async function imageUriToBase64(uri: string): Promise<string | null> {
   try {
-    // Use traditional FileSystem API for reliable base64 encoding
-    const base64 = await readAsStringAsync(uri, {
-      encoding: EncodingType.Base64,
-    });
-    return base64;
+    const file = new File(uri);
+    if (!file.exists) {
+      console.warn(`imageUriToBase64: File does not exist at ${uri}`);
+      return null;
+    }
+    return await file.base64();
   } catch (error) {
     console.error('Failed to convert image to base64:', error);
     return null;

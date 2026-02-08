@@ -6,8 +6,12 @@
 
 // Mock File class
 export class File {
+  static _mockExists = true;
   uri: string;
-  exists = true;
+
+  get exists(): boolean {
+    return File._mockExists;
+  }
 
   constructor(...paths: (string | File | Directory)[]) {
     // Combine paths to form URI
