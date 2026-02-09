@@ -98,7 +98,7 @@ function getConstructionCss(sealSizePx: number): string {
 
     .header-right {
       flex-shrink: 0;
-      min-width: 260px;
+      min-width: 320px;
     }
 
     /* === Client section === */
@@ -152,6 +152,7 @@ function getConstructionCss(sealSizePx: number): string {
       padding: 10px 12px;
       font-size: 11px;
       line-height: 1.6;
+      overflow-wrap: break-word;
     }
 
     .issuer-company {
@@ -162,6 +163,7 @@ function getConstructionCss(sealSizePx: number): string {
 
     .issuer-line {
       margin-bottom: 2px;
+      overflow-wrap: break-word;
     }
 
     .issuer-seal-row {
@@ -335,16 +337,12 @@ function renderIssuerBlock(
     lines.push(`<div class="issuer-line">${escapeHtml(parsed.addressLine2)}</div>`);
   }
 
-  // TEL / FAX
-  const telFaxParts: string[] = [];
+  // TEL / FAX (separate lines to avoid overflow in narrow column)
   if (issuerSnapshot.phone) {
-    telFaxParts.push(`TEL: ${escapeHtml(issuerSnapshot.phone)}`);
+    lines.push(`<div class="issuer-line">TEL: ${escapeHtml(issuerSnapshot.phone)}</div>`);
   }
   if (issuerSnapshot.fax) {
-    telFaxParts.push(`FAX: ${escapeHtml(issuerSnapshot.fax)}`);
-  }
-  if (telFaxParts.length > 0) {
-    lines.push(`<div class="issuer-line">${telFaxParts.join(' / ')}</div>`);
+    lines.push(`<div class="issuer-line">FAX: ${escapeHtml(issuerSnapshot.fax)}</div>`);
   }
 
   // E-mail
