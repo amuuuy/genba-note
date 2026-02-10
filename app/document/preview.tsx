@@ -34,9 +34,10 @@ import { generateAndSharePdf } from '@/pdf/pdfGenerationService';
 import { getSettings } from '@/storage/asyncStorageService';
 import { resolveBackgroundImageDataUrl } from '@/utils/imageUtils';
 import { FilenameEditModal } from '@/components/document/FilenameEditModal';
+import { TemplatePickerModal } from '@/components/document/TemplatePickerModal';
 import { getPdfErrorMessage } from '@/constants/errorMessages';
 import type { Document, DocumentWithTotals, SensitiveIssuerSnapshot } from '@/types/document';
-import type { PreviewOrientation } from '@/types/settings';
+import type { DocumentTemplateId, PreviewOrientation, SealSize, BackgroundDesign } from '@/types/settings';
 
 type ScreenState = 'loading' | 'error' | 'ready';
 
@@ -51,6 +52,13 @@ export default function DocumentPreviewScreen() {
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [orientation, setOrientation] = useState<PreviewOrientation>('PORTRAIT');
   const [filenameModalVisible, setFilenameModalVisible] = useState(false);
+  const [currentTemplateId, setCurrentTemplateId] = useState<DocumentTemplateId>('FORMAL_STANDARD');
+  const [templateDeps, setTemplateDeps] = useState<{
+    sealSize?: SealSize;
+    backgroundDesign?: BackgroundDesign;
+    backgroundImageDataUrl?: string | null;
+  }>({});
+  const [templatePickerVisible, setTemplatePickerVisible] = useState(false);
 
   // Whether we're in preview mode (unsaved document)
   const isPreviewMode = !!previewData;
@@ -121,7 +129,15 @@ export default function DocumentPreviewScreen() {
           settings?.backgroundImageUri ?? null
         );
 
-        // 6. Generate HTML with resolved data using user's template preference
+        // 6. Store template deps for re-generation on template switch
+        setCurrentTemplateId(templateId as DocumentTemplateId);
+        setTemplateDeps({
+          sealSize: settings?.sealSize,
+          backgroundDesign,
+          backgroundImageDataUrl,
+        });
+
+        // 7. Generate HTML with resolved data using user's template preference
         const templateResult = generateHtmlTemplate({
           document: documentForTemplate,
           sensitiveSnapshot: issuerInfo.sensitiveSnapshot,
@@ -153,6 +169,25 @@ export default function DocumentPreviewScreen() {
   const handleToggleOrientation = useCallback(() => {
     setOrientation((prev) => toggleOrientation(prev));
   }, []);
+
+  // Handle template switch from picker modal
+  const handleTemplateSelect = useCallback((newTemplateId: DocumentTemplateId) => {
+    setTemplatePickerVisible(false);
+    setCurrentTemplateId(newTemplateId);
+
+    if (!documentWithTotals) return;
+
+    const templateResult = generateHtmlTemplate({
+      document: documentWithTotals,
+      sensitiveSnapshot,
+      mode: 'pdf',
+      templateId: newTemplateId,
+      sealSize: templateDeps.sealSize,
+      backgroundDesign: templateDeps.backgroundDesign,
+      backgroundImageDataUrl: templateDeps.backgroundImageDataUrl,
+    });
+    setHtml(templateResult.html);
+  }, [documentWithTotals, sensitiveSnapshot, templateDeps]);
 
   // Handle share button press -- open filename modal (M19)
   const handleShareButtonPress = useCallback(() => {
@@ -270,6 +305,17 @@ export default function DocumentPreviewScreen() {
           </Text>
         </Pressable>
 
+        {/* Template style picker button */}
+        <Pressable
+          style={styles.stylePickerButton}
+          onPress={() => setTemplatePickerVisible(true)}
+          accessibilityLabel="他のスタイルを試す"
+          accessibilityRole="button"
+        >
+          <Ionicons name="color-palette-outline" size={20} color="#007AFF" />
+          <Text style={styles.stylePickerButtonText}>他のスタイルを試す</Text>
+        </Pressable>
+
         {/* PDF Error Display - only show when not in preview mode */}
         {!isPreviewMode && pdfError && (
           <View style={styles.pdfErrorContainer}>
@@ -314,6 +360,15 @@ export default function DocumentPreviewScreen() {
         onConfirm={handleFilenameConfirm}
         onCancel={handleFilenameCancel}
         testID="filename-edit-modal"
+      />
+
+      {/* Template Picker Modal */}
+      <TemplatePickerModal
+        visible={templatePickerVisible}
+        currentTemplateId={currentTemplateId}
+        onSelect={handleTemplateSelect}
+        onClose={() => setTemplatePickerVisible(false)}
+        testID="template-picker-modal"
       />
     </View>
   );
@@ -425,6 +480,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0F7FF',
   },
   orientationToggleText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '500',
+  },
+  stylePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    borderRadius: 8,
+    backgroundColor: '#F0F7FF',
+  },
+  stylePickerButtonText: {
     marginLeft: 8,
     fontSize: 14,
     color: '#007AFF',
