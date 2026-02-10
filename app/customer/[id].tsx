@@ -90,6 +90,13 @@ export default function CustomerEditScreen() {
   const isDirtyRef = useRef(state.isDirty);
   isDirtyRef.current = state.isDirty;
 
+  // Debug: verify route params for photo section visibility
+  useEffect(() => {
+    if (__DEV__) {
+      console.log('[CustomerEdit] id:', id, 'isNewCustomer:', isNewCustomer, 'customerId:', customerId);
+    }
+  }, [id, isNewCustomer, customerId]);
+
   // Handle read-only mode for new customers
   useEffect(() => {
     if (isNewCustomer && isReadOnlyMode) {
