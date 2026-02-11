@@ -17,11 +17,18 @@ describe('pdfValidationService', () => {
         const doc = createTestDocument({ documentNo: 'EST-001' });
         const result = validateDocumentForPdf(doc);
         expect(result.isValid).toBe(true);
-        expect(result.missingFields).not.toContain('請求書番号');
+        expect(result.missingFields).not.toContain('見積書番号');
       });
 
-      it('returns invalid for document with empty documentNo', () => {
-        const doc = createTestDocument({ documentNo: '' });
+      it('returns invalid for estimate with empty documentNo', () => {
+        const doc = createTestDocument({ type: 'estimate', documentNo: '' });
+        const result = validateDocumentForPdf(doc);
+        expect(result.isValid).toBe(false);
+        expect(result.missingFields).toContain('見積書番号');
+      });
+
+      it('returns invalid for invoice with empty documentNo', () => {
+        const doc = createTestDocument({ type: 'invoice', documentNo: '', dueDate: '2026-02-28' });
         const result = validateDocumentForPdf(doc);
         expect(result.isValid).toBe(false);
         expect(result.missingFields).toContain('請求書番号');
@@ -31,7 +38,7 @@ describe('pdfValidationService', () => {
         const doc = createTestDocument({ documentNo: '   ' });
         const result = validateDocumentForPdf(doc);
         expect(result.isValid).toBe(false);
-        expect(result.missingFields).toContain('請求書番号');
+        expect(result.missingFields).toContain('見積書番号');
       });
     });
 
@@ -210,7 +217,7 @@ describe('pdfValidationService', () => {
         });
         const result = validateDocumentForPdf(doc);
         expect(result.isValid).toBe(false);
-        expect(result.missingFields).toContain('請求書番号');
+        expect(result.missingFields).toContain('見積書番号');
         expect(result.missingFields).toContain('発行日');
         expect(result.missingFields).toContain('会社名');
         expect(result.missingFields).toContain('取引先名');

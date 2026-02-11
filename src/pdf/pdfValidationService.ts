@@ -3,7 +3,7 @@
  *
  * Validates documents before PDF generation.
  * Required fields for PDF:
- * - documentNo (請求書番号) - always required
+ * - documentNo (見積書番号/請求書番号) - always required
  * - issueDate (発行日) - always required
  * - dueDate (支払期限) - invoice only
  * - companyName (会社名) - always required
@@ -12,6 +12,7 @@
  */
 
 import type { Document, DocumentType } from '@/types/document';
+import { getDocumentLabels } from './templates/documentLabels';
 
 /**
  * Validation result for PDF generation
@@ -27,7 +28,6 @@ export interface PdfValidationResult {
  * Field display names for error messages
  */
 const FIELD_NAMES: Record<string, string> = {
-  documentNo: '請求書番号',
   issueDate: '発行日',
   dueDate: '支払期限',
   companyName: '会社名',
@@ -54,7 +54,7 @@ export function validateDocumentForPdf(document: Document): PdfValidationResult 
 
   // Document number is always required
   if (!document.documentNo || document.documentNo.trim() === '') {
-    missingFields.push(FIELD_NAMES.documentNo);
+    missingFields.push(getDocumentLabels(document.type).numberLabel);
   }
 
   // Issue date is always required
