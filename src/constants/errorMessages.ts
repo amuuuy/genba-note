@@ -42,6 +42,7 @@ export const SUBSCRIPTION_ERROR_MESSAGES: Record<SubscriptionServiceErrorCode, s
   CACHE_READ_ERROR: 'サブスクリプション情報の読み込みに失敗しました',
   UPTIME_ERROR: '端末情報の取得に失敗しました',
   NETWORK_ERROR: 'ネットワークに接続できません。オフラインモードで継続します。',
+  INVALID_SERVER_TIME: 'サーバー時刻の取得に失敗しました。再度お試しください。',
 };
 
 /**

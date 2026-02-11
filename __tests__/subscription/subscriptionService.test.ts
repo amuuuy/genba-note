@@ -63,7 +63,7 @@ interface MockCustomerInfo {
     all: Record<string, unknown>;
     verification: string;
   };
-  requestDateMillis: number;
+  requestDate: string;
 }
 
 // Helper to create mock CustomerInfo
@@ -87,7 +87,7 @@ function createMockCustomerInfo(
       all: entitlements,
       verification: 'VERIFIED',
     },
-    requestDateMillis: now,
+    requestDate: new Date(now).toISOString(),
   };
 }
 
@@ -214,7 +214,7 @@ describe('subscriptionService', () => {
 
       await verifySubscriptionOnline();
 
-      // requestDateMillis is set to current time in the mock
+      // requestDate is set to current time (ISO string) in the mock
       expect(mockedSecureStorage.saveSubscriptionCache).toHaveBeenCalledWith(
         expect.objectContaining({
           lastVerifiedAt: expect.any(Number),
@@ -234,6 +234,31 @@ describe('subscriptionService', () => {
           lastVerifiedUptime: MOCK_UPTIME,
         })
       );
+    });
+
+    it('should return error when requestDate is missing', async () => {
+      const mockInfo = createMockCustomerInfo(true, new Date(MOCK_NOW + 30 * 24 * 60 * 60 * 1000));
+      // Remove requestDate to simulate missing field
+      delete (mockInfo as unknown as Record<string, unknown>).requestDate;
+      mockGetCustomerInfo.mockResolvedValue(mockInfo);
+
+      const result = await verifySubscriptionOnline();
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('INVALID_SERVER_TIME');
+      expect(mockedSecureStorage.saveSubscriptionCache).not.toHaveBeenCalled();
+    });
+
+    it('should return error when requestDate is invalid', async () => {
+      const mockInfo = createMockCustomerInfo(true, new Date(MOCK_NOW + 30 * 24 * 60 * 60 * 1000));
+      (mockInfo as unknown as Record<string, unknown>).requestDate = 'not-a-date';
+      mockGetCustomerInfo.mockResolvedValue(mockInfo);
+
+      const result = await verifySubscriptionOnline();
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('INVALID_SERVER_TIME');
+      expect(mockedSecureStorage.saveSubscriptionCache).not.toHaveBeenCalled();
     });
 
     it('should return error when RevenueCat fetch fails', async () => {
@@ -438,6 +463,30 @@ describe('subscriptionService', () => {
 
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('RC_RESTORE_ERROR');
+    });
+
+    it('should return error when requestDate is missing on restore', async () => {
+      const mockInfo = createMockCustomerInfo(true, new Date(MOCK_NOW + 30 * 24 * 60 * 60 * 1000));
+      delete (mockInfo as unknown as Record<string, unknown>).requestDate;
+      mockRestorePurchases.mockResolvedValue(mockInfo);
+
+      const result = await restorePurchases();
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('INVALID_SERVER_TIME');
+      expect(mockedSecureStorage.saveSubscriptionCache).not.toHaveBeenCalled();
+    });
+
+    it('should return error when requestDate is invalid on restore', async () => {
+      const mockInfo = createMockCustomerInfo(true, new Date(MOCK_NOW + 30 * 24 * 60 * 60 * 1000));
+      (mockInfo as unknown as Record<string, unknown>).requestDate = 'not-a-date';
+      mockRestorePurchases.mockResolvedValue(mockInfo);
+
+      const result = await restorePurchases();
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('INVALID_SERVER_TIME');
+      expect(mockedSecureStorage.saveSubscriptionCache).not.toHaveBeenCalled();
     });
   });
 

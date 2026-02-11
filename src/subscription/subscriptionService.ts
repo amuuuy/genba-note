@@ -71,8 +71,15 @@ function extractSubscriptionData(customerInfo: CustomerInfo): {
     expirationDate = proEntitlement?.expirationDateMillis ?? 0;
   }
 
-  // Use requestDateMillis as server time
-  const serverTime = (customerInfo as { requestDateMillis?: number }).requestDateMillis ?? Date.now();
+  // Use requestDate (ISO 8601 string) as server time — no Date.now() fallback
+  const requestDateStr = customerInfo.requestDate;
+  if (!requestDateStr) {
+    throw new Error('customerInfo.requestDate is missing');
+  }
+  const serverTime = Date.parse(requestDateStr);
+  if (Number.isNaN(serverTime)) {
+    throw new Error(`Invalid requestDate: ${requestDateStr}`);
+  }
 
   return { isProActive, expirationDate, serverTime };
 }
@@ -142,8 +149,21 @@ export async function verifySubscriptionOnline(): Promise<
   }
 
   // Extract subscription data
-  const { isProActive, expirationDate, serverTime } =
-    extractSubscriptionData(customerInfo);
+  let isProActive: boolean;
+  let expirationDate: number | null;
+  let serverTime: number;
+  try {
+    ({ isProActive, expirationDate, serverTime } =
+      extractSubscriptionData(customerInfo));
+  } catch (error) {
+    return errorResult(
+      createSubscriptionError(
+        'INVALID_SERVER_TIME',
+        'Failed to parse server time from CustomerInfo',
+        error instanceof Error ? error : undefined
+      )
+    );
+  }
 
   // Save to cache (failure is non-fatal - online result is still valid)
   const saveResult = await saveToCache(
@@ -237,8 +257,21 @@ export async function restorePurchases(): Promise<
   }
 
   // Extract subscription data
-  const { isProActive, expirationDate, serverTime } =
-    extractSubscriptionData(customerInfo);
+  let isProActive: boolean;
+  let expirationDate: number | null;
+  let serverTime: number;
+  try {
+    ({ isProActive, expirationDate, serverTime } =
+      extractSubscriptionData(customerInfo));
+  } catch (error) {
+    return errorResult(
+      createSubscriptionError(
+        'INVALID_SERVER_TIME',
+        'Failed to parse server time from CustomerInfo',
+        error instanceof Error ? error : undefined
+      )
+    );
+  }
 
   // Save to cache (failure is non-fatal - restore result is still valid)
   const saveResult = await saveToCache(

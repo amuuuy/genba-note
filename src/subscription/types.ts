@@ -40,7 +40,8 @@ export type SubscriptionServiceErrorCode =
   | 'CACHE_WRITE_ERROR'
   | 'CACHE_READ_ERROR'
   | 'UPTIME_ERROR'
-  | 'NETWORK_ERROR';
+  | 'NETWORK_ERROR'
+  | 'INVALID_SERVER_TIME';
 
 /**
  * Subscription service error
