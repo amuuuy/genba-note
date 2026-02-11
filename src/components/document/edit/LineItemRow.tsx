@@ -121,8 +121,9 @@ function LineItemRowComponent({
   }, [disabled, lineItem.id, onPress, translateX]);
 
   const handleDelete = useCallback(() => {
+    if (disabled) return;
     onDelete(lineItem.id);
-  }, [lineItem.id, onDelete]);
+  }, [disabled, lineItem.id, onDelete]);
 
   // Handle quantity change from stepper
   const handleQuantityChange = useCallback(
@@ -140,8 +141,9 @@ function LineItemRowComponent({
   // Confirm delete from dialog
   const handleConfirmDelete = useCallback(() => {
     setShowDeleteConfirm(false);
+    if (disabled) return;
     onDelete(lineItem.id);
-  }, [lineItem.id, onDelete]);
+  }, [disabled, lineItem.id, onDelete]);
 
   // Cancel delete from dialog
   const handleCancelDelete = useCallback(() => {
@@ -154,6 +156,7 @@ function LineItemRowComponent({
       <Pressable
         style={styles.deleteButton}
         onPress={handleDelete}
+        disabled={disabled}
         accessibilityLabel="削除"
         accessibilityRole="button"
       >

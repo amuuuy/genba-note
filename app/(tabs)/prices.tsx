@@ -81,9 +81,10 @@ export default function UnitPricesScreen() {
 
   // Handle item press (edit)
   const handleItemPress = useCallback((unitPrice: UnitPrice) => {
+    if (isReadOnlyMode) return;
     setEditingUnitPrice(unitPrice);
     setEditorVisible(true);
-  }, []);
+  }, [isReadOnlyMode]);
 
   // Handle delete trigger
   const handleDeletePress = useCallback((unitPrice: UnitPrice) => {
@@ -93,13 +94,14 @@ export default function UnitPricesScreen() {
   // Handle delete confirmation
   const handleDeleteConfirm = useCallback(async () => {
     if (!deleteConfirm) return;
+    setDeleteConfirm(null);
+    if (isReadOnlyMode) return;
 
     const success = await deleteItem(deleteConfirm.id);
     if (!success) {
       Alert.alert('エラー', '削除に失敗しました');
     }
-    setDeleteConfirm(null);
-  }, [deleteConfirm, deleteItem]);
+  }, [deleteConfirm, isReadOnlyMode, deleteItem]);
 
   // Handle delete cancel
   const handleDeleteCancel = useCallback(() => {
@@ -108,6 +110,7 @@ export default function UnitPricesScreen() {
 
   // Handle editor save
   const handleEditorSave = useCallback(async (input: UnitPriceInput) => {
+    if (isReadOnlyMode) return;
     let success: boolean;
     if (editingUnitPrice) {
       // Update existing
@@ -123,7 +126,7 @@ export default function UnitPricesScreen() {
     } else {
       Alert.alert('エラー', '保存に失敗しました');
     }
-  }, [editingUnitPrice, createItem, updateItem]);
+  }, [isReadOnlyMode, editingUnitPrice, createItem, updateItem]);
 
   // Handle editor cancel
   const handleEditorCancel = useCallback(() => {
@@ -133,13 +136,14 @@ export default function UnitPricesScreen() {
 
   // Handle material research register
   const handleResearchRegister = useCallback(async (input: UnitPriceInput) => {
+    if (isReadOnlyMode) return;
     const success = await createItem(input);
     if (success) {
       Alert.alert('登録完了', `「${input.name}」を単価マスタに登録しました`);
     } else {
       Alert.alert('エラー', '登録に失敗しました');
     }
-  }, [createItem]);
+  }, [isReadOnlyMode, createItem]);
 
   // Build category filter options
   const categoryOptions: FilterOption<string>[] = [
@@ -205,7 +209,7 @@ export default function UnitPricesScreen() {
         </View>
       )}
     </View>
-  ), [searchText, setSearchText, categories, categoryOptions, selectedCategory, setCategory]);
+  ), [searchText, setSearchText, isReadOnlyMode, categories, categoryOptions, selectedCategory, setCategory]);
 
   // Show error state
   if (error && unitPrices.length === 0) {
