@@ -27,6 +27,7 @@ interface ColumnLayout {
 interface KanbanDragContextValue {
   isDragging: boolean;
   draggedDoc: DocumentWithTotals | null;
+  draggedDocRef: React.MutableRefObject<DocumentWithTotals | null>;
   sourceColumnId: KanbanColumnId | null;
   hoveredColumnId: KanbanColumnId | null;
   ghostX: Animated.Value;
@@ -73,8 +74,10 @@ export const KanbanDragProvider: React.FC<KanbanDragProviderProps> = ({
   );
   const [hoveredColumnId, setHoveredColumnId] =
     useState<KanbanColumnId | null>(null);
-  // Ref for synchronous reads (avoids stale closure in PanResponder release)
+  // Ref for synchronous reads (avoids stale closure in gesture callbacks)
   const hoveredColumnIdRef = useRef<KanbanColumnId | null>(null);
+  const draggedDocRef = useRef<DocumentWithTotals | null>(null);
+  const ghostCardSizeRef = useRef({ width: 0, height: 0 });
   const [ghostCardSize, setGhostCardSize] = useState({ width: 0, height: 0 });
 
   const ghostX = useRef(new Animated.Value(0)).current;
@@ -117,6 +120,9 @@ export const KanbanDragProvider: React.FC<KanbanDragProviderProps> = ({
       cardWidth: number,
       cardHeight: number
     ) => {
+      // Set refs synchronously before React state (avoids stale reads in gesture callbacks)
+      draggedDocRef.current = doc;
+      ghostCardSizeRef.current = { width: cardWidth, height: cardHeight };
       setDraggedDoc(doc);
       setSourceColumnId(sourceCol);
       setGhostCardSize({ width: cardWidth, height: cardHeight });
@@ -129,23 +135,26 @@ export const KanbanDragProvider: React.FC<KanbanDragProviderProps> = ({
 
   const updateDrag = useCallback(
     (pageX: number, pageY: number) => {
-      ghostX.setValue(pageX - ghostCardSize.width / 2);
-      ghostY.setValue(pageY - ghostCardSize.height / 2);
+      // Read from ref to avoid stale closure on ghostCardSize state
+      const size = ghostCardSizeRef.current;
+      ghostX.setValue(pageX - size.width / 2);
+      ghostY.setValue(pageY - size.height / 2);
       const hovered = hitTestColumn(pageX, pageY);
       hoveredColumnIdRef.current = hovered;
       setHoveredColumnId(hovered);
     },
-    [ghostX, ghostY, ghostCardSize.width, ghostCardSize.height, hitTestColumn]
+    [ghostX, ghostY, hitTestColumn]
   );
 
   const endDrag = useCallback((): KanbanColumnId | null => {
-    // Read from ref for synchronous accuracy (state may be stale in PanResponder)
+    // Read from ref for synchronous accuracy (state may be stale in gesture callbacks)
     const target = hoveredColumnIdRef.current;
     setIsDragging(false);
     setDraggedDoc(null);
     setSourceColumnId(null);
     setHoveredColumnId(null);
     hoveredColumnIdRef.current = null;
+    draggedDocRef.current = null;
     return target;
   }, []);
 
@@ -155,12 +164,14 @@ export const KanbanDragProvider: React.FC<KanbanDragProviderProps> = ({
     setSourceColumnId(null);
     setHoveredColumnId(null);
     hoveredColumnIdRef.current = null;
+    draggedDocRef.current = null;
   }, []);
 
   const contextValue = useMemo(
     () => ({
       isDragging,
       draggedDoc,
+      draggedDocRef,
       sourceColumnId,
       hoveredColumnId,
       ghostX,

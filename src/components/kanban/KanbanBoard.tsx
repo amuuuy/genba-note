@@ -3,20 +3,18 @@
  *
  * Main kanban board component that orchestrates:
  * - 3-column horizontal layout
- * - Drag-and-drop via PanResponder
+ * - Drag-and-drop via RNGH gestures (per-card Gesture.Pan)
  * - Ghost card rendering during drag
  * - PaidAt modal for paid transitions
  * - Error toast for invalid transitions
  */
 
-import React, { useCallback, useRef, useMemo } from 'react';
+import React, { useCallback, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  PanResponder,
   Animated,
-  Dimensions,
   ActivityIndicator,
   Platform,
 } from 'react-native';
@@ -60,68 +58,18 @@ const KanbanBoardInner: React.FC<KanbanBoardProps> = ({
   } = useKanbanBoard(documents, onRefresh);
 
   const dragCtx = useKanbanDrag();
-  const isDraggingRef = useRef(false);
-  const startXRef = useRef(0);
-  const startYRef = useRef(0);
 
-  // Store latest references to avoid stale closures in PanResponder
+  // Store latest references to avoid stale closures in gesture callbacks
   const dragCtxRef = useRef(dragCtx);
   const handleDropRef = useRef(handleDrop);
-  isDraggingRef.current = dragCtx.isDragging;
   dragCtxRef.current = dragCtx;
   handleDropRef.current = handleDrop;
 
-  // Track PanResponder lifecycle to coordinate with Pressable's onPressOut.
-  // "granted" means PanResponder took over the responder — it will handle release/terminate.
-  // If PanResponder was never granted (long press → release without move), onPressOut failsafe fires.
-  const panResponderGrantedRef = useRef(false);
-
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        // Use capture phase to ensure PanResponder takes over when dragging
-        onStartShouldSetPanResponderCapture: () => isDraggingRef.current,
-        onMoveShouldSetPanResponderCapture: () => isDraggingRef.current,
-        onStartShouldSetPanResponder: () => isDraggingRef.current,
-        onMoveShouldSetPanResponder: () => isDraggingRef.current,
-        onPanResponderGrant: () => {
-          panResponderGrantedRef.current = true;
-        },
-        onPanResponderMove: (_evt, gestureState) => {
-          if (!isDraggingRef.current) return;
-          const pageX = startXRef.current + gestureState.dx;
-          const pageY = startYRef.current + gestureState.dy;
-          dragCtxRef.current.updateDrag(pageX, pageY);
-        },
-        onPanResponderRelease: () => {
-          if (!isDraggingRef.current) return;
-          const ctx = dragCtxRef.current;
-          const draggedDoc = ctx.draggedDoc;
-          const targetColumn = ctx.endDrag();
-          if (targetColumn && draggedDoc) {
-            handleDropRef.current(draggedDoc.id, targetColumn);
-          }
-        },
-        onPanResponderTerminate: () => {
-          dragCtxRef.current.cancelDrag();
-        },
-      }),
-    []
-  );
-
-  // Failsafe: if PanResponder never acquired the responder (e.g., long press
-  // then release without moving), cancel drag on Pressable's onPressOut
-  const handlePressOut = useCallback(() => {
-    if (isDraggingRef.current && !panResponderGrantedRef.current) {
-      dragCtxRef.current.cancelDrag();
-    }
-  }, []);
-
-  const handleLongPressStart = useCallback(
+  const handleDragStart = useCallback(
     (
       doc: DocumentWithTotals,
-      pageX: number,
-      pageY: number,
+      absoluteX: number,
+      absoluteY: number,
       width: number,
       height: number
     ) => {
@@ -130,13 +78,34 @@ const KanbanBoardInner: React.FC<KanbanBoardProps> = ({
         col.statuses.includes(doc.status)
       )?.id;
       if (!columnId) return;
-      panResponderGrantedRef.current = false;
-      startXRef.current = pageX;
-      startYRef.current = pageY;
-      dragCtx.startDrag(doc, columnId, pageX, pageY, width, height);
+      dragCtx.startDrag(doc, columnId, absoluteX, absoluteY, width, height);
     },
     [dragCtx, disabled, isTransitioning]
   );
+
+  const handleDragUpdate = useCallback(
+    (absoluteX: number, absoluteY: number) => {
+      dragCtxRef.current.updateDrag(absoluteX, absoluteY);
+    },
+    []
+  );
+
+  const handleDragEnd = useCallback(
+    (_absoluteX: number, _absoluteY: number) => {
+      const ctx = dragCtxRef.current;
+      // Read from synchronous ref before endDrag clears state
+      const draggedDoc = ctx.draggedDocRef.current;
+      const targetColumn = ctx.endDrag();
+      if (targetColumn && draggedDoc) {
+        handleDropRef.current(draggedDoc.id, targetColumn);
+      }
+    },
+    []
+  );
+
+  const handleDragCancel = useCallback(() => {
+    dragCtxRef.current.cancelDrag();
+  }, []);
 
   if (isLoading && documents.length === 0) {
     return (
@@ -147,7 +116,7 @@ const KanbanBoardInner: React.FC<KanbanBoardProps> = ({
   }
 
   return (
-    <View style={styles.container} {...panResponder.panHandlers}>
+    <View style={styles.container}>
       <View style={styles.columnsContainer}>
         {KANBAN_UI_COLUMNS.map((colDef) => (
           <KanbanColumn
@@ -155,8 +124,10 @@ const KanbanBoardInner: React.FC<KanbanBoardProps> = ({
             columnDef={colDef}
             documents={columns[colDef.id]}
             onDocumentPress={onDocumentPress}
-            onLongPressStart={handleLongPressStart}
-            onPressOut={handlePressOut}
+            onDragStart={handleDragStart}
+            onDragUpdate={handleDragUpdate}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
             disabled={disabled || isTransitioning}
           />
         ))}
@@ -180,7 +151,10 @@ const KanbanBoardInner: React.FC<KanbanBoardProps> = ({
           <KanbanCard
             document={dragCtx.draggedDoc}
             onPress={() => {}}
-            onLongPressStart={() => {}}
+            onDragStart={() => {}}
+            onDragUpdate={() => {}}
+            onDragEnd={() => {}}
+            onDragCancel={() => {}}
             disabled
           />
         </Animated.View>

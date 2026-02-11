@@ -2,25 +2,35 @@
  * KanbanCard Component
  *
  * A compact card for the kanban board displaying document summary.
- * Long press (300ms) initiates drag. Tap navigates to document detail.
+ * Long press (300ms) via RNGH Gesture.Pan activates drag.
+ * Tap navigates to document detail.
  */
 
-import React, { useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
+import React, { useCallback, useState, useMemo } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  type LayoutChangeEvent,
+} from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import type { DocumentWithTotals, DocumentType } from '@/types/document';
 import { DocumentStatusBadge } from '@/components/document/DocumentStatusBadge';
 
 export interface KanbanCardProps {
   document: DocumentWithTotals;
   onPress: (id: string) => void;
-  onLongPressStart: (
+  onDragStart: (
     doc: DocumentWithTotals,
-    pageX: number,
-    pageY: number,
+    absoluteX: number,
+    absoluteY: number,
     width: number,
     height: number
   ) => void;
-  onPressOut?: () => void;
+  onDragUpdate: (absoluteX: number, absoluteY: number) => void;
+  onDragEnd: (absoluteX: number, absoluteY: number) => void;
+  onDragCancel: () => void;
   isDragged?: boolean;
   disabled?: boolean;
 }
@@ -34,42 +44,89 @@ function formatCurrency(amount: number): string {
 }
 
 export const KanbanCard: React.FC<KanbanCardProps> = React.memo(
-  ({ document, onPress, onLongPressStart, onPressOut, isDragged, disabled }) => {
-    const cardRef = useRef<View>(null);
+  ({
+    document,
+    onPress,
+    onDragStart,
+    onDragUpdate,
+    onDragEnd,
+    onDragCancel,
+    isDragged,
+    disabled,
+  }) => {
+    const [isPressed, setIsPressed] = useState(false);
+    const cardSizeRef = React.useRef({ width: 0, height: 0 });
+
+    const handleLayout = useCallback((e: LayoutChangeEvent) => {
+      const { width, height } = e.nativeEvent.layout;
+      cardSizeRef.current = { width, height };
+    }, []);
 
     const handlePress = useCallback(() => {
       onPress(document.id);
     }, [onPress, document.id]);
 
-    const handleLongPress = useCallback(
-      (e: { nativeEvent: { pageX: number; pageY: number } }) => {
-        if (disabled) return;
-        cardRef.current?.measure((_x, _y, width, height, _pageX, _pageY) => {
-          onLongPressStart(
-            document,
-            e.nativeEvent.pageX,
-            e.nativeEvent.pageY,
-            width,
-            height
-          );
-        });
-      },
-      [document, onLongPressStart, disabled]
+    const panGesture = useMemo(
+      () =>
+        Gesture.Pan()
+          .activateAfterLongPress(300)
+          .onStart((e) => {
+            onDragStart(
+              document,
+              e.absoluteX,
+              e.absoluteY,
+              cardSizeRef.current.width,
+              cardSizeRef.current.height
+            );
+          })
+          .onUpdate((e) => {
+            onDragUpdate(e.absoluteX, e.absoluteY);
+          })
+          .onEnd((e, success) => {
+            if (success) {
+              onDragEnd(e.absoluteX, e.absoluteY);
+            }
+          })
+          .onFinalize((_e, success) => {
+            if (!success) {
+              onDragCancel();
+            }
+          })
+          .enabled(!disabled),
+      [document, disabled, onDragStart, onDragUpdate, onDragEnd, onDragCancel]
+    );
+
+    // Tap is always enabled — disabled only controls drag, not navigation
+    const tapGesture = useMemo(
+      () =>
+        Gesture.Tap()
+          .onBegin(() => {
+            setIsPressed(true);
+          })
+          .onEnd(() => {
+            handlePress();
+          })
+          .onFinalize(() => {
+            setIsPressed(false);
+          }),
+      [handlePress]
+    );
+
+    const composedGesture = useMemo(
+      () => Gesture.Exclusive(panGesture, tapGesture),
+      [panGesture, tapGesture]
     );
 
     return (
-      <View ref={cardRef} collapsable={false}>
-        <Pressable
-          style={({ pressed }) => [
+      <GestureDetector gesture={composedGesture}>
+        <View
+          collapsable={false}
+          onLayout={handleLayout}
+          style={[
             styles.card,
-            pressed && !isDragged && styles.cardPressed,
+            isPressed && !isDragged && styles.cardPressed,
             isDragged && styles.cardDragged,
           ]}
-          onPress={handlePress}
-          onLongPress={handleLongPress}
-          onPressOut={onPressOut}
-          delayLongPress={300}
-          disabled={isDragged}
         >
           <View style={styles.topRow}>
             <Text style={styles.typeLabel}>{getTypeLabel(document.type)}</Text>
@@ -84,8 +141,8 @@ export const KanbanCard: React.FC<KanbanCardProps> = React.memo(
           <Text style={styles.amount}>
             {formatCurrency(document.totalYen)}
           </Text>
-        </Pressable>
-      </View>
+        </View>
+      </GestureDetector>
     );
   }
 );

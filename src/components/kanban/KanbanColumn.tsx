@@ -17,19 +17,30 @@ export interface KanbanColumnProps {
   columnDef: KanbanColumnUIDef;
   documents: DocumentWithTotals[];
   onDocumentPress: (id: string) => void;
-  onLongPressStart: (
+  onDragStart: (
     doc: DocumentWithTotals,
-    pageX: number,
-    pageY: number,
+    absoluteX: number,
+    absoluteY: number,
     width: number,
     height: number
   ) => void;
-  onPressOut?: () => void;
+  onDragUpdate: (absoluteX: number, absoluteY: number) => void;
+  onDragEnd: (absoluteX: number, absoluteY: number) => void;
+  onDragCancel: () => void;
   disabled?: boolean;
 }
 
 export const KanbanColumn: React.FC<KanbanColumnProps> = React.memo(
-  ({ columnDef, documents, onDocumentPress, onLongPressStart, onPressOut, disabled }) => {
+  ({
+    columnDef,
+    documents,
+    onDocumentPress,
+    onDragStart,
+    onDragUpdate,
+    onDragEnd,
+    onDragCancel,
+    disabled,
+  }) => {
     const columnRef = useRef<View>(null);
     const { isDragging, draggedDoc, hoveredColumnId, registerColumnLayout } =
       useKanbanDrag();
@@ -55,13 +66,23 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = React.memo(
         <KanbanCard
           document={item}
           onPress={onDocumentPress}
-          onLongPressStart={onLongPressStart}
-          onPressOut={onPressOut}
+          onDragStart={onDragStart}
+          onDragUpdate={onDragUpdate}
+          onDragEnd={onDragEnd}
+          onDragCancel={onDragCancel}
           isDragged={draggedDoc?.id === item.id}
           disabled={disabled}
         />
       ),
-      [onDocumentPress, onLongPressStart, onPressOut, draggedDoc?.id, disabled]
+      [
+        onDocumentPress,
+        onDragStart,
+        onDragUpdate,
+        onDragEnd,
+        onDragCancel,
+        draggedDoc?.id,
+        disabled,
+      ]
     );
 
     const keyExtractor = useCallback(
