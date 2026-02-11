@@ -155,23 +155,19 @@ export async function updateCalendarEvent(
   });
   if (formatError) return validationError(formatError);
 
-  // Fetch existing event to resolve merged state for cross-field validation
-  const loadResult = await loadCalendarEvents();
-  if (!loadResult.success) {
-    return { success: false, error: loadResult.error };
-  }
-  const existing = (loadResult.data ?? []).find((e) => e.id === id);
-  if (!existing) {
-    return validationError('イベントが見つかりません');
-  }
+  // Cross-field validation runs inside the queue via preValidator
+  // to ensure it uses the latest state (prevents race conditions).
+  const preValidator = (existing: Readonly<CalendarEvent>): string | null => {
+    const mergedStartTime = normalizedInput.startTime !== undefined
+      ? normalizedInput.startTime
+      : existing.startTime;
+    const mergedEndTime = normalizedInput.endTime !== undefined
+      ? normalizedInput.endTime
+      : existing.endTime;
+    return validateTimeConstraints(mergedStartTime, mergedEndTime);
+  };
 
-  // Merge input with existing values and validate time constraints
-  const mergedStartTime = normalizedInput.startTime !== undefined ? normalizedInput.startTime : existing.startTime;
-  const mergedEndTime = normalizedInput.endTime !== undefined ? normalizedInput.endTime : existing.endTime;
-  const timeError = validateTimeConstraints(mergedStartTime, mergedEndTime);
-  if (timeError) return validationError(timeError);
-
-  return updateInStorage(id, { ...normalizedInput, updatedAt: Date.now() });
+  return updateInStorage(id, { ...normalizedInput, updatedAt: Date.now() }, preValidator);
 }
 
 /**

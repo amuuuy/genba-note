@@ -518,6 +518,26 @@ describe('documentValidation', () => {
       expect(fields.has('notes')).toBe(true);
     });
 
+    it('should include customerId for draft status', () => {
+      const fields = getEditableFields('draft');
+      expect(fields.has('customerId')).toBe(true);
+    });
+
+    it('should include carriedForwardAmount for draft status', () => {
+      const fields = getEditableFields('draft');
+      expect(fields.has('carriedForwardAmount')).toBe(true);
+    });
+
+    it('should include customerId for sent status', () => {
+      const fields = getEditableFields('sent');
+      expect(fields.has('customerId')).toBe(true);
+    });
+
+    it('should include carriedForwardAmount for sent status', () => {
+      const fields = getEditableFields('sent');
+      expect(fields.has('carriedForwardAmount')).toBe(true);
+    });
+
     it('should return only paidAt and status for paid status', () => {
       const fields = getEditableFields('paid');
       expect(fields.has('paidAt')).toBe(true);

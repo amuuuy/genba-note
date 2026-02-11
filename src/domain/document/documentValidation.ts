@@ -555,6 +555,8 @@ const DRAFT_SENT_EDITABLE_FIELDS: Set<keyof Document> = new Set([
   'lineItems',
   'notes',
   'issuerSnapshot',
+  'customerId',
+  'carriedForwardAmount',
 ]);
 
 /**

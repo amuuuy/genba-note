@@ -217,12 +217,23 @@ export async function deleteFinanceEntry(id: string): Promise<FinanceResult<void
     return readOnlyError();
   }
 
-  if (!entryResult.success) {
+  // For errors other than NOT_FOUND, return immediately (e.g. READ_ERROR, WRITE_ERROR)
+  if (!entryResult.success && entryResult.error?.code !== 'NOT_FOUND') {
     return errorResult<void>(entryResult.error!);
   }
 
   // Delete associated photos (cascading delete)
-  await deletePhotosByFinanceEntry(id);
+  // Runs even when entry is already gone (NOT_FOUND) to ensure idempotent
+  // cleanup of orphaned photos from a previous partial deletion.
+  const photoResult = await deletePhotosByFinanceEntry(id);
+  if (!photoResult.success) {
+    return errorResult<void>(
+      createError(
+        'WRITE_ERROR',
+        `Finance entry deleted but failed to delete associated photos: ${photoResult.error?.message}`
+      )
+    );
+  }
 
   return successResult(undefined);
 }

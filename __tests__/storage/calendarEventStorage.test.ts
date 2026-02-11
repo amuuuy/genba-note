@@ -157,6 +157,49 @@ describe('calendarEventStorage', () => {
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('READONLY_MODE');
     });
+
+    it('should call preValidator with existing event and abort on error', async () => {
+      const existing = createTestCalendarEvent({
+        id: 'evt-001',
+        startTime: '09:00',
+        endTime: '17:00',
+      });
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify([existing]));
+
+      const validator = jest.fn(() => '終了時間は開始時間以降にしてください');
+
+      const result = await updateCalendarEvent(
+        'evt-001',
+        { endTime: '08:00', updatedAt: 9999999999999 },
+        validator
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('VALIDATION_ERROR');
+      expect(validator).toHaveBeenCalledWith(existing);
+      expect(mockedAsyncStorage.setItem).not.toHaveBeenCalled();
+    });
+
+    it('should proceed when preValidator returns null', async () => {
+      const existing = createTestCalendarEvent({
+        id: 'evt-001',
+        startTime: '09:00',
+        endTime: '17:00',
+      });
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify([existing]));
+      mockedAsyncStorage.setItem.mockResolvedValue();
+
+      const validator = jest.fn(() => null);
+
+      const result = await updateCalendarEvent(
+        'evt-001',
+        { endTime: '18:00', updatedAt: 9999999999999 },
+        validator
+      );
+
+      expect(result.success).toBe(true);
+      expect(validator).toHaveBeenCalledWith(existing);
+    });
   });
 
   describe('deleteCalendarEvent', () => {

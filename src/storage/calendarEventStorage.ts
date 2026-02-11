@@ -18,7 +18,8 @@ export type CalendarEventErrorCode =
   | 'WRITE_ERROR'
   | 'PARSE_ERROR'
   | 'NOT_FOUND'
-  | 'READONLY_MODE';
+  | 'READONLY_MODE'
+  | 'VALIDATION_ERROR';
 
 export interface CalendarEventError {
   code: CalendarEventErrorCode;
@@ -137,7 +138,8 @@ export async function addCalendarEvent(
 
 export async function updateCalendarEvent(
   id: string,
-  updates: UpdateCalendarEventInput & { updatedAt?: number }
+  updates: UpdateCalendarEventInput & { updatedAt?: number },
+  preValidator?: (existing: Readonly<CalendarEvent>) => string | null
 ): Promise<CalendarEventResult<CalendarEvent>> {
   if (getReadOnlyMode()) {
     return readOnlyError();
@@ -160,6 +162,15 @@ export async function updateCalendarEvent(
         return errorResult<CalendarEvent>(
           createError('NOT_FOUND', `Calendar event not found: ${id}`)
         );
+      }
+
+      if (preValidator) {
+        const validationMessage = preValidator({ ...events[index] });
+        if (validationMessage) {
+          return errorResult<CalendarEvent>(
+            createError('VALIDATION_ERROR', validationMessage)
+          );
+        }
       }
 
       const updated: CalendarEvent = { ...events[index], ...updates };

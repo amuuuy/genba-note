@@ -331,6 +331,29 @@ describe('calendarService', () => {
       expect(result.success).toBe(false);
       expect(result.error?.message).toContain('終了時間');
     });
+
+    it('should load events only once (inside queue) during update', async () => {
+      const existing = createTestCalendarEvent({
+        id: 'evt-001',
+        startTime: '09:00',
+        endTime: '17:00',
+      });
+      jest.spyOn(Date, 'now').mockReturnValue(1700000001000);
+      mockedAsyncStorage.getItem.mockResolvedValue(
+        JSON.stringify([existing])
+      );
+      mockedAsyncStorage.setItem.mockResolvedValue();
+
+      await updateCalendarEvent('evt-001', { endTime: '18:00' });
+
+      // Should load only once (inside the queue), not twice
+      const getItemCalls = mockedAsyncStorage.getItem.mock.calls.filter(
+        (call) => call[0] === STORAGE_KEYS.CALENDAR_EVENTS
+      );
+      expect(getItemCalls).toHaveLength(1);
+
+      jest.spyOn(Date, 'now').mockRestore();
+    });
   });
 
   describe('deleteCalendarEvent', () => {
