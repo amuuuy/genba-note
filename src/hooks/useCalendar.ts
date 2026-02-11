@@ -5,7 +5,7 @@
  * Combines user events with virtual events from documents and work logs.
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { addMonths, getCurrentYearMonth } from '@/utils/dateUtils';
 import { getCalendarEvents } from '@/domain/calendar/calendarService';
@@ -60,6 +60,7 @@ export async function fetchAndAggregateEvents(
 }
 
 export function useCalendar() {
+  const requestIdRef = useRef(0);
   const initial = getCurrentYearMonth();
   const [currentYear, setCurrentYear] = useState(initial.year);
   const [currentMonth, setCurrentMonth] = useState(initial.month);
@@ -75,20 +76,25 @@ export function useCalendar() {
   );
 
   const loadEvents = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     setIsLoading(true);
     setError(null);
 
     try {
       const result = await fetchAndAggregateEvents(yearMonth);
+      if (requestId !== requestIdRef.current) return;
       setEvents(result.events);
       if (result.error) {
         setError(result.error);
       }
     } catch (err) {
+      if (requestId !== requestIdRef.current) return;
       setEvents([]);
       setError('カレンダーの読み込みに失敗しました');
     } finally {
-      setIsLoading(false);
+      if (requestId === requestIdRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [yearMonth]);
 
@@ -96,6 +102,9 @@ export function useCalendar() {
   useFocusEffect(
     useCallback(() => {
       loadEvents();
+      return () => {
+        requestIdRef.current++;
+      };
     }, [loadEvents])
   );
 

@@ -548,7 +548,7 @@ export function useDocumentEdit(
       });
       return null;
     }
-  }, [state.documentId, state.values, state.lineItems, state.status]);
+  }, [state.documentId, state.values, state.lineItems, state.status, state.customerId]);
 
   const changeStatus = useCallback(
     async (newStatus: DocumentStatus, paidAt?: string): Promise<boolean> => {
