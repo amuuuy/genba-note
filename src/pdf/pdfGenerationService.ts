@@ -16,7 +16,7 @@ import type { PdfTemplateInput, PdfGenerationResult, PdfGenerationOptions, Previ
 import { DEFAULT_SEAL_SIZE } from './types';
 import { generateHtmlTemplate, generateFilenameTitle, injectLandscapeCss } from './pdfTemplateService';
 import { sanitizeFilename } from '@/utils/filenameUtils';
-import { checkProStatus } from './proGateService';
+import { checkProStatus } from '@/subscription/proAccessService';
 import { validateDocumentForPdf, formatValidationError } from './pdfValidationService';
 import { getSettings } from '@/storage/asyncStorageService';
 import { resolveBackgroundImageDataUrl } from '@/utils/imageUtils';

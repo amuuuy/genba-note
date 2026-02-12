@@ -39,7 +39,7 @@ export {
 // All PDF generation must go through generateAndSharePdf which enforces Pro status.
 export { generateAndSharePdf } from './pdfGenerationService';
 
-// Pro Gate Service
+// Pro Access Service - now in subscription layer
 // NOTE: setProStatusOverride and resetProStatusOverride are NOT exported here.
-// They are only available for testing via direct import from proGateService.
-export { checkProStatus } from './proGateService';
+// They are only available for testing via direct import from @/subscription/proAccessService.
+export { checkProStatus } from '@/subscription/proAccessService';

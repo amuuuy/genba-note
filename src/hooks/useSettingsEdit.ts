@@ -7,16 +7,12 @@
 import { useReducer, useEffect, useCallback } from 'react';
 import type { SettingsFormValues, SettingsFormErrors } from '@/domain/settings/types';
 import { validateSettingsForm } from '@/domain/settings/validationService';
-import type { AppSettings, SensitiveIssuerSettings } from '@/types/settings';
-import { DEFAULT_APP_SETTINGS, DEFAULT_SENSITIVE_SETTINGS } from '@/types/settings';
-import { getSettings, updateSettings } from '@/storage/asyncStorageService';
 import {
-  getSensitiveIssuerInfo,
-  saveSensitiveIssuerInfo,
-  deleteSensitiveIssuerInfo,
-} from '@/storage/secureStorageService';
+  loadSettings as loadSettingsFromStorage,
+  saveSettings as saveSettingsToStorage,
+} from '@/domain/settings/settingsPersistenceService';
+import type { AppSettings, SensitiveIssuerSettings } from '@/types/settings';
 import { formatDocumentNumber } from '@/domain/document/autoNumberingService';
-import { deleteStoredImage, isValidBackgroundImageUri } from '@/utils/imageUtils';
 import type { InvoiceTemplateType, SealSize, BackgroundDesign, DocumentTemplateId } from '@/types/settings';
 import { DEFAULT_INVOICE_TEMPLATE_TYPE, DEFAULT_SEAL_SIZE } from '@/types/settings';
 
@@ -352,52 +348,22 @@ export function useSettingsEdit(): UseSettingsEditReturn {
     initialSettingsEditState
   );
 
-  // Load/reload settings function
+  // Load/reload settings function (delegates to domain service)
   const reload = useCallback(async () => {
     dispatch({ type: 'START_LOADING' });
 
     try {
-      // Load from AsyncStorage
-      const appSettingsResult = await getSettings();
+      const result = await loadSettingsFromStorage();
 
-      // Check for AsyncStorage read errors (parse errors, etc.)
-      if (!appSettingsResult.success) {
+      if (result.success) {
         dispatch({
-          type: 'LOAD_ERROR',
-          message:
-            appSettingsResult.error?.message ?? '設定の読み込みに失敗しました',
+          type: 'LOAD_SUCCESS',
+          appSettings: result.appSettings,
+          sensitiveSettings: result.sensitiveSettings,
         });
-        return;
+      } else {
+        dispatch({ type: 'LOAD_ERROR', message: result.message });
       }
-
-      const appSettings: AppSettings =
-        appSettingsResult.data ?? DEFAULT_APP_SETTINGS;
-
-      // Load from SecureStore
-      const sensitiveResult = await getSensitiveIssuerInfo();
-
-      // Distinguish between "no data" (success with null) and "read error" (failure)
-      // Read errors must block to prevent silent data loss on save
-      if (!sensitiveResult.success) {
-        dispatch({
-          type: 'LOAD_ERROR',
-          message:
-            sensitiveResult.error?.message ??
-            '機密情報の読み込みに失敗しました。再試行してください。',
-        });
-        return;
-      }
-
-      // Success with null means no data exists yet (first time use)
-      // This is safe - saving will create new data, not overwrite existing
-      const sensitiveSettings: SensitiveIssuerSettings | null =
-        sensitiveResult.data ?? null;
-
-      dispatch({
-        type: 'LOAD_SUCCESS',
-        appSettings,
-        sensitiveSettings,
-      });
     } catch (error) {
       dispatch({
         type: 'LOAD_ERROR',
@@ -470,7 +436,7 @@ export function useSettingsEdit(): UseSettingsEditReturn {
     return true;
   }, [state.values]);
 
-  // Save settings
+  // Save settings (delegates to domain service)
   const save = useCallback(async (): Promise<boolean> => {
     // Validate first
     const errors = validateSettingsForm(state.values);
@@ -481,124 +447,15 @@ export function useSettingsEdit(): UseSettingsEditReturn {
 
     dispatch({ type: 'START_SAVING' });
 
-    try {
-      // 0. Capture previous backgroundImageUri for post-save cleanup
-      const previousSettingsResult = await getSettings();
-      const previousBackgroundImageUri = previousSettingsResult.success
-        ? (previousSettingsResult.data?.backgroundImageUri ?? null)
-        : null;
+    const result = await saveSettingsToStorage(state.values);
 
-      // 1. Get current SecureStore values for potential rollback
-      const previousSensitiveResult = await getSensitiveIssuerInfo();
-
-      // If we can't read current state, abort to prevent inconsistency on rollback
-      if (!previousSensitiveResult.success) {
-        throw new Error(
-          previousSensitiveResult.error?.message ??
-            '現在の設定を取得できませんでした。保存を中断します。'
-        );
-      }
-      const previousSensitive = previousSensitiveResult.data; // Can be null (first time)
-
-      // 2. Prepare new sensitive data
-      const newSensitiveData: SensitiveIssuerSettings = {
-        invoiceNumber: state.values.invoiceNumber || null,
-        bankAccount: {
-          bankName: state.values.bankName || null,
-          branchName: state.values.branchName || null,
-          accountType:
-            state.values.accountType === '' ? null : state.values.accountType,
-          accountNumber: state.values.accountNumber || null,
-          accountHolderName: state.values.accountHolderName || null,
-        },
-      };
-
-      // 3. Save to SecureStore FIRST (has stricter constraints - 2KB limit)
-      // If this fails, AsyncStorage remains unchanged, avoiding partial save state
-      const sensitiveResult = await saveSensitiveIssuerInfo(newSensitiveData);
-
-      if (!sensitiveResult.success) {
-        throw new Error(
-          sensitiveResult.error?.message ?? 'SecureStore保存に失敗しました'
-        );
-      }
-
-      // 4. Save to AsyncStorage AFTER SecureStore success
-      // IMPORTANT: Do NOT include nextEstimateNumber/nextInvoiceNumber here!
-      // Those are managed exclusively by autoNumberingService to prevent race conditions.
-      // updateSettings performs deep merge, so omitting next* fields preserves existing values.
-      const appSettingsResult = await updateSettings({
-        issuer: {
-          companyName: state.values.companyName || null,
-          representativeName: state.values.representativeName || null,
-          address: state.values.address || null,
-          phone: state.values.phone || null,
-          fax: state.values.fax || null,
-          contactPerson: state.values.contactPerson || null,
-          showContactPerson: state.values.showContactPerson,
-          email: state.values.email || null,
-          sealImageUri: state.values.sealImageUri,
-        },
-        // Only update prefixes, NOT next numbers (managed by autoNumberingService)
-        numbering: {
-          estimatePrefix: state.values.estimatePrefix,
-          invoicePrefix: state.values.invoicePrefix,
-        } as AppSettings['numbering'],
-        invoiceTemplateType: state.values.invoiceTemplateType,
-        sealSize: state.values.sealSize,
-        backgroundDesign: state.values.backgroundDesign,
-        backgroundImageUri: state.values.backgroundImageUri,
-        defaultEstimateTemplateId: state.values.defaultEstimateTemplateId,
-        defaultInvoiceTemplateId: state.values.defaultInvoiceTemplateId,
-      });
-
-      if (!appSettingsResult.success) {
-        // 5. Rollback SecureStore on AsyncStorage failure to maintain consistency
-        // Handle both existing data (restore) and no previous data (delete)
-        if (previousSensitive !== null && previousSensitive !== undefined) {
-          // Restore previous values
-          const rollbackResult = await saveSensitiveIssuerInfo(previousSensitive);
-          if (!rollbackResult.success) {
-            // Critical: both storages are now inconsistent
-            throw new Error(
-              'AsyncStorage保存に失敗し、SecureStoreのロールバックにも失敗しました。データの整合性が保てない可能性があります。'
-            );
-          }
-        } else {
-          // First save case: delete the newly saved data to restore original state (no data)
-          const deleteResult = await deleteSensitiveIssuerInfo();
-          if (!deleteResult.success) {
-            // Critical: SecureStore has orphaned data
-            throw new Error(
-              'AsyncStorage保存に失敗し、SecureStoreの削除にも失敗しました。データの整合性が保てない可能性があります。'
-            );
-          }
-        }
-        throw new Error(
-          appSettingsResult.error?.message ?? 'AsyncStorage保存に失敗しました'
-        );
-      }
-
+    if (result.success) {
       dispatch({ type: 'SAVE_SUCCESS' });
-
-      // Post-save cleanup: delete old background image if URI changed
-      if (
-        previousBackgroundImageUri &&
-        previousBackgroundImageUri !== state.values.backgroundImageUri &&
-        isValidBackgroundImageUri(previousBackgroundImageUri)
-      ) {
-        deleteStoredImage(previousBackgroundImageUri).catch((err) => {
-          console.warn('Failed to cleanup old background image:', err);
-        });
-      }
-
       return true;
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : '保存に失敗しました';
-      dispatch({ type: 'SAVE_ERROR', message });
-      return false;
     }
+
+    dispatch({ type: 'SAVE_ERROR', message: result.message });
+    return false;
   }, [state.values]);
 
   // Format next document number for display

@@ -1,5 +1,5 @@
 /**
- * Tests for Pro Gate Service
+ * Tests for Pro Access Service
  *
  * Tests Pro feature checking with subscription service integration.
  * Override functionality is maintained for testing purposes.
@@ -24,9 +24,9 @@ import {
   checkProStatus,
   setProStatusOverride,
   resetProStatusOverride,
-} from '@/pdf/proGateService';
+} from '@/subscription/proAccessService';
 
-describe('proGateService', () => {
+describe('proAccessService', () => {
   beforeEach(() => {
     // Default: not in development mode (production behavior)
     mockIsDevelopmentMode.mockReturnValue(false);

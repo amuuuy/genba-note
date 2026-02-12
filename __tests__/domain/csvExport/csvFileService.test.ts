@@ -70,7 +70,7 @@ import { exportInvoicesToCsv } from '@/domain/csvExport/csvFileService';
 import {
   setProStatusOverride,
   resetProStatusOverride,
-} from '@/pdf/proGateService';
+} from '@/subscription/proAccessService';
 import { createSentInvoice, createPaidInvoice, createDraftInvoice } from './helpers';
 
 const mockedAsyncStorage = jest.mocked(asyncStorageService);

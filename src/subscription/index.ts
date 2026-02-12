@@ -34,3 +34,10 @@ export {
   restorePurchases,
   clearSubscriptionData,
 } from './subscriptionService';
+
+// Pro Access Service - Pro feature gating
+export {
+  checkProStatus,
+  setProStatusOverride,
+  resetProStatusOverride,
+} from './proAccessService';

@@ -31,7 +31,7 @@ import { useReadOnlyMode } from '@/hooks/useReadOnlyMode';
 import { DocumentEditForm, SaveActionSheet, PublishConfirmModal } from '@/components/document/edit';
 import { FilenameEditModal } from '@/components/document/FilenameEditModal';
 import { WarningDialog } from '@/components/common';
-import { checkProStatus } from '@/pdf/proGateService';
+import { checkProStatus } from '@/subscription/proAccessService';
 import { generateAndSharePdf } from '@/pdf/pdfGenerationService';
 import { generateFilenameTitle } from '@/pdf/pdfTemplateService';
 import {

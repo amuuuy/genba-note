@@ -6,8 +6,8 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
-import { checkProStatus } from '@/pdf/proGateService';
-import type { ProGateReason } from '@/pdf/types';
+import { checkProStatus } from '@/subscription/proAccessService';
+import type { ProGateReason } from '@/subscription/types';
 import { getProGateMessage } from '@/constants/errorMessages';
 
 export interface UseProStatusReturn {

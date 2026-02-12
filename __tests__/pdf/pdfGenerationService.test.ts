@@ -49,7 +49,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
 import { generateAndSharePdf } from '@/pdf/pdfGenerationService';
-import { setProStatusOverride, resetProStatusOverride } from '@/pdf/proGateService';
+import { setProStatusOverride, resetProStatusOverride } from '@/subscription/proAccessService';
 import { setReadOnlyMode } from '@/storage/asyncStorageService';
 import { createTestTemplateInput } from './helpers';
 

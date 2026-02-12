@@ -99,3 +99,38 @@ export function createSubscriptionError(
 ): SubscriptionServiceError {
   return { code, message, originalError };
 }
+
+// === Pro Access Types ===
+
+/**
+ * Reason codes for Pro status check
+ *
+ * Aligned with ProValidationResult.reason from subscription types.
+ */
+export type ProGateReason =
+  // Success reasons
+  | 'online_verified'
+  | 'offline_grace_period'
+  | 'development_mode'
+  // Failure reasons (from offlineValidationService)
+  | 'cache_missing'
+  | 'cache_invalid'
+  | 'entitlement_inactive'
+  | 'entitlement_expired'
+  | 'uptime_rollback'
+  | 'grace_period_exceeded'
+  | 'clock_manipulation'
+  // Development/testing placeholders (kept for backwards compatibility)
+  | 'placeholder_always_false'
+  | 'placeholder_always_true';
+
+/**
+ * Result of Pro status check
+ */
+export interface ProGateResult {
+  /** Whether Pro features are allowed */
+  isPro: boolean;
+
+  /** Reason for the result */
+  reason: ProGateReason;
+}

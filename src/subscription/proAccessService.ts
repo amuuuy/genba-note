@@ -1,5 +1,5 @@
 /**
- * Pro Gate Service
+ * Pro Access Service
  *
  * Provides Pro feature checking using the subscription service.
  * Integrates with RevenueCat for online verification and supports offline grace period.
@@ -8,7 +8,7 @@
  */
 
 import type { ProGateResult, ProGateReason } from './types';
-import { getProStatus } from '@/subscription/subscriptionService';
+import { getProStatus } from './subscriptionService';
 import { isDevelopmentMode } from '@/utils/environment';
 
 // Internal state for test override

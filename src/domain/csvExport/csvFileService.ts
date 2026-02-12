@@ -13,7 +13,7 @@ import { successResult, errorResult, createCsvExportError } from './types';
 import { generateCsvFilename } from './csvFormatService';
 import { generateCsvFromDocuments } from './csvExportService';
 import { filterDocuments } from '@/storage/asyncStorageService';
-import { checkProStatus } from '@/pdf/proGateService';
+import { checkProStatus } from '@/subscription/proAccessService';
 
 /**
  * Write CSV content to temporary file
