@@ -170,7 +170,7 @@ function renderIssuer(
   }
 
   const sealHtml = hasSeal
-    ? `<div class="issuer-seal"><img src="${issuerSnapshot.sealImageBase64}" alt="印影" style="width:${sealSizePx}px;height:${sealSizePx}px;object-fit:contain;opacity:0.85;" /></div>`
+    ? `<div class="issuer-seal"><img src="${issuerSnapshot.sealImageBase64}" alt="印影" style="width:${sealSizePx}px;height:${sealSizePx}px;object-fit:contain;opacity:0.85;mix-blend-mode: multiply;" /></div>`
     : '';
 
   return `

@@ -205,3 +205,100 @@ describe('Seal size CSS injection in templates', () => {
     });
   });
 });
+
+// === mix-blend-mode: multiply tests ===
+
+describe('Seal image mix-blend-mode in templates', () => {
+  it('includes mix-blend-mode: multiply in Estimate FORMAL_STANDARD template', () => {
+    const doc = createTestDocumentWithTotals({
+      type: 'estimate',
+      issuerSnapshot: createTestIssuerSnapshot({
+        sealImageBase64: SEAL_BASE64,
+      }),
+    });
+    const { html } = generateHtmlTemplate({
+      document: doc,
+      sensitiveSnapshot: createTestSensitiveSnapshot(),
+      mode: 'pdf',
+    });
+    expect(html).toContain('mix-blend-mode: multiply');
+  });
+
+  it('includes mix-blend-mode: multiply in Invoice SIMPLE template', () => {
+    const doc = createTestDocumentWithTotals({
+      type: 'invoice',
+      issuerSnapshot: createTestIssuerSnapshot({
+        sealImageBase64: SEAL_BASE64,
+      }),
+    });
+    const { html } = generateHtmlTemplate({
+      document: doc,
+      sensitiveSnapshot: createTestSensitiveSnapshot(),
+      mode: 'pdf',
+      invoiceTemplateType: 'SIMPLE',
+    });
+    expect(html).toContain('mix-blend-mode: multiply');
+  });
+
+  it('includes mix-blend-mode: multiply in Invoice ACCOUNTING template', () => {
+    const doc = createTestDocumentWithTotals({
+      type: 'invoice',
+      issuerSnapshot: createTestIssuerSnapshot({
+        sealImageBase64: SEAL_BASE64,
+      }),
+    });
+    const html = generateInvoiceAccountingTemplate(
+      doc,
+      createTestSensitiveSnapshot()
+    );
+    expect(html).toContain('mix-blend-mode: multiply');
+  });
+
+  it('includes mix-blend-mode: multiply in MODERN template', () => {
+    const doc = createTestDocumentWithTotals({
+      type: 'estimate',
+      issuerSnapshot: createTestIssuerSnapshot({
+        sealImageBase64: SEAL_BASE64,
+      }),
+    });
+    const { html } = generateHtmlTemplate({
+      document: doc,
+      sensitiveSnapshot: createTestSensitiveSnapshot(),
+      mode: 'pdf',
+      templateId: 'MODERN',
+    });
+    expect(html).toContain('mix-blend-mode: multiply');
+  });
+
+  it('includes mix-blend-mode: multiply in CLASSIC template', () => {
+    const doc = createTestDocumentWithTotals({
+      type: 'estimate',
+      issuerSnapshot: createTestIssuerSnapshot({
+        sealImageBase64: SEAL_BASE64,
+      }),
+    });
+    const { html } = generateHtmlTemplate({
+      document: doc,
+      sensitiveSnapshot: createTestSensitiveSnapshot(),
+      mode: 'pdf',
+      templateId: 'CLASSIC',
+    });
+    expect(html).toContain('mix-blend-mode: multiply');
+  });
+
+  it('includes mix-blend-mode: multiply in CONSTRUCTION template', () => {
+    const doc = createTestDocumentWithTotals({
+      type: 'estimate',
+      issuerSnapshot: createTestIssuerSnapshot({
+        sealImageBase64: SEAL_BASE64,
+      }),
+    });
+    const { html } = generateHtmlTemplate({
+      document: doc,
+      sensitiveSnapshot: createTestSensitiveSnapshot(),
+      mode: 'pdf',
+      templateId: 'CONSTRUCTION',
+    });
+    expect(html).toContain('mix-blend-mode: multiply');
+  });
+});

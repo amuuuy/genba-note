@@ -184,6 +184,7 @@ function getConstructionCss(sealSizePx: number): string {
       height: 100%;
       object-fit: contain;
       opacity: 0.85;
+      mix-blend-mode: multiply;
     }
 
     /* === 4-column table === */

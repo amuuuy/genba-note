@@ -172,6 +172,7 @@ function getClassicStyles(sealSizePx: number): string {
       height: ${sealSizePx}px;
       object-fit: contain;
       border-radius: 50%;
+      mix-blend-mode: multiply;
     }
 
     /* === Info Block (full-width grid table) === */

@@ -178,6 +178,7 @@ function getSimpleStyles(sealSizePx: number): string {
       height: ${sealSizePx}px;
       object-fit: contain;
       opacity: 0.85;
+      mix-blend-mode: multiply;
     }
 
     /* Contact person (separate from seal) */

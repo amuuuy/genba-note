@@ -482,6 +482,7 @@ function getTemplateStyles(accountingSealSizePx: number): string {
       height: ${accountingSealSizePx}px;
       object-fit: contain;
       opacity: 0.85;
+      mix-blend-mode: multiply;
     }
 
     .issuer-contact {

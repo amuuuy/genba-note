@@ -184,6 +184,7 @@ function getFormalStandardCss(sealSizePx: number): string {
       height: 100%;
       object-fit: contain;
       opacity: 0.85;
+      mix-blend-mode: multiply;
     }
 
     /* === Info box === */
