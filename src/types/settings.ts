@@ -1,4 +1,5 @@
 // === AI Search Model ===
+import { DEFAULT_AI_SEARCH_MODEL as _DEFAULT_AI_SEARCH_MODEL } from './materialResearch';
 import type { AiSearchModel as _AiSearchModel } from './materialResearch';
 export { AI_SEARCH_MODELS, DEFAULT_AI_SEARCH_MODEL } from './materialResearch';
 export type { AiSearchModel } from './materialResearch';
@@ -145,7 +146,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   backgroundImageUri: null,
   defaultEstimateTemplateId: 'FORMAL_STANDARD',
   defaultInvoiceTemplateId: 'ACCOUNTING',
-  aiSearchModel: 'FLASH',
+  aiSearchModel: _DEFAULT_AI_SEARCH_MODEL,
   schemaVersion: 1,
 };
 
