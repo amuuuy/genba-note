@@ -56,12 +56,14 @@ describe('Preview Orientation (M18)', () => {
   });
 
   describe('deriveDisplayHtml (shared with preview.tsx)', () => {
-    it('returns raw html when orientation is PORTRAIT', () => {
+    it('injects portrait viewport (width=800) when orientation is PORTRAIT', () => {
       const input = createTestTemplateInput({ mode: 'pdf' });
       const { html } = generateHtmlTemplate(input);
       const displayHtml = deriveDisplayHtml(html, 'PORTRAIT');
-      expect(displayHtml).toBe(html);
+      expect(displayHtml).toContain('<meta name="viewport" content="width=800">');
+      expect(displayHtml).not.toContain('width=device-width');
       expect(displayHtml).not.toContain('@page');
+      expect(displayHtml).not.toBe(html);
     });
 
     it('returns empty string for empty html', () => {
@@ -77,6 +79,22 @@ describe('Preview Orientation (M18)', () => {
       expect(displayHtml).toContain('min-width: 1130px');
       expect(displayHtml).toContain('<meta name="viewport" content="width=1130">');
       expect(displayHtml).not.toBe(html);
+    });
+
+    it('inserts portrait viewport before </head> when no viewport meta exists', () => {
+      const htmlWithoutViewport = '<html><head><title>Test</title></head><body>content</body></html>';
+      const displayHtml = deriveDisplayHtml(htmlWithoutViewport, 'PORTRAIT');
+      const metaIdx = displayHtml.indexOf('<meta name="viewport" content="width=800">');
+      const headCloseIdx = displayHtml.indexOf('</head>');
+      expect(metaIdx).toBeGreaterThan(-1);
+      expect(headCloseIdx).toBeGreaterThan(-1);
+      expect(metaIdx).toBeLessThan(headCloseIdx);
+    });
+
+    it('returns html unchanged if no viewport and no </head> for PORTRAIT', () => {
+      const degenerateHtml = '<div>no head tag</div>';
+      const displayHtml = deriveDisplayHtml(degenerateHtml, 'PORTRAIT');
+      expect(displayHtml).toBe(degenerateHtml);
     });
   });
 });

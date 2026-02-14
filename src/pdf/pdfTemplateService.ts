@@ -642,6 +642,9 @@ const LANDSCAPE_CSS = [
 /** Viewport meta tag for landscape: forces WebView to render at 1130px width */
 const LANDSCAPE_VIEWPORT_META = '<meta name="viewport" content="width=1130">';
 
+/** Viewport meta tag for portrait: forces WebView to render at 800px width */
+const PORTRAIT_VIEWPORT_META = '<meta name="viewport" content="width=800">';
+
 /**
  * Inject landscape orientation rules into an existing HTML string.
  *
@@ -691,6 +694,26 @@ export function injectLandscapeCss(html: string): string {
 }
 
 /**
+ * Inject portrait viewport into an existing HTML string.
+ *
+ * Replaces the template's default `width=device-width` viewport with
+ * `width=800`, which forces the WebView to render at 800px and auto-scale
+ * (zoom out) on narrow mobile screens. This makes the preview match the
+ * actual PDF output layout.
+ */
+function injectPortraitViewport(html: string): string {
+  const existingViewport = html.match(/<meta\s+name="viewport"[^>]*>/);
+  if (existingViewport) {
+    return html.replace(existingViewport[0], PORTRAIT_VIEWPORT_META);
+  }
+  const headClose = html.indexOf('</head>');
+  if (headClose !== -1) {
+    return html.slice(0, headClose) + PORTRAIT_VIEWPORT_META + '\n' + html.slice(headClose);
+  }
+  return html;
+}
+
+/**
  * Toggle orientation between PORTRAIT and LANDSCAPE.
  * Exported so that preview.tsx and tests share the same logic.
  */
@@ -700,10 +723,11 @@ export function toggleOrientation(current: PreviewOrientation): PreviewOrientati
 
 /**
  * Derive the display HTML from orientation.
- * Returns the raw HTML for PORTRAIT, or landscape-injected HTML for LANDSCAPE.
+ * Injects a fixed viewport width so the WebView auto-scales to show the
+ * full page layout: 800px for PORTRAIT, 1130px for LANDSCAPE.
  * Exported so that preview.tsx and tests share the same logic.
  */
 export function deriveDisplayHtml(html: string, orientation: PreviewOrientation): string {
   if (!html) return '';
-  return orientation === 'LANDSCAPE' ? injectLandscapeCss(html) : html;
+  return orientation === 'LANDSCAPE' ? injectLandscapeCss(html) : injectPortraitViewport(html);
 }
