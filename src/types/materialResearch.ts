@@ -114,3 +114,70 @@ export interface MaterialResearchError {
 export type MaterialResearchDomainResult<T> =
   | { success: true; data: T }
   | { success: false; error: MaterialResearchError };
+
+// === AI Search Types (Gemini + Google Search Grounding) ===
+
+/** AI model choice for Gemini-powered search */
+export const AI_SEARCH_MODELS = ['FLASH', 'PRO'] as const;
+export type AiSearchModel = (typeof AI_SEARCH_MODELS)[number];
+
+/** Default AI search model */
+export const DEFAULT_AI_SEARCH_MODEL: AiSearchModel = 'FLASH';
+
+/** A single price comparison item from AI search */
+export interface AiPriceItem {
+  /** Product/material name */
+  name: string;
+  /** Price in yen */
+  price: number;
+  /** Whether price includes tax */
+  taxIncluded: boolean;
+  /** Source/shop name */
+  sourceName: string;
+  /** Source URL (from grounding or AI response) */
+  sourceUrl: string | null;
+}
+
+/** Grounding source from Google Search */
+export interface GroundingSource {
+  /** Source URL */
+  uri: string;
+  /** Source title */
+  title: string;
+}
+
+/** Full AI search response */
+export interface AiSearchResponse {
+  /** AI summary/analysis text */
+  summary: string;
+  /** Price comparison items (3-5) */
+  items: AiPriceItem[];
+  /** Recommended price range */
+  recommendedPriceRange: { min: number; max: number } | null;
+  /** Grounding sources from Google Search */
+  sources: GroundingSource[];
+  /** Which model was used */
+  model: AiSearchModel;
+}
+
+/** Parameters for AI material search */
+export interface AiSearchParams {
+  /** Search query (required) */
+  query: string;
+  /** AI model to use (default: FLASH) */
+  model?: AiSearchModel;
+}
+
+/** Error from AI search operations */
+export interface AiSearchError {
+  code: 'RATE_LIMIT' | 'NETWORK_ERROR' | 'API_ERROR' | 'PARSE_ERROR';
+  message: string;
+}
+
+/** Result type for AI search operations */
+export type AiSearchDomainResult<T> =
+  | { success: true; data: T }
+  | { success: false; error: AiSearchError };
+
+/** Search source tab type */
+export type SearchSource = 'rakuten' | 'ai';

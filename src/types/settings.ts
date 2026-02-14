@@ -1,3 +1,9 @@
+// === AI Search Model ===
+import type { AiSearchModel as _AiSearchModel } from './materialResearch';
+export { AI_SEARCH_MODELS, DEFAULT_AI_SEARCH_MODEL } from './materialResearch';
+export type { AiSearchModel } from './materialResearch';
+type AiSearchModel = _AiSearchModel;
+
 // === Invoice Template Type ===
 
 /**
@@ -87,6 +93,9 @@ export interface AppSettings {
   /** Default template for invoice (請求書) PDF output */
   defaultInvoiceTemplateId: DocumentTemplateId;
 
+  /** Preferred AI search model for material price research */
+  aiSearchModel: AiSearchModel;
+
   /** Schema version for data migration */
   schemaVersion: number;
 }
@@ -136,6 +145,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   backgroundImageUri: null,
   defaultEstimateTemplateId: 'FORMAL_STANDARD',
   defaultInvoiceTemplateId: 'ACCOUNTING',
+  aiSearchModel: 'FLASH',
   schemaVersion: 1,
 };
 

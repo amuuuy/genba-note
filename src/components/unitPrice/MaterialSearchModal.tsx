@@ -1,11 +1,13 @@
 /**
  * MaterialSearchModal Component
  *
- * Full-screen modal for searching material prices via Rakuten API.
- * Displays search results with one-tap registration to unit price master.
+ * Full-screen modal for searching material prices.
+ * Supports two search modes via tab switching:
+ * - Rakuten Search: Product listings from Rakuten Ichiba API
+ * - AI Price Research: Web-wide price research via Gemini + Google Search
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useState, useRef } from 'react';
 import {
   Modal,
   View,
@@ -20,10 +22,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { UnitPriceInput } from '@/domain/unitPrice';
-import type { MaterialSearchResult } from '@/types/materialResearch';
+import type { MaterialSearchResult, AiPriceItem, SearchSource } from '@/types/materialResearch';
 import { searchResultToUnitPriceInput } from '@/domain/materialResearch/rakutenMappingService';
+import { aiPriceItemToUnitPriceInput } from '@/domain/materialResearch/geminiMappingService';
 import { useMaterialSearch } from '@/hooks/useMaterialSearch';
+import { useAiPriceSearch } from '@/hooks/useAiPriceSearch';
 import { MaterialSearchResultItem } from './MaterialSearchResultItem';
+import { AiSearchResultView } from './AiSearchResultView';
+import { AiModelSelector } from './AiModelSelector';
 
 export interface MaterialSearchModalProps {
   /** Whether the modal is visible */
@@ -45,25 +51,46 @@ export const MaterialSearchModal: React.FC<MaterialSearchModalProps> = ({
   onClose,
   testID,
 }) => {
-  const {
-    query,
-    setQuery,
-    results,
-    isLoading,
-    error,
-    currentPage,
-    totalPages,
-    search,
-    loadMore,
-    clear,
-  } = useMaterialSearch();
+  const [activeTab, setActiveTab] = useState<SearchSource>('rakuten');
+  const [query, setQuery] = useState('');
+  const [hasAiSearched, setHasAiSearched] = useState(false);
+  const inputRef = useRef<TextInput>(null);
+
+  // Rakuten search hook
+  const rakuten = useMaterialSearch();
+
+  // AI search hook
+  const ai = useAiPriceSearch();
+
+  const isLoading = activeTab === 'rakuten' ? rakuten.isLoading : ai.isLoading;
 
   const handleClose = useCallback(() => {
-    clear();
+    rakuten.clear();
+    ai.clear();
+    setQuery('');
+    setActiveTab('rakuten');
+    setHasAiSearched(false);
     onClose();
-  }, [clear, onClose]);
+  }, [rakuten, ai, onClose]);
 
-  const handleRegister = useCallback(
+  const handleSearch = useCallback(() => {
+    if (!query.trim()) return;
+
+    if (activeTab === 'rakuten') {
+      rakuten.setQuery(query);
+      // Need to trigger search after setting query
+      // useMaterialSearch uses its own query state, so we set it and trigger
+      rakuten.setQuery(query);
+      // Workaround: call search directly with the query
+      setTimeout(() => rakuten.search(), 0);
+    } else {
+      ai.setQuery(query);
+      setHasAiSearched(true);
+      setTimeout(() => ai.search(), 0);
+    }
+  }, [query, activeTab, rakuten, ai]);
+
+  const handleRakutenRegister = useCallback(
     (result: MaterialSearchResult) => {
       const input = searchResultToUnitPriceInput(result);
       onRegister(input);
@@ -71,29 +98,43 @@ export const MaterialSearchModal: React.FC<MaterialSearchModalProps> = ({
     [onRegister]
   );
 
-  const handleSearch = useCallback(() => {
-    search();
-  }, [search]);
+  const handleAiRegister = useCallback(
+    (item: AiPriceItem) => {
+      const input = aiPriceItemToUnitPriceInput(item);
+      onRegister(input);
+    },
+    [onRegister]
+  );
 
-  const renderItem = useCallback(
+  const handleTabChange = useCallback((tab: SearchSource) => {
+    setActiveTab(tab);
+  }, []);
+
+  // Sync query to the active hook when search is triggered
+  const handleSubmitEditing = useCallback(() => {
+    handleSearch();
+  }, [handleSearch]);
+
+  // Rakuten-specific callbacks
+  const renderRakutenItem = useCallback(
     ({ item }: { item: MaterialSearchResult }) => (
       <MaterialSearchResultItem
         result={item}
-        onRegister={handleRegister}
+        onRegister={handleRakutenRegister}
         testID={`search-result-${item.id}`}
       />
     ),
-    [handleRegister]
+    [handleRakutenRegister]
   );
 
-  const renderEmpty = useCallback(() => {
-    if (isLoading) return null;
+  const renderRakutenEmpty = useCallback(() => {
+    if (rakuten.isLoading) return null;
 
-    if (error) {
+    if (rakuten.error) {
       return (
         <View style={styles.emptyContainer}>
           <Ionicons name="alert-circle-outline" size={48} color="#FF3B30" />
-          <Text style={styles.emptyText}>{error}</Text>
+          <Text style={styles.emptyText}>{rakuten.error}</Text>
           <Pressable style={styles.retryButton} onPress={handleSearch}>
             <Text style={styles.retryButtonText}>再検索</Text>
           </Pressable>
@@ -101,7 +142,7 @@ export const MaterialSearchModal: React.FC<MaterialSearchModalProps> = ({
       );
     }
 
-    if (query.trim()) {
+    if (query.trim() && rakuten.results.length === 0) {
       return (
         <View style={styles.emptyContainer}>
           <Ionicons name="search-outline" size={48} color="#C7C7CC" />
@@ -118,10 +159,10 @@ export const MaterialSearchModal: React.FC<MaterialSearchModalProps> = ({
         </Text>
       </View>
     );
-  }, [isLoading, error, query, handleSearch]);
+  }, [rakuten.isLoading, rakuten.error, rakuten.results.length, query, handleSearch]);
 
-  const renderFooter = useCallback(() => {
-    if (isLoading && results.length > 0) {
+  const renderRakutenFooter = useCallback(() => {
+    if (rakuten.isLoading && rakuten.results.length > 0) {
       return (
         <View style={styles.footerLoader}>
           <ActivityIndicator size="small" color="#007AFF" />
@@ -129,16 +170,16 @@ export const MaterialSearchModal: React.FC<MaterialSearchModalProps> = ({
       );
     }
 
-    if (currentPage < totalPages && results.length > 0) {
+    if (rakuten.currentPage < rakuten.totalPages && rakuten.results.length > 0) {
       return (
-        <Pressable style={styles.loadMoreButton} onPress={loadMore}>
+        <Pressable style={styles.loadMoreButton} onPress={rakuten.loadMore}>
           <Text style={styles.loadMoreText}>もっと見る</Text>
         </Pressable>
       );
     }
 
     return null;
-  }, [isLoading, results.length, currentPage, totalPages, loadMore]);
+  }, [rakuten.isLoading, rakuten.results.length, rakuten.currentPage, rakuten.totalPages, rakuten.loadMore]);
 
   return (
     <Modal
@@ -176,13 +217,14 @@ export const MaterialSearchModal: React.FC<MaterialSearchModalProps> = ({
               style={styles.searchIcon}
             />
             <TextInput
+              ref={inputRef}
               style={styles.searchInput}
               value={query}
               onChangeText={setQuery}
               placeholder="材料名を入力..."
               placeholderTextColor="#C7C7CC"
               returnKeyType="search"
-              onSubmitEditing={handleSearch}
+              onSubmitEditing={handleSubmitEditing}
               autoFocus
               testID="material-search-input"
             />
@@ -210,7 +252,7 @@ export const MaterialSearchModal: React.FC<MaterialSearchModalProps> = ({
             accessibilityLabel="検索"
             accessibilityRole="button"
           >
-            {isLoading && results.length === 0 ? (
+            {isLoading ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
               <Text style={styles.searchButtonText}>検索</Text>
@@ -218,24 +260,84 @@ export const MaterialSearchModal: React.FC<MaterialSearchModalProps> = ({
           </Pressable>
         </View>
 
+        {/* Tab bar */}
+        <View style={styles.tabBar}>
+          <Pressable
+            style={[styles.tab, activeTab === 'rakuten' && styles.tabActive]}
+            onPress={() => handleTabChange('rakuten')}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'rakuten' }}
+          >
+            <Ionicons
+              name="cart-outline"
+              size={16}
+              color={activeTab === 'rakuten' ? '#007AFF' : '#8E8E93'}
+            />
+            <Text style={[styles.tabText, activeTab === 'rakuten' && styles.tabTextActive]}>
+              楽天検索
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.tab, activeTab === 'ai' && styles.tabActiveAi]}
+            onPress={() => handleTabChange('ai')}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'ai' }}
+          >
+            <Ionicons
+              name="sparkles"
+              size={16}
+              color={activeTab === 'ai' ? '#8B5CF6' : '#8E8E93'}
+            />
+            <Text style={[styles.tabText, activeTab === 'ai' && styles.tabTextActiveAi]}>
+              AI価格調査
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* AI Model selector (only shown on AI tab) */}
+        {activeTab === 'ai' && (
+          <View style={styles.modelSelectorContainer}>
+            <AiModelSelector
+              model={ai.model}
+              onChange={ai.setModel}
+              disabled={ai.isLoading}
+              testID="ai-model-selector"
+            />
+          </View>
+        )}
+
         {/* Disclaimer banner */}
         <View style={styles.disclaimerBanner}>
           <Ionicons name="information-circle" size={16} color="#856404" />
           <Text style={styles.disclaimerText}>
-            参考価格です。実際の仕入れ価格は取引先にご確認ください
+            {activeTab === 'ai'
+              ? 'AIによる参考価格です。実際の仕入れ価格は取引先にご確認ください'
+              : '参考価格です。実際の仕入れ価格は取引先にご確認ください'}
           </Text>
         </View>
 
-        {/* Results list */}
-        <FlatList
-          data={results}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          ListEmptyComponent={renderEmpty}
-          ListFooterComponent={renderFooter}
-          contentContainerStyle={styles.listContent}
-          keyboardShouldPersistTaps="handled"
-        />
+        {/* Results area */}
+        {activeTab === 'rakuten' ? (
+          <FlatList
+            data={rakuten.results}
+            renderItem={renderRakutenItem}
+            keyExtractor={(item) => item.id}
+            ListEmptyComponent={renderRakutenEmpty}
+            ListFooterComponent={renderRakutenFooter}
+            contentContainerStyle={styles.listContent}
+            keyboardShouldPersistTaps="handled"
+          />
+        ) : (
+          <AiSearchResultView
+            result={ai.result}
+            isLoading={ai.isLoading}
+            error={ai.error}
+            hasSearched={hasAiSearched}
+            onRegister={handleAiRegister}
+            onRetry={handleSearch}
+            testID="ai-search-results"
+          />
+        )}
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -317,6 +419,44 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#C6C6C8',
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    gap: 6,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabActive: {
+    borderBottomColor: '#007AFF',
+  },
+  tabActiveAi: {
+    borderBottomColor: '#8B5CF6',
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#8E8E93',
+  },
+  tabTextActive: {
+    color: '#007AFF',
+  },
+  tabTextActiveAi: {
+    color: '#8B5CF6',
+  },
+  modelSelectorContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#fff',
   },
   disclaimerBanner: {
     flexDirection: 'row',
