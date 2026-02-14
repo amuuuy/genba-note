@@ -91,10 +91,12 @@ const KanbanBoardInner: React.FC<KanbanBoardProps> = ({
   );
 
   const handleDragEnd = useCallback(
-    (_absoluteX: number, _absoluteY: number) => {
+    (absoluteX: number, absoluteY: number) => {
       const ctx = dragCtxRef.current;
       // Read from synchronous ref before endDrag clears state
       const draggedDoc = ctx.draggedDocRef.current;
+      // Final hit-test with onEnd coordinates (last onUpdate may be stale on fast drags)
+      ctx.updateDrag(absoluteX, absoluteY);
       const targetColumn = ctx.endDrag();
       if (targetColumn && draggedDoc) {
         handleDropRef.current(draggedDoc.id, targetColumn);

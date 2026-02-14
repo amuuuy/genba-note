@@ -8,7 +8,7 @@
  * Key rules:
  * - working column → 'draft'
  * - sent_waiting column → 'sent'
- * - completed column: draft→'issued', sent+invoice→'paid', sent+estimate→null
+ * - completed column: draft→'issued', sent+invoice→'paid', sent+estimate→'issued'
  * - Same-column drops return null (no-op)
  * - Invalid transitions (per statusTransitionService) return null
  */
@@ -80,9 +80,9 @@ function resolveTargetStatus(
       if (fromStatus === 'sent' && docType === 'invoice') {
         return 'paid';
       }
-      // sent + estimate → null (estimate has no paid status; sent is terminal for estimate→completed)
+      // sent + estimate → issued (estimate has no paid status; mark as issued to complete)
       if (fromStatus === 'sent' && docType === 'estimate') {
-        return null;
+        return 'issued';
       }
       // Other cases: let canTransition decide
       return 'issued';

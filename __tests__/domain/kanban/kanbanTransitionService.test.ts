@@ -66,9 +66,9 @@ describe('kanbanTransitionService', () => {
 
     // === Invalid transitions (snap-back) ===
 
-    it('estimate sent → completed = null (estimate cannot be paid, sent is terminal)', () => {
+    it('estimate sent → completed = issued', () => {
       const result = resolveDropTransition('sent', 'completed', 'estimate');
-      expect(result).toBeNull();
+      expect(result).toEqual({ newStatus: 'issued' });
     });
 
     it('invoice paid → working = null (must go through sent)', () => {

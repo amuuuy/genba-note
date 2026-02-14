@@ -84,6 +84,10 @@ describe('statusTransitionService', () => {
         expect(canTransition('estimate', 'draft', 'paid')).toBe(false);
       });
 
+      it('should allow sent -> issued', () => {
+        expect(canTransition('estimate', 'sent', 'issued')).toBe(true);
+      });
+
       it('should NOT allow sent -> paid', () => {
         expect(canTransition('estimate', 'sent', 'paid')).toBe(false);
       });
@@ -164,9 +168,11 @@ describe('statusTransitionService', () => {
       expect(allowed).toHaveLength(2);
     });
 
-    it('should return [draft] for estimate sent', () => {
+    it('should return [draft, issued] for estimate sent', () => {
       const allowed = getAllowedTransitions('estimate', 'sent');
-      expect(allowed).toEqual(['draft']);
+      expect(allowed).toContain('draft');
+      expect(allowed).toContain('issued');
+      expect(allowed).toHaveLength(2);
     });
 
     it('should return [] for estimate paid (never happens)', () => {
@@ -247,6 +253,14 @@ describe('statusTransitionService', () => {
       expect(result.error?.code).toBe('DIRECT_DRAFT_TO_PAID');
     });
 
+    it('should transition estimate from sent to issued', () => {
+      const doc = createTestDocument({ type: 'estimate', status: 'sent' });
+      const result = executeTransition(doc, 'issued');
+
+      expect(result.success).toBe(true);
+      expect(result.data?.status).toBe('issued');
+    });
+
     it('should return error for estimate to paid', () => {
       const doc = createTestDocument({ type: 'estimate', status: 'sent' });
       const result = executeTransition(doc, 'paid');
@@ -299,6 +313,13 @@ describe('statusTransitionService', () => {
 
     it('should return { requiresPaidAt: false, clearsPaidAt: false } for draft -> sent', () => {
       const reqs = getTransitionRequirements('invoice', 'draft', 'sent');
+      expect(reqs).not.toBeNull();
+      expect(reqs?.requiresPaidAt).toBe(false);
+      expect(reqs?.clearsPaidAt).toBe(false);
+    });
+
+    it('should return { requiresPaidAt: false, clearsPaidAt: false } for estimate sent -> issued', () => {
+      const reqs = getTransitionRequirements('estimate', 'sent', 'issued');
       expect(reqs).not.toBeNull();
       expect(reqs?.requiresPaidAt).toBe(false);
       expect(reqs?.clearsPaidAt).toBe(false);

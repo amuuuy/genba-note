@@ -169,12 +169,16 @@ describe('useKanbanBoard', () => {
       });
     });
 
-    it('estimate sent → completed = noop (snap-back)', () => {
+    it('estimate sent → completed = transition to issued', () => {
       const docs = [
         asDocWithTotals({ id: 'est-1', status: 'sent', type: 'estimate' }),
       ];
       const result = resolveHandleDrop(docs, 'est-1', 'completed');
-      expect(result).toEqual({ action: 'noop' });
+      expect(result).toEqual({
+        action: 'transition',
+        docId: 'est-1',
+        newStatus: 'issued',
+      });
     });
 
     it('draft → working (same column) = noop', () => {

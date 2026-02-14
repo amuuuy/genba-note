@@ -4,8 +4,8 @@
  * Pure functions for managing document status transitions.
  * Implements the state machine defined in SPEC 2.1.3.1:
  *
- * Estimate: draft ⇔ sent
- * Invoice:  draft ⇔ sent ⇔ paid
+ * Estimate: draft ⇔ sent, draft ⇔ issued, sent → issued
+ * Invoice:  draft ⇔ sent ⇔ paid, draft ⇔ issued
  *
  * Forbidden: draft → paid (must go through sent)
  */
@@ -23,7 +23,7 @@ import { successResult, errorResult, createTransitionError } from './types';
  */
 const ESTIMATE_TRANSITIONS: Record<DocumentStatus, DocumentStatus[]> = {
   draft: ['sent', 'issued'],
-  sent: ['draft'],
+  sent: ['draft', 'issued'],
   paid: [], // Estimates cannot be paid
   issued: ['draft'], // Can revert to draft for re-editing
 };
