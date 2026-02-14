@@ -36,6 +36,8 @@ import { resolveBackgroundImageDataUrl } from '@/utils/imageUtils';
 import { FilenameEditModal } from '@/components/document/FilenameEditModal';
 import { TemplatePickerModal } from '@/components/document/TemplatePickerModal';
 import { getPdfErrorMessage } from '@/constants/errorMessages';
+import { validatePreviewDocument } from '@/utils/previewDataValidator';
+import { injectCsp, FIT_TO_SCREEN_SCRIPT } from '@/utils/previewHtmlSecurity';
 import type { Document, DocumentWithTotals, SensitiveIssuerSnapshot } from '@/types/document';
 import type { DocumentTemplateId, PreviewOrientation, SealSize, BackgroundDesign } from '@/types/settings';
 
@@ -76,14 +78,22 @@ export default function DocumentPreviewScreen() {
         let document: Document;
 
         if (previewData) {
-          // Preview mode: parse document from URL parameter
+          // Preview mode: parse and validate document from URL parameter
+          let parsed: unknown;
           try {
-            document = JSON.parse(previewData) as Document;
+            parsed = JSON.parse(previewData);
           } catch {
             setErrorMessage('プレビューデータの解析に失敗しました');
             setState('error');
             return;
           }
+          const validated = validatePreviewDocument(parsed);
+          if (!validated) {
+            setErrorMessage('プレビューデータが無効です');
+            setState('error');
+            return;
+          }
+          document = validated;
         } else if (id) {
           // Normal mode: load from storage
           const docResult = await getDocument(id);
@@ -159,9 +169,13 @@ export default function DocumentPreviewScreen() {
     loadPreview();
   }, [id, previewData]);
 
-  // Compute HTML for WebView display, applying landscape CSS when needed
-  const displayHtml = useMemo(
-    () => deriveDisplayHtml(html, orientation),
+  // Compute HTML for WebView display, applying landscape CSS when needed.
+  // Defence-in-depth: inject CSP to block inline scripts/event handlers in HTML.
+  // Our injectedJavaScript runs via WKWebView's native evaluateJavaScript API
+  // and is unaffected by CSP, so the fit-to-screen script still works.
+  // Fail-closed: if CSP injection fails (no </head> tag), disable JavaScript entirely.
+  const cspResult = useMemo(
+    () => injectCsp(deriveDisplayHtml(html, orientation)),
     [html, orientation]
   );
 
@@ -265,12 +279,14 @@ export default function DocumentPreviewScreen() {
   return (
     <View style={styles.container}>
       {/* HTML Preview - Security hardened for static content */}
+      {/* Fail-closed: JS enabled only when CSP was successfully injected */}
       <WebView
         style={styles.webview}
         originWhitelist={['about:blank']}
-        source={{ html: displayHtml }}
-        scrollEnabled={true}
-        javaScriptEnabled={false}
+        source={{ html: cspResult.html }}
+        scrollEnabled={false}
+        javaScriptEnabled={cspResult.success}
+        injectedJavaScript={cspResult.success ? FIT_TO_SCREEN_SCRIPT : undefined}
         allowFileAccess={false}
         allowUniversalAccessFromFileURLs={false}
       />
