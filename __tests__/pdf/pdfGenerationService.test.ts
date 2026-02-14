@@ -375,8 +375,7 @@ describe('pdfGenerationService', () => {
         // Empty string triggers sanitizeFilename fallback to default name (EST-001_見積書.pdf)
         expect(FileSystem.moveAsync).toHaveBeenCalled();
         const moveCall = (FileSystem.moveAsync as jest.Mock).mock.calls[0][0];
-        const expectedFilename = encodeURIComponent('EST-001_見積書.pdf');
-        expect(moveCall.to).toContain(expectedFilename);
+        expect(moveCall.to).toContain('EST-001_見積書.pdf');
       });
 
       it('renames to default name when customFilename is whitespace only', async () => {
@@ -385,8 +384,28 @@ describe('pdfGenerationService', () => {
 
         expect(FileSystem.moveAsync).toHaveBeenCalled();
         const moveCall = (FileSystem.moveAsync as jest.Mock).mock.calls[0][0];
-        const expectedFilename = encodeURIComponent('EST-001_見積書.pdf');
-        expect(moveCall.to).toContain(expectedFilename);
+        expect(moveCall.to).toContain('EST-001_見積書.pdf');
+      });
+
+      it('shares Japanese filename without percent-encoding', async () => {
+        const input = createTestTemplateInput();
+        await generateAndSharePdf(input, { customFilename: 'EST-001_見積書' });
+
+        // Filename should NOT be percent-encoded in the URI
+        const shareCall = (Sharing.shareAsync as jest.Mock).mock.calls[0];
+        expect(shareCall[0]).toContain('EST-001_見積書.pdf');
+        expect(shareCall[0]).not.toContain('%E8');
+      });
+
+      it('strips # and % from customFilename through the full flow', async () => {
+        const input = createTestTemplateInput();
+        await generateAndSharePdf(input, { customFilename: 'report#%20' });
+
+        const moveCall = (FileSystem.moveAsync as jest.Mock).mock.calls[0][0];
+        expect(moveCall.to).toContain('report20.pdf');
+
+        const shareCall = (Sharing.shareAsync as jest.Mock).mock.calls[0];
+        expect(shareCall[0]).toContain('report20.pdf');
       });
     });
 

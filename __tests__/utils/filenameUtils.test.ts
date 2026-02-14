@@ -44,6 +44,14 @@ describe('filenameUtils', () => {
       it('removes multiple forbidden characters at once', () => {
         expect(sanitizeFilename('test/file:name')).toBe('testfilename.pdf');
       });
+
+      it('removes hash character', () => {
+        expect(sanitizeFilename('report#1')).toBe('report1.pdf');
+      });
+
+      it('removes percent character', () => {
+        expect(sanitizeFilename('report%20v2')).toBe('report20v2.pdf');
+      });
     });
 
     describe('.pdf extension handling', () => {

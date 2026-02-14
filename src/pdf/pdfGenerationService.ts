@@ -207,7 +207,7 @@ export async function generateAndSharePdf(
         generateFilenameTitle(input.document.documentNo, input.document.type)
       );
       const dirPath = fileUri.substring(0, fileUri.lastIndexOf('/') + 1);
-      const targetUri = dirPath + encodeURIComponent(sanitized);
+      const targetUri = dirPath + sanitized;
       await FileSystem.moveAsync({ from: fileUri, to: targetUri });
       shareUri = targetUri;
     } catch {

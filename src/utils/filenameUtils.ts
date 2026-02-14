@@ -7,7 +7,7 @@
  */
 
 /** Characters forbidden in filenames across OS platforms */
-const FORBIDDEN_CHARS = /[/\\?*<>|":]/g;
+const FORBIDDEN_CHARS = /[/\\?*<>|":#%]/g;
 
 /** Maximum total filename length (including .pdf extension) */
 const MAX_FILENAME_LENGTH = 100;
@@ -21,7 +21,7 @@ const PDF_EXTENSION_PATTERN = /\.pdf$/i;
 /**
  * Sanitize a filename for PDF output.
  *
- * 1. Remove forbidden characters: / \ ? * < > | " :
+ * 1. Remove forbidden characters: / \ ? * < > | " : # %
  * 2. Trim leading/trailing whitespace
  * 3. If result is empty after sanitization, use defaultName
  * 4. If filename does not end with .pdf (case-insensitive), append .pdf
