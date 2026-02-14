@@ -49,21 +49,16 @@ export function useMaterialSearch(): UseMaterialSearchReturn {
     setIsLoading(true);
     setError(null);
 
-    try {
-      const result = await searchMaterials({ keyword: query, page: 1 });
-      setResults(result.results);
-      setCurrentPage(result.currentPage);
-      setTotalPages(result.totalPages);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : '検索に失敗しました。通信状況を確認してください。'
-      );
+    const result = await searchMaterials({ keyword: query, page: 1 });
+    if (result.success) {
+      setResults(result.data.results);
+      setCurrentPage(result.data.currentPage);
+      setTotalPages(result.data.totalPages);
+    } else {
+      setError(result.error.message);
       setResults([]);
-    } finally {
-      setIsLoading(false);
     }
+    setIsLoading(false);
   }, [query]);
 
   const loadMore = useCallback(async () => {
@@ -73,23 +68,18 @@ export function useMaterialSearch(): UseMaterialSearchReturn {
     setIsLoading(true);
     setError(null);
 
-    try {
-      const result = await searchMaterials({
-        keyword: query,
-        page: nextPage,
-      });
-      setResults((prev) => [...prev, ...result.results]);
-      setCurrentPage(result.currentPage);
-      setTotalPages(result.totalPages);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : '検索に失敗しました。通信状況を確認してください。'
-      );
-    } finally {
-      setIsLoading(false);
+    const result = await searchMaterials({
+      keyword: query,
+      page: nextPage,
+    });
+    if (result.success) {
+      setResults((prev) => [...prev, ...result.data.results]);
+      setCurrentPage(result.data.currentPage);
+      setTotalPages(result.data.totalPages);
+    } else {
+      setError(result.error.message);
     }
+    setIsLoading(false);
   }, [query, isLoading, currentPage, totalPages]);
 
   const clear = useCallback(() => {

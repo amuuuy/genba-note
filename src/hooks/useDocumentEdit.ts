@@ -34,6 +34,7 @@ import {
 } from '@/domain/document/documentValidation';
 import { getAllowedTransitions, getTransitionRequirements } from '@/domain/document/statusTransitionService';
 import { getTodayString } from '@/utils/dateUtils';
+import { incrementDocumentCreationCount } from '@/subscription/documentCreationCounter';
 
 // === Types ===
 
@@ -493,6 +494,12 @@ export function useDocumentEdit(
 
         const result = await createDocument(input);
         if (result.success && result.data) {
+          // Increment cumulative creation counter (for free tier limits)
+          try {
+            await incrementDocumentCreationCount();
+          } catch {
+            // Non-fatal: counter increment failure should not block document save
+          }
           dispatch({ type: 'SAVE_SUCCESS', document: result.data });
           return result.data;
         } else {

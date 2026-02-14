@@ -13,6 +13,22 @@ import { File, Paths, Directory } from 'expo-file-system';
 import type { PhotoType } from '../types/customerPhoto';
 import { generateUUID } from './uuid';
 
+/**
+ * Validate a string for use as a single path segment.
+ * Rejects path traversal sequences and directory separators.
+ */
+function validatePathSegment(segment: string): boolean {
+  if (!segment) return false;
+  if (segment.includes('..') || segment.includes('/') || segment.includes('\\')) return false;
+  try {
+    const decoded = decodeURIComponent(segment);
+    if (decoded.includes('..') || decoded.includes('/') || decoded.includes('\\')) return false;
+  } catch {
+    return false;
+  }
+  return true;
+}
+
 /** Subdirectory name for seal images */
 const SEAL_IMAGES_SUBDIR = 'seal_images';
 
@@ -35,12 +51,12 @@ export async function imageUriToBase64(uri: string): Promise<string | null> {
   try {
     const file = new File(uri);
     if (!file.exists) {
-      console.warn(`imageUriToBase64: File does not exist at ${uri}`);
+      if (__DEV__) console.warn(`imageUriToBase64: File does not exist at ${uri}`);
       return null;
     }
     return await file.base64();
   } catch (error) {
-    console.error('Failed to convert image to base64:', error);
+    if (__DEV__) console.error('Failed to convert image to base64:', error);
     return null;
   }
 }
@@ -70,7 +86,7 @@ export async function copyImageToPermanentStorage(sourceUri: string): Promise<st
 
     return destFile.uri;
   } catch (error) {
-    console.error('Failed to copy image to permanent storage:', error);
+    if (__DEV__) console.error('Failed to copy image to permanent storage:', error);
     return null;
   }
 }
@@ -97,7 +113,7 @@ export async function copyBackgroundImageToPermanentStorage(sourceUri: string): 
 
     return destFile.uri;
   } catch (error) {
-    console.error('Failed to copy background image to permanent storage:', error);
+    if (__DEV__) console.error('Failed to copy background image to permanent storage:', error);
     return null;
   }
 }
@@ -114,7 +130,7 @@ export async function deleteStoredImage(uri: string): Promise<void> {
       file.delete();
     }
   } catch (error) {
-    console.error('Failed to delete stored image:', error);
+    if (__DEV__) console.error('Failed to delete stored image:', error);
   }
 }
 
@@ -222,6 +238,10 @@ export async function copyCustomerPhotoToPermanentStorage(
   customerId: string,
   photoType: PhotoType
 ): Promise<string | null> {
+  if (!validatePathSegment(customerId)) {
+    if (__DEV__) console.warn('Invalid customerId rejected:', customerId);
+    return null;
+  }
   try {
     // Generate unique filename with timestamp and UUID
     const timestamp = Date.now();
@@ -246,7 +266,7 @@ export async function copyCustomerPhotoToPermanentStorage(
 
     return destFile.uri;
   } catch (error) {
-    console.error('Failed to copy customer photo to permanent storage:', error);
+    if (__DEV__) console.error('Failed to copy customer photo to permanent storage:', error);
     return null;
   }
 }
@@ -259,6 +279,10 @@ export async function copyCustomerPhotoToPermanentStorage(
 export async function deleteCustomerPhotosDirectory(
   customerId: string
 ): Promise<void> {
+  if (!validatePathSegment(customerId)) {
+    if (__DEV__) console.warn('Invalid customerId rejected:', customerId);
+    return;
+  }
   try {
     const customerDir = new Directory(
       Paths.document,
@@ -269,7 +293,7 @@ export async function deleteCustomerPhotosDirectory(
       customerDir.delete();
     }
   } catch (error) {
-    console.error('Failed to delete customer photos directory:', error);
+    if (__DEV__) console.error('Failed to delete customer photos directory:', error);
   }
 }
 
@@ -347,7 +371,7 @@ export async function copyFinancePhotoToTempStorage(
 
     return destFile.uri;
   } catch (error) {
-    console.error('Failed to copy finance photo to temp storage:', error);
+    if (__DEV__) console.error('Failed to copy finance photo to temp storage:', error);
     return null;
   }
 }
@@ -363,6 +387,10 @@ export async function moveFinancePhotoToEntryDirectory(
   tempUri: string,
   financeEntryId: string
 ): Promise<string | null> {
+  if (!validatePathSegment(financeEntryId)) {
+    if (__DEV__) console.warn('Invalid financeEntryId rejected:', financeEntryId);
+    return null;
+  }
   try {
     // Extract filename from temp URI
     const filename = tempUri.split('/').pop();
@@ -386,7 +414,7 @@ export async function moveFinancePhotoToEntryDirectory(
 
     return destFile.uri;
   } catch (error) {
-    console.error('Failed to move finance photo to entry directory:', error);
+    if (__DEV__) console.error('Failed to move finance photo to entry directory:', error);
     return null;
   }
 }
@@ -405,6 +433,10 @@ export async function copyFinancePhotoToPermanentStorage(
   sourceUri: string,
   financeEntryId: string
 ): Promise<string | null> {
+  if (!validatePathSegment(financeEntryId)) {
+    if (__DEV__) console.warn('Invalid financeEntryId rejected:', financeEntryId);
+    return null;
+  }
   try {
     // Generate unique filename with timestamp and UUID
     const timestamp = Date.now();
@@ -428,7 +460,7 @@ export async function copyFinancePhotoToPermanentStorage(
 
     return destFile.uri;
   } catch (error) {
-    console.error('Failed to copy finance photo to permanent storage:', error);
+    if (__DEV__) console.error('Failed to copy finance photo to permanent storage:', error);
     return null;
   }
 }
@@ -441,6 +473,10 @@ export async function copyFinancePhotoToPermanentStorage(
 export async function deleteFinancePhotosDirectory(
   financeEntryId: string
 ): Promise<void> {
+  if (!validatePathSegment(financeEntryId)) {
+    if (__DEV__) console.warn('Invalid financeEntryId rejected:', financeEntryId);
+    return;
+  }
   try {
     const entryDir = new Directory(
       Paths.document,
@@ -451,6 +487,6 @@ export async function deleteFinancePhotosDirectory(
       entryDir.delete();
     }
   } catch (error) {
-    console.error('Failed to delete finance photos directory:', error);
+    if (__DEV__) console.error('Failed to delete finance photos directory:', error);
   }
 }

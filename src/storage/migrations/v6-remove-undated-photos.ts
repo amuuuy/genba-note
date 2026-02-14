@@ -2,12 +2,11 @@
  * v6-remove-undated-photos: Remove orphaned photos
  *
  * This migration:
- * 1. Deletes photo files for photos with workLogEntryId = null (undated)
- * 2. Deletes photo files for photos referencing non-existent work log entries (orphaned)
- * 3. Removes orphaned photo records from storage
+ * 1. Deletes photo files for photos referencing non-existent work log entries (orphaned)
+ * 2. Removes orphaned photo records from storage
+ * 3. Preserves photos with workLogEntryId = null (unassigned, set by v5)
  *
  * This cleanup runs on every app launch as part of migration check to catch:
- * - Legacy undated photos (from before v6)
  * - Orphaned photos from failed deletions or partial operations
  */
 
@@ -30,7 +29,7 @@ import type { WorkLogEntry } from '@/types/workLogEntry';
 export const v6RemoveUndatedPhotosMigration: Migration = {
   fromVersion: 5,
   toVersion: 6,
-  description: 'Remove orphaned photos (undated or referencing deleted entries)',
+  description: 'Remove orphaned photos (referencing deleted entries)',
 
   migrate: async (): Promise<MigrationStepResult> => {
     try {
@@ -57,9 +56,9 @@ export const v6RemoveUndatedPhotosMigration: Migration = {
  * Clean up orphaned photos.
  * This function can be called independently for ongoing cleanup.
  *
- * Orphaned photos are:
- * 1. Photos with workLogEntryId = null (undated, legacy)
- * 2. Photos referencing a workLogEntryId that doesn't exist (deleted entry)
+ * Orphaned photos are photos referencing a workLogEntryId that no longer
+ * exists (deleted entry). Photos with workLogEntryId = null are "unassigned"
+ * (e.g. set by v5 migration) and are intentionally preserved.
  *
  * Uses photosQueue to ensure serialized access to photo storage,
  * preventing race conditions with concurrent photo operations.
@@ -84,7 +83,7 @@ export async function cleanupOrphanedPhotos(): Promise<{ deleted: number }> {
 
     for (const photo of photos) {
       if (
-        photo.workLogEntryId === null ||
+        photo.workLogEntryId !== null &&
         !validEntryIds.has(photo.workLogEntryId)
       ) {
         orphanedPhotos.push(photo);
@@ -106,7 +105,7 @@ export async function cleanupOrphanedPhotos(): Promise<{ deleted: number }> {
         successfullyDeletedPhotos.push(photo);
       } catch (error) {
         // File deletion failed - keep metadata for next cleanup attempt
-        console.warn('Failed to delete orphaned photo file, will retry:', photo.uri, error);
+        if (__DEV__) console.warn('Failed to delete orphaned photo file, will retry:', photo.uri, error);
         validPhotos.push(photo);
       }
     }

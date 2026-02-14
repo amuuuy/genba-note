@@ -154,11 +154,11 @@ export function useDocumentList(
         return true;
       } else {
         // Optionally show error to user
-        console.error('Delete failed:', result.error?.message);
+        if (__DEV__) console.error('Delete failed:', result.error?.message);
         return false;
       }
     } catch (err) {
-      console.error('Delete error:', err);
+      if (__DEV__) console.error('Delete error:', err);
       return false;
     }
   }, []);

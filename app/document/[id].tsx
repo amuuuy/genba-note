@@ -246,13 +246,9 @@ export default function DocumentEditScreen() {
     await handleSave();
   }, [handleSave]);
 
-  // Handle PDF publish
+  // Handle PDF publish (free users get watermark, Pro users get clean PDF)
   const handlePublishPdf = useCallback(async () => {
     setShowActionSheet(false);
-    if (!isPro) {
-      router.push('/paywall');
-      return;
-    }
 
     // Pre-validate document for PDF generation before showing confirm modal
     // Note: documentNo and companyName are auto-filled on save, so we use

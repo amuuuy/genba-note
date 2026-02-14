@@ -83,12 +83,11 @@ export const SaveActionSheet: React.FC<SaveActionSheetProps> = ({
       },
       {
         id: 'publish-pdf',
-        label: 'PDF発行',
+        label: isPro ? 'PDF発行' : 'PDF発行（SAMPLE透かし付き）',
         sublabel: pdfSublabel,
         icon: 'share-outline',
         iconColor: '#007AFF',
         disabled: isSaving,
-        isPro: !isPro,
       },
     ];
   }, [isDirty, isNewDocument, isSaving, isPro, pdfSublabel]);

@@ -14,7 +14,7 @@ import {
   ReadOnlyModeProvider,
   useReadOnlyModeContext,
 } from '@/contexts/ReadOnlyModeContext';
-import { ReadOnlyBanner } from '@/components/common';
+import { ReadOnlyBanner, ErrorBoundary } from '@/components/common';
 
 /**
  * Inner layout component that uses ReadOnlyMode context
@@ -95,9 +95,11 @@ function RootLayoutContent() {
  */
 export default function RootLayout() {
   return (
-    <ReadOnlyModeProvider>
-      <RootLayoutContent />
-    </ReadOnlyModeProvider>
+    <ErrorBoundary>
+      <ReadOnlyModeProvider>
+        <RootLayoutContent />
+      </ReadOnlyModeProvider>
+    </ErrorBoundary>
   );
 }
 

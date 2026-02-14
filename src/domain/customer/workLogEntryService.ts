@@ -335,7 +335,7 @@ export async function deleteWorkLogEntry(
             successfullyDeletedIds.add(photo.id);
           } catch (error) {
             // File deletion failed - keep metadata for cleanup retry
-            console.warn('Failed to delete photo file, keeping metadata for retry:', photo.uri, error);
+            if (__DEV__) console.warn('Failed to delete photo file, keeping metadata for retry:', photo.uri, error);
           }
         }
 
@@ -420,6 +420,7 @@ export async function deleteWorkLogEntryOnly(
 
 /**
  * Delete all work log entries for a customer
+ * Also deletes associated photos (files and metadata)
  * Called when customer is deleted
  */
 export async function deleteWorkLogEntriesByCustomer(
@@ -430,20 +431,57 @@ export async function deleteWorkLogEntriesByCustomer(
   }
 
   try {
+    // Step 1: Delete entries and collect deleted entry IDs
     const queueResult = await workLogEntriesQueue.enqueue(async () => {
-      // Re-check read-only mode inside queue to handle mode changes during wait
       if (getReadOnlyMode()) {
-        return { success: false as const, readonly: true as const };
+        return { success: false as const, readonly: true as const, deletedIds: [] as string[] };
       }
 
       const entries = await getAllEntriesFromStorage();
-      const filtered = entries.filter((e) => e.customerId !== customerId);
-      await saveAllEntriesToStorage(filtered);
-      return { success: true as const };
+      const toDelete = entries.filter((e) => e.customerId === customerId);
+      const deletedIds = toDelete.map((e) => e.id);
+      const remaining = entries.filter((e) => e.customerId !== customerId);
+      await saveAllEntriesToStorage(remaining);
+      return { success: true as const, deletedIds };
     });
 
     if ('readonly' in queueResult && queueResult.readonly) {
       return readOnlyError();
+    }
+
+    // Step 2: Delete associated photos (same pattern as deleteWorkLogEntry)
+    if (queueResult.deletedIds.length > 0) {
+      const idsToDelete = new Set(queueResult.deletedIds);
+      await photosQueue.enqueue(async () => {
+        const photosJson = await AsyncStorage.getItem(STORAGE_KEYS.CUSTOMER_PHOTOS);
+        if (photosJson) {
+          const photos = JSON.parse(photosJson) as CustomerPhoto[];
+          const photosToDelete = photos.filter(
+            (p) => p.workLogEntryId !== null && idsToDelete.has(p.workLogEntryId)
+          );
+          const successfullyDeletedIds = new Set<string>();
+
+          for (const photo of photosToDelete) {
+            try {
+              const fileInfo = await FileSystem.getInfoAsync(photo.uri);
+              if (fileInfo.exists) {
+                await FileSystem.deleteAsync(photo.uri, { idempotent: true });
+              }
+              successfullyDeletedIds.add(photo.id);
+            } catch (error) {
+              if (__DEV__) console.warn('Failed to delete photo file, keeping metadata for retry:', photo.uri, error);
+            }
+          }
+
+          const remaining = photos.filter(
+            (p) => !(p.workLogEntryId !== null && idsToDelete.has(p.workLogEntryId)) || !successfullyDeletedIds.has(p.id)
+          );
+          await AsyncStorage.setItem(
+            STORAGE_KEYS.CUSTOMER_PHOTOS,
+            JSON.stringify(remaining)
+          );
+        }
+      });
     }
 
     return successResult(undefined);

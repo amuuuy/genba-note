@@ -22,6 +22,8 @@ import { generateUUID } from '@/utils/uuid';
 import { STORAGE_KEYS } from '@/utils/constants';
 import { customersQueue } from '@/utils/writeQueue';
 import { getReadOnlyMode } from '@/storage/readOnlyModeState';
+import { deleteWorkLogEntriesByCustomer } from './workLogEntryService';
+import { deleteCustomerPhotosDirectory } from '@/utils/imageUtils';
 
 // === Helper Functions ===
 
@@ -264,6 +266,7 @@ export async function updateCustomer(
 
 /**
  * Delete a customer by ID
+ * Also cascades deletion to work log entries, photos, and photo directory.
  * Serialized via customersQueue to prevent RMW race conditions.
  */
 export async function deleteCustomer(
@@ -273,8 +276,8 @@ export async function deleteCustomer(
     return readOnlyError();
   }
 
-  return customersQueue.enqueue(async () => {
-    // Re-check read-only mode inside queue to handle mode changes during wait
+  // Step 1: Delete customer record
+  const customerResult = await customersQueue.enqueue<CustomerDomainResult<void>>(async () => {
     if (getReadOnlyMode()) {
       return readOnlyError();
     }
@@ -306,6 +309,26 @@ export async function deleteCustomer(
       );
     }
   });
+
+  if (!customerResult.success) {
+    return customerResult;
+  }
+
+  // Step 2: Cascade delete work log entries and photos (outside customersQueue to avoid deadlock)
+  // Failures here are logged but don't fail the operation since the customer is already deleted.
+  try {
+    await deleteWorkLogEntriesByCustomer(id);
+  } catch (error) {
+    if (__DEV__) console.warn('Failed to cascade delete work log entries for customer:', id, error);
+  }
+
+  try {
+    await deleteCustomerPhotosDirectory(id);
+  } catch (error) {
+    if (__DEV__) console.warn('Failed to cascade delete customer photos directory:', id, error);
+  }
+
+  return successResult(undefined);
 }
 
 /**

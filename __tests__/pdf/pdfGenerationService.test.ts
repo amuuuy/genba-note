@@ -66,20 +66,29 @@ describe('pdfGenerationService', () => {
   });
 
   describe('generateAndSharePdf', () => {
-    describe('Pro status enforcement', () => {
-      it('returns PRO_REQUIRED error when not Pro', async () => {
-        // Explicitly set not Pro via override
+    describe('Free vs Pro watermark behavior', () => {
+      it('generates PDF with watermark when not Pro', async () => {
         setProStatusOverride(false);
+        (Print.printToFileAsync as jest.Mock).mockResolvedValue({
+          uri: 'file:///generated.pdf',
+        });
+        (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true);
+        (Sharing.shareAsync as jest.Mock).mockResolvedValue(undefined);
+        (FileSystem.deleteAsync as jest.Mock).mockResolvedValue(undefined);
+
         const input = createTestTemplateInput();
         const result = await generateAndSharePdf(input);
 
-        expect(result.success).toBe(false);
-        expect(result.error?.code).toBe('PRO_REQUIRED');
-        expect(result.error?.message).toContain('Pro subscription');
-        expect(Print.printToFileAsync).not.toHaveBeenCalled();
+        // Free users can generate PDFs (with watermark)
+        expect(result.success).toBe(true);
+        expect(Print.printToFileAsync).toHaveBeenCalled();
+        // Verify watermark was injected into the HTML
+        const htmlArg = (Print.printToFileAsync as jest.Mock).mock.calls[0][0].html;
+        expect(htmlArg).toContain('sample-watermark');
+        expect(htmlArg).toContain('SAMPLE');
       });
 
-      it('proceeds with PDF generation when Pro', async () => {
+      it('generates PDF without watermark when Pro', async () => {
         setProStatusOverride(true);
         (Print.printToFileAsync as jest.Mock).mockResolvedValue({
           uri: 'file:///generated.pdf',
@@ -93,6 +102,9 @@ describe('pdfGenerationService', () => {
 
         expect(result.success).toBe(true);
         expect(Print.printToFileAsync).toHaveBeenCalled();
+        // Verify NO watermark in Pro PDF
+        const htmlArg = (Print.printToFileAsync as jest.Mock).mock.calls[0][0].html;
+        expect(htmlArg).not.toContain('sample-watermark');
       });
     });
 

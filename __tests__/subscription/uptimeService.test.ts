@@ -20,67 +20,51 @@ import {
 } from '@/subscription/uptimeService';
 
 describe('uptimeService', () => {
-  // Mock Date.now for predictable tests
-  const MOCK_NOW = 1700000000000; // Fixed timestamp
-  let originalDateNow: typeof Date.now;
+  // Mock performance.now for predictable tests (monotonic clock)
+  const MOCK_PERFORMANCE_NOW = 12345000; // ms since app start
+  let originalPerformanceNow: typeof performance.now;
 
   beforeAll(() => {
-    originalDateNow = Date.now;
+    originalPerformanceNow = performance.now;
   });
 
   afterAll(() => {
-    Date.now = originalDateNow;
+    performance.now = originalPerformanceNow;
   });
 
   beforeEach(() => {
     jest.clearAllMocks();
     resetUptimeOverride();
-    // Reset Date.now to original for each test
-    Date.now = jest.fn(() => MOCK_NOW);
+    performance.now = jest.fn(() => MOCK_PERFORMANCE_NOW);
   });
 
   describe('getDeviceUptime', () => {
-    it('should return uptime in milliseconds when available', async () => {
-      // App started 12345 seconds ago
-      const startupTime = MOCK_NOW - 12345000;
-      mockGetStartupTime.mockResolvedValue(startupTime);
-
+    it('should return uptime using performance.now() (monotonic clock)', async () => {
       const result = await getDeviceUptime();
 
       expect(result.success).toBe(true);
-      expect(result.uptimeMs).toBe(12345000); // currentTime - startupTime
+      expect(result.uptimeMs).toBe(MOCK_PERFORMANCE_NOW);
       expect(result.error).toBeUndefined();
+      expect(performance.now).toHaveBeenCalled();
     });
 
-    it('should return error when getStartupTime() fails', async () => {
-      mockGetStartupTime.mockRejectedValue(new Error('Device info unavailable'));
+    it('should not use Date.now() for uptime computation', async () => {
+      const dateNowSpy = jest.spyOn(Date, 'now');
+
+      await getDeviceUptime();
+
+      expect(dateNowSpy).not.toHaveBeenCalled();
+      dateNowSpy.mockRestore();
+    });
+
+    it('should return error when performance.now throws', async () => {
+      performance.now = jest.fn(() => { throw new Error('Unavailable'); });
 
       const result = await getDeviceUptime();
 
       expect(result.success).toBe(false);
-      expect(result.uptimeMs).toBeUndefined();
       expect(result.error).toBeDefined();
       expect(result.error?.code).toBe('UPTIME_READ_ERROR');
-    });
-
-    it('should return error when getStartupTime returns invalid value', async () => {
-      mockGetStartupTime.mockResolvedValue(-1);
-
-      const result = await getDeviceUptime();
-
-      expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('UPTIME_UNAVAILABLE');
-    });
-
-    it('should return error when computed uptime is negative (clock manipulation)', async () => {
-      // startupTime is in the future (impossible normally)
-      mockGetStartupTime.mockResolvedValue(MOCK_NOW + 1000);
-
-      const result = await getDeviceUptime();
-
-      expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('UPTIME_UNAVAILABLE');
-      expect(result.error?.message).toContain('clock manipulation');
     });
 
     it('should use override value in test environment', async () => {
@@ -99,19 +83,15 @@ describe('uptimeService', () => {
       setUptimeOverride(999000);
       resetUptimeOverride();
 
-      // App started 5000 seconds ago
-      const startupTime = MOCK_NOW - 5000000;
-      mockGetStartupTime.mockResolvedValue(startupTime);
-
       const result = await getDeviceUptime();
 
       expect(result.success).toBe(true);
-      expect(result.uptimeMs).toBe(5000000);
-      expect(mockGetStartupTime).toHaveBeenCalled();
+      expect(result.uptimeMs).toBe(MOCK_PERFORMANCE_NOW);
+      expect(performance.now).toHaveBeenCalled();
     });
 
     it('should handle uptime of 0 (app just started)', async () => {
-      mockGetStartupTime.mockResolvedValue(MOCK_NOW);
+      performance.now = jest.fn(() => 0);
 
       const result = await getDeviceUptime();
 
@@ -132,13 +112,10 @@ describe('uptimeService', () => {
       setUptimeOverride(123456);
       setUptimeOverride(null);
 
-      const startupTime = MOCK_NOW - 1000000;
-      mockGetStartupTime.mockResolvedValue(startupTime);
-
       const result = await getDeviceUptime();
 
-      expect(mockGetStartupTime).toHaveBeenCalled();
-      expect(result.uptimeMs).toBe(1000000);
+      expect(performance.now).toHaveBeenCalled();
+      expect(result.uptimeMs).toBe(MOCK_PERFORMANCE_NOW);
     });
   });
 
@@ -147,13 +124,10 @@ describe('uptimeService', () => {
       setUptimeOverride(999);
       resetUptimeOverride();
 
-      const startupTime = MOCK_NOW - 2000000;
-      mockGetStartupTime.mockResolvedValue(startupTime);
-
       const result = await getDeviceUptime();
 
       expect(result.success).toBe(true);
-      expect(result.uptimeMs).toBe(2000000);
+      expect(result.uptimeMs).toBe(MOCK_PERFORMANCE_NOW);
     });
   });
 });

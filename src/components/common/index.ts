@@ -36,3 +36,6 @@ export type { ReadOnlyBannerConfig } from './readOnlyBannerConfig';
 
 export { ActionSheetModal } from './ActionSheetModal';
 export type { ActionSheetModalProps, ActionSheetOption } from './ActionSheetModal';
+
+export { ErrorBoundary } from './ErrorBoundary';
+export type { ErrorBoundaryProps } from './ErrorBoundary';

@@ -7,6 +7,7 @@
 
 import { useState, useCallback } from 'react';
 import { View, StyleSheet, Alert, ScrollView } from 'react-native';
+import { router } from 'expo-router';
 import {
   CreateFinanceCardGroup,
   FinanceEntryModal,
@@ -22,11 +23,14 @@ import {
   type ChartPeriod,
 } from '@/domain/finance';
 import { useReadOnlyMode } from '@/hooks/useReadOnlyMode';
+import { useProStatus } from '@/hooks/useProStatus';
 import { useFinanceChart } from '@/hooks/useFinanceChart';
 import { deleteStoredImage } from '@/utils/imageUtils';
+import { canCreateFinanceEntry } from '@/subscription/freeTierLimitsService';
 
 export default function BalanceScreen() {
   const { isReadOnlyMode } = useReadOnlyMode();
+  const { isPro } = useProStatus();
   const [modalVisible, setModalVisible] = useState(false);
   const [modalType, setModalType] = useState<FinanceType>('income');
   const [chartPeriod, setChartPeriod] = useState<ChartPeriod>('monthly');
@@ -35,14 +39,38 @@ export default function BalanceScreen() {
   const { chartData, isLoading, error, refresh } = useFinanceChart(chartPeriod);
 
   const handleCreateIncome = useCallback(() => {
+    const check = canCreateFinanceEntry(isPro);
+    if (!check.allowed) {
+      Alert.alert(
+        '収支入力はProプラン限定です',
+        '無料プランでは収支データの閲覧のみ可能です。\nProプランにアップグレードすると収支の入力ができます。',
+        [
+          { text: 'キャンセル', style: 'cancel' },
+          { text: 'Proプランを見る', onPress: () => router.push('/paywall') },
+        ]
+      );
+      return;
+    }
     setModalType('income');
     setModalVisible(true);
-  }, []);
+  }, [isPro]);
 
   const handleCreateExpense = useCallback(() => {
+    const check = canCreateFinanceEntry(isPro);
+    if (!check.allowed) {
+      Alert.alert(
+        '収支入力はProプラン限定です',
+        '無料プランでは収支データの閲覧のみ可能です。\nProプランにアップグレードすると収支の入力ができます。',
+        [
+          { text: 'キャンセル', style: 'cancel' },
+          { text: 'Proプランを見る', onPress: () => router.push('/paywall') },
+        ]
+      );
+      return;
+    }
     setModalType('expense');
     setModalVisible(true);
-  }, []);
+  }, [isPro]);
 
   const handleModalCancel = useCallback(() => {
     setModalVisible(false);

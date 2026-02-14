@@ -140,6 +140,121 @@ describe('workLogEntryService', () => {
       expect(result.error?.code).toBe('READONLY_MODE');
       expect(mockedAsyncStorage.setItem).not.toHaveBeenCalled();
     });
+  });
+
+  describe('deleteWorkLogEntriesByCustomer photo cascade', () => {
+    const FileSystem = require('expo-file-system');
+
+    beforeEach(() => {
+      FileSystem.getInfoAsync.mockResolvedValue({ exists: true });
+      FileSystem.deleteAsync.mockResolvedValue(undefined);
+    });
+
+    it('should delete photo files for entries being removed', async () => {
+      const entries = [
+        { id: 'entry-1', customerId: 'cust-1', workDate: '2026-01-01', note: null, createdAt: 1000, updatedAt: 1000 },
+        { id: 'entry-2', customerId: 'cust-1', workDate: '2026-01-02', note: null, createdAt: 2000, updatedAt: 2000 },
+        { id: 'entry-3', customerId: 'cust-2', workDate: '2026-01-01', note: null, createdAt: 3000, updatedAt: 3000 },
+      ];
+      const photos = [
+        { id: 'photo-1', customerId: 'cust-1', workLogEntryId: 'entry-1', type: 'before', uri: 'file:///photos/p1.jpg', createdAt: 1000, updatedAt: 1000 },
+        { id: 'photo-2', customerId: 'cust-1', workLogEntryId: 'entry-2', type: 'after', uri: 'file:///photos/p2.jpg', createdAt: 2000, updatedAt: 2000 },
+        { id: 'photo-3', customerId: 'cust-2', workLogEntryId: 'entry-3', type: 'before', uri: 'file:///photos/p3.jpg', createdAt: 3000, updatedAt: 3000 },
+      ];
+
+      mockedAsyncStorage.getItem.mockImplementation(async (key: string) => {
+        if (key === STORAGE_KEYS.WORK_LOG_ENTRIES) return JSON.stringify(entries);
+        if (key === STORAGE_KEYS.CUSTOMER_PHOTOS) return JSON.stringify(photos);
+        return null;
+      });
+      mockedAsyncStorage.setItem.mockResolvedValue(undefined);
+
+      const result = await deleteWorkLogEntriesByCustomer('cust-1');
+
+      expect(result.success).toBe(true);
+
+      // Should delete photo files for cust-1 entries only
+      expect(FileSystem.deleteAsync).toHaveBeenCalledWith('file:///photos/p1.jpg', { idempotent: true });
+      expect(FileSystem.deleteAsync).toHaveBeenCalledWith('file:///photos/p2.jpg', { idempotent: true });
+      expect(FileSystem.deleteAsync).not.toHaveBeenCalledWith('file:///photos/p3.jpg', expect.anything());
+    });
+
+    it('should remove photo metadata for deleted entries', async () => {
+      const entries = [
+        { id: 'entry-1', customerId: 'cust-1', workDate: '2026-01-01', note: null, createdAt: 1000, updatedAt: 1000 },
+      ];
+      const photos = [
+        { id: 'photo-1', customerId: 'cust-1', workLogEntryId: 'entry-1', type: 'before', uri: 'file:///photos/p1.jpg', createdAt: 1000, updatedAt: 1000 },
+        { id: 'photo-other', customerId: 'cust-2', workLogEntryId: 'entry-other', type: 'before', uri: 'file:///photos/other.jpg', createdAt: 2000, updatedAt: 2000 },
+      ];
+
+      mockedAsyncStorage.getItem.mockImplementation(async (key: string) => {
+        if (key === STORAGE_KEYS.WORK_LOG_ENTRIES) return JSON.stringify(entries);
+        if (key === STORAGE_KEYS.CUSTOMER_PHOTOS) return JSON.stringify(photos);
+        return null;
+      });
+      mockedAsyncStorage.setItem.mockResolvedValue(undefined);
+
+      await deleteWorkLogEntriesByCustomer('cust-1');
+
+      // Check photo metadata was updated
+      const photosSetCall = mockedAsyncStorage.setItem.mock.calls.find(
+        (call) => call[0] === STORAGE_KEYS.CUSTOMER_PHOTOS
+      );
+      expect(photosSetCall).toBeDefined();
+      const remainingPhotos = JSON.parse(photosSetCall![1]);
+      expect(remainingPhotos).toHaveLength(1);
+      expect(remainingPhotos[0].id).toBe('photo-other');
+    });
+
+    it('should succeed even if photo file deletion fails', async () => {
+      const entries = [
+        { id: 'entry-1', customerId: 'cust-1', workDate: '2026-01-01', note: null, createdAt: 1000, updatedAt: 1000 },
+      ];
+      const photos = [
+        { id: 'photo-1', customerId: 'cust-1', workLogEntryId: 'entry-1', type: 'before', uri: 'file:///photos/p1.jpg', createdAt: 1000, updatedAt: 1000 },
+      ];
+
+      mockedAsyncStorage.getItem.mockImplementation(async (key: string) => {
+        if (key === STORAGE_KEYS.WORK_LOG_ENTRIES) return JSON.stringify(entries);
+        if (key === STORAGE_KEYS.CUSTOMER_PHOTOS) return JSON.stringify(photos);
+        return null;
+      });
+      mockedAsyncStorage.setItem.mockResolvedValue(undefined);
+      FileSystem.deleteAsync.mockRejectedValue(new Error('FS error'));
+      jest.spyOn(console, 'warn').mockImplementation();
+
+      const result = await deleteWorkLogEntriesByCustomer('cust-1');
+
+      expect(result.success).toBe(true);
+
+      // Photo metadata should be kept for retry when file deletion fails
+      const photosSetCall = mockedAsyncStorage.setItem.mock.calls.find(
+        (call) => call[0] === STORAGE_KEYS.CUSTOMER_PHOTOS
+      );
+      expect(photosSetCall).toBeDefined();
+      const remainingPhotos = JSON.parse(photosSetCall![1]);
+      expect(remainingPhotos).toHaveLength(1);
+      expect(remainingPhotos[0].id).toBe('photo-1');
+    });
+
+    it('should handle no photos gracefully', async () => {
+      const entries = [
+        { id: 'entry-1', customerId: 'cust-1', workDate: '2026-01-01', note: null, createdAt: 1000, updatedAt: 1000 },
+      ];
+
+      mockedAsyncStorage.getItem.mockImplementation(async (key: string) => {
+        if (key === STORAGE_KEYS.WORK_LOG_ENTRIES) return JSON.stringify(entries);
+        if (key === STORAGE_KEYS.CUSTOMER_PHOTOS) return null;
+        return null;
+      });
+      mockedAsyncStorage.setItem.mockResolvedValue(undefined);
+
+      const result = await deleteWorkLogEntriesByCustomer('cust-1');
+
+      expect(result.success).toBe(true);
+      expect(FileSystem.deleteAsync).not.toHaveBeenCalled();
+    });
 
     it('should block createWorkLogEntry when read-only mode activates during queue wait', async () => {
       mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify([]));

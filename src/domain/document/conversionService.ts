@@ -28,6 +28,7 @@ import {
 } from '@/storage/secureStorageService';
 import { generateUUID } from '@/utils/uuid';
 import { getTodayString } from '@/utils/dateUtils';
+import { incrementDocumentCreationCount } from '@/subscription/documentCreationCounter';
 
 // === Result Types ===
 
@@ -244,14 +245,21 @@ export async function convertEstimateToInvoice(
     );
   }
 
-  // 7. Save sensitive issuer snapshot (non-fatal if fails)
+  // 7. Increment creation counter (non-fatal if fails)
+  try {
+    await incrementDocumentCreationCount();
+  } catch {
+    // Non-fatal: counter increment failure should not block conversion
+  }
+
+  // 8. Save sensitive issuer snapshot (non-fatal if fails)
   const snapshotResult = await saveSensitiveSnapshot(newInvoiceId);
   if (!snapshotResult.success) {
     // Log warning but don't fail the conversion
-    console.warn('Failed to save sensitive snapshot for converted invoice:', newInvoiceId);
+    if (__DEV__) console.warn('Failed to save sensitive snapshot for converted invoice:', newInvoiceId);
   }
 
-  // 8. Return successful result
+  // 9. Return successful result
   return successResult({
     invoice: saveResult.data!,
     originalEstimate: estimate,

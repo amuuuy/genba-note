@@ -196,7 +196,7 @@ export async function runMigrations(): Promise<MigrationRunResult> {
       await cleanupOrphanedPhotos();
     } catch (error) {
       // Log but don't fail - orphan cleanup is best-effort
-      console.warn('Failed to cleanup orphaned photos:', error);
+      if (__DEV__) console.warn('Failed to cleanup orphaned photos:', error);
     }
 
     return {

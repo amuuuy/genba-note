@@ -99,3 +99,18 @@ export interface SearchMaterialsResult {
   /** Total number of pages */
   totalPages: number;
 }
+
+/**
+ * Error from material research operations
+ */
+export interface MaterialResearchError {
+  code: 'RATE_LIMIT' | 'NETWORK_ERROR' | 'API_ERROR';
+  message: string;
+}
+
+/**
+ * Result type for material research operations (Result pattern)
+ */
+export type MaterialResearchDomainResult<T> =
+  | { success: true; data: T }
+  | { success: false; error: MaterialResearchError };

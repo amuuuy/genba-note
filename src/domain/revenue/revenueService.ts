@@ -121,7 +121,7 @@ export function calculateRevenueSummary(invoices: Document[]): RevenueSummary {
   // Sanity check - invariant should always hold
   if (!verifyInvariant(summary)) {
     // This should never happen, but if it does, log for debugging
-    console.error('Revenue invariant violation:', summary);
+    if (__DEV__) console.error('Revenue invariant violation:', summary);
   }
 
   return summary;

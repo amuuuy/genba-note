@@ -29,16 +29,16 @@ describe('environment', () => {
       expect(isDevelopmentMode()).toBe(true);
     });
 
-    it('returns true when APP_ENV is development', () => {
-      (global as any).__DEV__ = false;
+    it('returns true when __DEV__ is true and APP_ENV is development', () => {
+      (global as any).__DEV__ = true;
       process.env.EXPO_PUBLIC_APP_ENV = 'development';
 
       const { isDevelopmentMode } = require('@/utils/environment');
       expect(isDevelopmentMode()).toBe(true);
     });
 
-    it('returns true when APP_ENV is staging', () => {
-      (global as any).__DEV__ = false;
+    it('returns true when __DEV__ is true and APP_ENV is staging', () => {
+      (global as any).__DEV__ = true;
       process.env.EXPO_PUBLIC_APP_ENV = 'staging';
 
       const { isDevelopmentMode } = require('@/utils/environment');
@@ -64,6 +64,22 @@ describe('environment', () => {
     it('returns false when __DEV__ is undefined and APP_ENV is production', () => {
       delete (global as any).__DEV__;
       process.env.EXPO_PUBLIC_APP_ENV = 'production';
+
+      const { isDevelopmentMode } = require('@/utils/environment');
+      expect(isDevelopmentMode()).toBe(false);
+    });
+
+    it('returns false when __DEV__ is false even if APP_ENV is development (misconfigured build)', () => {
+      (global as any).__DEV__ = false;
+      process.env.EXPO_PUBLIC_APP_ENV = 'development';
+
+      const { isDevelopmentMode } = require('@/utils/environment');
+      expect(isDevelopmentMode()).toBe(false);
+    });
+
+    it('returns false when __DEV__ is false even if APP_ENV is staging (misconfigured build)', () => {
+      (global as any).__DEV__ = false;
+      process.env.EXPO_PUBLIC_APP_ENV = 'staging';
 
       const { isDevelopmentMode } = require('@/utils/environment');
       expect(isDevelopmentMode()).toBe(false);

@@ -112,7 +112,7 @@ export const BackgroundDesignSection: React.FC<BackgroundDesignSectionProps> = (
         Alert.alert('エラー', '画像の保存に失敗しました。');
       }
     } catch (error) {
-      console.error('Error selecting background image:', error);
+      if (__DEV__) console.error('Error selecting background image:', error);
       Alert.alert('エラー', '画像の選択に失敗しました。');
     } finally {
       setIsImageLoading(false);

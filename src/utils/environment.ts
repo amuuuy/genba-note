@@ -16,16 +16,15 @@
  * and EXPO_PUBLIC_APP_ENV should be 'production'.
  */
 export function isDevelopmentMode(): boolean {
-  // __DEV__ is a React Native global - always false in production builds
+  // __DEV__ is a React Native global - always false in production builds.
+  // SECURITY: Only trust __DEV__ for development mode detection.
+  // EXPO_PUBLIC_APP_ENV is bundled at build time and could be misconfigured,
+  // so we do NOT use it as a standalone bypass for production builds.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const isDevBuild =
     typeof (global as any).__DEV__ !== 'undefined' ? (global as any).__DEV__ : false;
 
-  // Check environment variable for staging/development builds
-  const appEnv = process.env.EXPO_PUBLIC_APP_ENV;
-  const isDevOrStagingEnv = appEnv === 'development' || appEnv === 'staging';
-
-  return isDevBuild || isDevOrStagingEnv;
+  return isDevBuild;
 }
 
 /**

@@ -254,7 +254,7 @@ export async function createDocument(
   if (!snapshotResult.success) {
     // Document is saved but snapshot failed - log for debugging but don't fail the operation
     // The document can still be used, just without sensitive issuer info in exports
-    console.warn('Failed to save sensitive snapshot for document:', documentId);
+    if (__DEV__) console.warn('Failed to save sensitive snapshot for document:', documentId);
   }
 
   return successResult(saveResult.data!);
@@ -572,7 +572,7 @@ export async function duplicateDocument(
   // Save sensitive snapshot after document (snapshot failure is non-fatal)
   const snapshotResult = await saveSensitiveSnapshot(newDocumentId);
   if (!snapshotResult.success) {
-    console.warn('Failed to save sensitive snapshot for document:', newDocumentId);
+    if (__DEV__) console.warn('Failed to save sensitive snapshot for document:', newDocumentId);
   }
 
   return successResult(saveResult.data!);

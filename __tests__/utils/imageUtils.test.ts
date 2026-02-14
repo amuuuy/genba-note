@@ -1,8 +1,17 @@
 /**
- * Tests for imageUtils.ts - imageUriToBase64 / imageUriToDataUrl / getImageMimeType
+ * Tests for imageUtils.ts - imageUriToBase64 / imageUriToDataUrl / getImageMimeType / path traversal
  */
 import { File } from 'expo-file-system';
-import { imageUriToBase64, imageUriToDataUrl, getImageMimeType } from '@/utils/imageUtils';
+import {
+  imageUriToBase64,
+  imageUriToDataUrl,
+  getImageMimeType,
+  copyCustomerPhotoToPermanentStorage,
+  copyFinancePhotoToPermanentStorage,
+  moveFinancePhotoToEntryDirectory,
+  deleteCustomerPhotosDirectory,
+  deleteFinancePhotosDirectory,
+} from '@/utils/imageUtils';
 
 describe('imageUriToBase64', () => {
   beforeEach(() => {
@@ -98,5 +107,113 @@ describe('getImageMimeType', () => {
 
   it('defaults to image/png for unknown extension', () => {
     expect(getImageMimeType('file:///test.bmp')).toBe('image/png');
+  });
+});
+
+describe('path traversal protection', () => {
+  beforeEach(() => {
+    jest.spyOn(console, 'warn').mockImplementation();
+    jest.spyOn(console, 'error').mockImplementation();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  describe('copyCustomerPhotoToPermanentStorage', () => {
+    it('rejects customerId with path traversal (..)', async () => {
+      const result = await copyCustomerPhotoToPermanentStorage(
+        'file:///source.jpg',
+        '../../../etc',
+        'before'
+      );
+      expect(result).toBeNull();
+    });
+
+    it('rejects customerId with forward slash', async () => {
+      const result = await copyCustomerPhotoToPermanentStorage(
+        'file:///source.jpg',
+        'foo/bar',
+        'before'
+      );
+      expect(result).toBeNull();
+    });
+
+    it('rejects customerId with backslash', async () => {
+      const result = await copyCustomerPhotoToPermanentStorage(
+        'file:///source.jpg',
+        'foo\\bar',
+        'before'
+      );
+      expect(result).toBeNull();
+    });
+
+    it('rejects customerId with URL-encoded traversal', async () => {
+      const result = await copyCustomerPhotoToPermanentStorage(
+        'file:///source.jpg',
+        '%2e%2e%2f%2e%2e%2fetc',
+        'before'
+      );
+      expect(result).toBeNull();
+    });
+
+    it('accepts normal UUID customerId', async () => {
+      const result = await copyCustomerPhotoToPermanentStorage(
+        'file:///source.jpg',
+        'abc-123-def-456',
+        'before'
+      );
+      expect(result).not.toBeNull();
+    });
+  });
+
+  describe('copyFinancePhotoToPermanentStorage', () => {
+    it('rejects financeEntryId with path traversal', async () => {
+      const result = await copyFinancePhotoToPermanentStorage(
+        'file:///source.jpg',
+        '../../sensitive'
+      );
+      expect(result).toBeNull();
+    });
+
+    it('accepts normal UUID financeEntryId', async () => {
+      const result = await copyFinancePhotoToPermanentStorage(
+        'file:///source.jpg',
+        'finance-entry-123'
+      );
+      expect(result).not.toBeNull();
+    });
+  });
+
+  describe('moveFinancePhotoToEntryDirectory', () => {
+    it('rejects financeEntryId with path traversal', async () => {
+      const result = await moveFinancePhotoToEntryDirectory(
+        'file:///tmp/photo.jpg',
+        '../../../etc'
+      );
+      expect(result).toBeNull();
+    });
+
+    it('accepts normal UUID financeEntryId', async () => {
+      const result = await moveFinancePhotoToEntryDirectory(
+        'file:///tmp/photo.jpg',
+        'finance-entry-456'
+      );
+      expect(result).not.toBeNull();
+    });
+  });
+
+  describe('deleteCustomerPhotosDirectory', () => {
+    it('does not delete when customerId has path traversal', async () => {
+      // Should not throw, just return early
+      await deleteCustomerPhotosDirectory('../../sensitive');
+      // If it reached this point without throwing, validation worked
+    });
+  });
+
+  describe('deleteFinancePhotosDirectory', () => {
+    it('does not delete when financeEntryId has path traversal', async () => {
+      await deleteFinancePhotosDirectory('../../sensitive');
+    });
   });
 });

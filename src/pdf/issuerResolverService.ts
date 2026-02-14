@@ -67,7 +67,7 @@ async function loadSealImageBase64(sealImageUri: string | null): Promise<string 
     if (__DEV__) console.log('[SealImage] Result:', result ? 'success' : 'null');
     return result;
   } catch (error) {
-    console.error('Failed to load seal image:', error);
+    if (__DEV__) console.error('Failed to load seal image:', error);
     return null;
   }
 }

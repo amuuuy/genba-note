@@ -27,7 +27,9 @@ import { useCustomerEdit } from '@/hooks/useCustomerEdit';
 import { useCustomerPhotos } from '@/hooks/useCustomerPhotos';
 import { useWorkLogEntries } from '@/hooks/useWorkLogEntries';
 import { useReadOnlyMode } from '@/hooks/useReadOnlyMode';
+import { useProStatus } from '@/hooks/useProStatus';
 import { FormInput, FormSection, ConfirmDialog } from '@/components/common';
+import { canAddPhoto } from '@/subscription/freeTierLimitsService';
 import {
   PhotoPreviewModal,
   WorkLogEntryList,
@@ -71,6 +73,9 @@ export default function CustomerEditScreen() {
 
   // Read-only mode state
   const { isReadOnlyMode } = useReadOnlyMode();
+
+  // Pro status
+  const { isPro } = useProStatus();
 
   // Photo preview state
   const [previewPhoto, setPreviewPhoto] = useState<CustomerPhoto | null>(null);
@@ -168,8 +173,22 @@ export default function CustomerEditScreen() {
     setShowPreview(true);
   }, []);
 
-  // Handle add photo
+  // Handle add photo (with free tier limit check)
   const handleAddPhoto = useCallback(async (entryId: string, type: PhotoType) => {
+    const totalPhotos = beforePhotos.length + afterPhotos.length;
+    const check = canAddPhoto(totalPhotos, isPro);
+    if (!check.allowed) {
+      Alert.alert(
+        '写真追加の上限に達しました',
+        `無料プランでは1顧客あたり${check.limit}枚まで追加できます。\nProプランにアップグレードすると無制限に追加できます。`,
+        [
+          { text: 'キャンセル', style: 'cancel' },
+          { text: 'Proプランを見る', onPress: () => router.push('/paywall') },
+        ]
+      );
+      return;
+    }
+
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: false,
@@ -183,7 +202,7 @@ export default function CustomerEditScreen() {
         Alert.alert('エラー', '写真の追加に失敗しました');
       }
     }
-  }, [addPhoto]);
+  }, [addPhoto, beforePhotos.length, afterPhotos.length, isPro]);
 
   // Handle delete photo trigger
   const handleDeletePhotoPress = useCallback((photo: CustomerPhoto) => {

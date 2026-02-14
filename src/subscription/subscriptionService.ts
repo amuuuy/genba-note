@@ -173,7 +173,7 @@ export async function verifySubscriptionOnline(): Promise<
     uptimeResult.uptimeMs
   );
   if (!saveResult.success) {
-    console.warn('[SubscriptionService] Cache write failed, using online result:', saveResult.error?.code);
+    if (__DEV__) console.warn('[SubscriptionService] Cache write failed, using online result:', saveResult.error?.code);
   }
 
   return successResult({
@@ -281,7 +281,7 @@ export async function restorePurchases(): Promise<
     uptimeResult.uptimeMs
   );
   if (!saveResult.success) {
-    console.warn('[SubscriptionService] Cache write failed after restore:', saveResult.error?.code);
+    if (__DEV__) console.warn('[SubscriptionService] Cache write failed after restore:', saveResult.error?.code);
   }
 
   return successResult({

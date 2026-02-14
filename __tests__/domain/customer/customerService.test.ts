@@ -12,6 +12,8 @@ import {
   deleteCustomer,
   searchCustomers,
 } from '@/domain/customer/customerService';
+import { deleteWorkLogEntriesByCustomer } from '@/domain/customer/workLogEntryService';
+import { deleteCustomerPhotosDirectory } from '@/utils/imageUtils';
 import { setReadOnlyMode } from '@/storage/readOnlyModeState';
 import { customersQueue } from '@/utils/writeQueue';
 import type { Customer, CreateCustomerInput, UpdateCustomerInput } from '@/types/customer';
@@ -26,6 +28,16 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 // Mock uuid
 jest.mock('@/utils/uuid', () => ({
   generateUUID: jest.fn(() => 'test-uuid-123'),
+}));
+
+// Mock workLogEntryService
+jest.mock('@/domain/customer/workLogEntryService', () => ({
+  deleteWorkLogEntriesByCustomer: jest.fn(async () => ({ success: true })),
+}));
+
+// Mock imageUtils
+jest.mock('@/utils/imageUtils', () => ({
+  deleteCustomerPhotosDirectory: jest.fn(async () => {}),
 }));
 
 const mockedAsyncStorage = jest.mocked(AsyncStorage);
@@ -260,6 +272,44 @@ describe('customerService', () => {
 
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('CUSTOMER_NOT_FOUND');
+    });
+
+    it('should cascade delete work log entries', async () => {
+      const customer = createTestCustomer({ id: 'customer-1' });
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify([customer]));
+      mockedAsyncStorage.setItem.mockResolvedValue(undefined);
+
+      const result = await deleteCustomer('customer-1');
+
+      expect(result.success).toBe(true);
+      expect(deleteWorkLogEntriesByCustomer).toHaveBeenCalledWith('customer-1');
+    });
+
+    it('should cascade delete customer photos directory', async () => {
+      const customer = createTestCustomer({ id: 'customer-1' });
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify([customer]));
+      mockedAsyncStorage.setItem.mockResolvedValue(undefined);
+
+      const result = await deleteCustomer('customer-1');
+
+      expect(result.success).toBe(true);
+      expect(deleteCustomerPhotosDirectory).toHaveBeenCalledWith('customer-1');
+    });
+
+    it('should still delete customer even if cascade operations fail', async () => {
+      const customer = createTestCustomer({ id: 'customer-1' });
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify([customer]));
+      mockedAsyncStorage.setItem.mockResolvedValue(undefined);
+      (deleteWorkLogEntriesByCustomer as jest.Mock).mockRejectedValueOnce(new Error('cascade error'));
+      jest.spyOn(console, 'warn').mockImplementation();
+
+      const result = await deleteCustomer('customer-1');
+
+      expect(result.success).toBe(true);
+      expect(mockedAsyncStorage.setItem).toHaveBeenCalledWith(
+        STORAGE_KEYS.CUSTOMERS,
+        JSON.stringify([])
+      );
     });
   });
 

@@ -210,7 +210,7 @@ export async function saveSettings(
       isValidBackgroundImageUri(previousBackgroundImageUri)
     ) {
       deleteStoredImage(previousBackgroundImageUri).catch((err) => {
-        console.warn('Failed to cleanup old background image:', err);
+        if (__DEV__) console.warn('Failed to cleanup old background image:', err);
       });
     }
 

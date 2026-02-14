@@ -75,7 +75,7 @@ export const SealImageSection: React.FC<SealImageSectionProps> = ({
         Alert.alert('エラー', '画像の保存に失敗しました。');
       }
     } catch (error) {
-      console.error('Error selecting image:', error);
+      if (__DEV__) console.error('Error selecting image:', error);
       Alert.alert('エラー', '画像の選択に失敗しました。');
     } finally {
       setIsLoading(false);
@@ -99,7 +99,7 @@ export const SealImageSection: React.FC<SealImageSectionProps> = ({
               await deleteStoredImage(sealImageUri);
               onImageChange(null);
             } catch (error) {
-              console.error('Error removing image:', error);
+              if (__DEV__) console.error('Error removing image:', error);
               Alert.alert('エラー', '画像の削除に失敗しました。');
             } finally {
               setIsLoading(false);

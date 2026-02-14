@@ -2,12 +2,14 @@
  * Material Research Service
  *
  * Calls Supabase Edge Function to search materials via Rakuten API.
+ * Uses Result pattern (no throw) for error handling.
  */
 
 import type {
   RakutenSearchResponse,
   SearchMaterialsParams,
   SearchMaterialsResult,
+  MaterialResearchDomainResult,
 } from '@/types/materialResearch';
 import { mapRakutenResponse } from './rakutenMappingService';
 
@@ -22,11 +24,14 @@ const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
  */
 export async function searchMaterials(
   params: SearchMaterialsParams
-): Promise<SearchMaterialsResult> {
+): Promise<MaterialResearchDomainResult<SearchMaterialsResult>> {
   const { keyword, page = 1, hits = 20 } = params;
 
   if (!keyword.trim()) {
-    return { results: [], totalCount: 0, currentPage: 1, totalPages: 0 };
+    return {
+      success: true,
+      data: { results: [], totalCount: 0, currentPage: 1, totalPages: 0 },
+    };
   }
 
   try {
@@ -45,26 +50,42 @@ export async function searchMaterials(
 
     if (!response.ok) {
       if (response.status === 429) {
-        throw new Error(
-          '検索回数の制限に達しました。しばらくお待ちください。'
-        );
+        return {
+          success: false,
+          error: {
+            code: 'RATE_LIMIT',
+            message: '検索回数の制限に達しました。しばらくお待ちください。',
+          },
+        };
       }
-      throw new Error('検索に失敗しました。通信状況を確認してください。');
+      return {
+        success: false,
+        error: {
+          code: 'API_ERROR',
+          message: '検索に失敗しました。通信状況を確認してください。',
+        },
+      };
     }
 
     const data: RakutenSearchResponse = await response.json();
     const results = mapRakutenResponse(data);
 
     return {
-      results,
-      totalCount: data.count,
-      currentPage: data.page,
-      totalPages: data.pageCount,
+      success: true,
+      data: {
+        results,
+        totalCount: data.count,
+        currentPage: data.page,
+        totalPages: data.pageCount,
+      },
     };
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('検索')) {
-      throw error;
-    }
-    throw new Error('検索に失敗しました。通信状況を確認してください。');
+  } catch {
+    return {
+      success: false,
+      error: {
+        code: 'NETWORK_ERROR',
+        message: '検索に失敗しました。通信状況を確認してください。',
+      },
+    };
   }
 }

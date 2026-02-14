@@ -12,12 +12,13 @@ import {
   deleteCalendarEvent,
 } from '@/domain/calendar/calendarService';
 import { isValidDateFormat } from '@/utils/dateUtils';
+import { getReadOnlyMode } from '@/storage/readOnlyModeState';
 import type {
   CalendarEvent,
   CalendarEventType,
 } from '@/types/calendarEvent';
 
-// === State ===
+// === State (exported for testing) ===
 
 export interface CalendarEventFormValues {
   title: string;
@@ -30,7 +31,7 @@ export interface CalendarEventFormValues {
   note: string;
 }
 
-interface State {
+export interface CalendarEventEditState {
   values: CalendarEventFormValues;
   isEditing: boolean;
   editingId: string | null;
@@ -50,7 +51,7 @@ const DEFAULT_VALUES: CalendarEventFormValues = {
   note: '',
 };
 
-const INITIAL_STATE: State = {
+export const INITIAL_STATE: CalendarEventEditState = {
   values: DEFAULT_VALUES,
   isEditing: false,
   editingId: null,
@@ -59,9 +60,9 @@ const INITIAL_STATE: State = {
   errors: {},
 };
 
-// === Actions ===
+// === Actions (exported for testing) ===
 
-type Action =
+export type CalendarEventEditAction =
   | { type: 'START_CREATE'; date?: string }
   | { type: 'START_EDIT'; event: CalendarEvent }
   | { type: 'UPDATE_FIELD'; field: keyof CalendarEventFormValues; value: string | null }
@@ -69,7 +70,7 @@ type Action =
   | { type: 'SET_ERRORS'; errors: Record<string, string | null> }
   | { type: 'CLOSE' };
 
-function reducer(state: State, action: Action): State {
+export function calendarEventEditReducer(state: CalendarEventEditState, action: CalendarEventEditAction): CalendarEventEditState {
   switch (action.type) {
     case 'START_CREATE':
       return {
@@ -124,7 +125,7 @@ function reducer(state: State, action: Action): State {
 // === Hook ===
 
 export function useCalendarEventEdit(onSuccess?: () => void) {
-  const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
+  const [state, dispatch] = useReducer(calendarEventEditReducer, INITIAL_STATE);
 
   const startCreate = useCallback((date?: string) => {
     dispatch({ type: 'START_CREATE', date });
@@ -163,6 +164,13 @@ export function useCalendarEventEdit(onSuccess?: () => void) {
   }, [state.values]);
 
   const save = useCallback(async () => {
+    if (getReadOnlyMode()) {
+      dispatch({
+        type: 'SET_ERRORS',
+        errors: { _general: '読み取り専用モードのため変更できません' },
+      });
+      return;
+    }
     if (!validate()) return;
 
     dispatch({ type: 'SET_SAVING', isSaving: true });
@@ -216,6 +224,13 @@ export function useCalendarEventEdit(onSuccess?: () => void) {
   }, [state, validate, onSuccess]);
 
   const handleDelete = useCallback(async () => {
+    if (getReadOnlyMode()) {
+      dispatch({
+        type: 'SET_ERRORS',
+        errors: { _general: '読み取り専用モードのため削除できません' },
+      });
+      return;
+    }
     if (!state.editingId) return;
 
     dispatch({ type: 'SET_SAVING', isSaving: true });

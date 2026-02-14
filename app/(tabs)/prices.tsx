@@ -19,11 +19,13 @@ import {
   Alert,
   FlatList,
 } from 'react-native';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import type { UnitPrice } from '../../src/types/unitPrice';
 import type { UnitPriceInput } from '../../src/domain/unitPrice';
 import { useUnitPriceList } from '../../src/hooks/useUnitPriceList';
 import { useReadOnlyMode } from '../../src/hooks/useReadOnlyMode';
+import { useProStatus } from '../../src/hooks/useProStatus';
 import {
   EmptyUnitPriceList,
   UnitPriceListItem,
@@ -36,6 +38,7 @@ import {
   ConfirmDialog,
   type FilterOption,
 } from '../../src/components/common';
+import { canCreateUnitPrice } from '../../src/subscription/freeTierLimitsService';
 
 /**
  * Main unit price list screen
@@ -60,6 +63,9 @@ export default function UnitPricesScreen() {
   // Read-only mode state
   const { isReadOnlyMode } = useReadOnlyMode();
 
+  // Pro status
+  const { isPro } = useProStatus();
+
   // Editor modal state
   const [editorVisible, setEditorVisible] = useState(false);
   const [editingUnitPrice, setEditingUnitPrice] = useState<UnitPrice | null>(null);
@@ -73,11 +79,23 @@ export default function UnitPricesScreen() {
   // Determine if list is filtered
   const isFiltered = Boolean(searchText || selectedCategory);
 
-  // Handle create button press
+  // Handle create button press (with free tier limit check)
   const handleCreatePress = useCallback(() => {
+    const check = canCreateUnitPrice(unitPrices.length, isPro);
+    if (!check.allowed) {
+      Alert.alert(
+        '単価マスタの上限に達しました',
+        `無料プランでは${check.limit}件まで登録できます。\nProプランにアップグレードすると無制限に登録できます。`,
+        [
+          { text: 'キャンセル', style: 'cancel' },
+          { text: 'Proプランを見る', onPress: () => router.push('/paywall') },
+        ]
+      );
+      return;
+    }
     setEditingUnitPrice(null);
     setEditorVisible(true);
-  }, []);
+  }, [unitPrices.length, isPro]);
 
   // Handle item press (edit)
   const handleItemPress = useCallback((unitPrice: UnitPrice) => {
@@ -134,16 +152,28 @@ export default function UnitPricesScreen() {
     setEditingUnitPrice(null);
   }, []);
 
-  // Handle material research register
+  // Handle material research register (with free tier limit check)
   const handleResearchRegister = useCallback(async (input: UnitPriceInput) => {
     if (isReadOnlyMode) return;
+    const check = canCreateUnitPrice(unitPrices.length, isPro);
+    if (!check.allowed) {
+      Alert.alert(
+        '単価マスタの上限に達しました',
+        `無料プランでは${check.limit}件まで登録できます。\nProプランにアップグレードすると無制限に登録できます。`,
+        [
+          { text: 'キャンセル', style: 'cancel' },
+          { text: 'Proプランを見る', onPress: () => router.push('/paywall') },
+        ]
+      );
+      return;
+    }
     const success = await createItem(input);
     if (success) {
       Alert.alert('登録完了', `「${input.name}」を単価マスタに登録しました`);
     } else {
       Alert.alert('エラー', '登録に失敗しました');
     }
-  }, [isReadOnlyMode, createItem]);
+  }, [isReadOnlyMode, createItem, unitPrices.length, isPro]);
 
   // Build category filter options
   const categoryOptions: FilterOption<string>[] = [

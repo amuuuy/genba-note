@@ -4,8 +4,8 @@
  * Integrates expo-print and expo-sharing for PDF generation and sharing.
  * Follows SPEC 2.7 for PDF output specifications.
  *
- * IMPORTANT: generateAndSharePdf enforces Pro status check at the service layer.
- * This ensures the business rule is enforced regardless of how the service is called.
+ * Free users: PDF generated with "SAMPLE" watermark overlay.
+ * Pro users: PDF generated without watermark.
  */
 
 import * as Print from 'expo-print';
@@ -20,6 +20,7 @@ import { checkProStatus } from '@/subscription/proAccessService';
 import { validateDocumentForPdf, formatValidationError } from './pdfValidationService';
 import { getSettings } from '@/storage/asyncStorageService';
 import { resolveBackgroundImageDataUrl } from '@/utils/imageUtils';
+import { injectSampleWatermark } from './watermarkService';
 
 /**
  * Generate PDF from HTML (internal function)
@@ -120,8 +121,8 @@ async function cleanupPdfFile(fileUri: string): Promise<void> {
 /**
  * Generate HTML template, create PDF, and share
  *
- * IMPORTANT: This function enforces Pro status check at the service layer.
- * If not Pro, returns PRO_REQUIRED error immediately.
+ * Free users: PDF is generated with a "SAMPLE" watermark overlay.
+ * Pro users: PDF is generated without watermark.
  *
  * NOTE: PDF output always uses formal monochrome theme ('pdf' mode).
  * The 'mode' property in input is ignored; formal theme is enforced for
@@ -134,17 +135,9 @@ export async function generateAndSharePdf(
   input: Omit<PdfTemplateInput, 'mode'>,
   options?: PdfGenerationOptions
 ): Promise<PdfGenerationResult> {
-  // 1. Enforce Pro status check at service layer
+  // 1. Check Pro status (for watermark decision)
   const proResult = await checkProStatus();
-  if (!proResult.isPro) {
-    return {
-      success: false,
-      error: {
-        code: 'PRO_REQUIRED',
-        message: 'PDF generation requires Pro subscription',
-      },
-    };
-  }
+  const isPro = proResult.isPro;
 
   // 2. Validate required fields for PDF generation
   const validationResult = validateDocumentForPdf(input.document);
@@ -185,7 +178,12 @@ export async function generateAndSharePdf(
     backgroundImageDataUrl,
   });
 
-  // 3.5. Inject landscape CSS if orientation is LANDSCAPE
+  // 3.5. Inject SAMPLE watermark for free users
+  if (!isPro) {
+    html = injectSampleWatermark(html);
+  }
+
+  // 3.6. Inject landscape CSS if orientation is LANDSCAPE
   if (options?.orientation === 'LANDSCAPE') {
     html = injectLandscapeCss(html);
   }
