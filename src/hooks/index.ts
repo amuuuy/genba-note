@@ -59,3 +59,6 @@ export type { UseFinanceChartReturn } from './useFinanceChart';
 
 export { useKanbanBoard, resolveHandleDrop } from './useKanbanBoard';
 export type { UseKanbanBoardReturn, HandleDropResult } from './useKanbanBoard';
+
+export { useAiPriceSearch } from './useAiPriceSearch';
+export type { UseAiPriceSearchReturn } from './useAiPriceSearch';

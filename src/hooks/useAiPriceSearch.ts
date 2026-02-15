@@ -29,7 +29,7 @@ export interface UseAiPriceSearchReturn {
   setModel: (model: AiSearchModel) => void;
   /** Execute search */
   search: () => Promise<void>;
-  /** Clear all state */
+  /** Clear search state (query, result, error). Model selection is preserved. */
   clear: () => void;
 }
 
