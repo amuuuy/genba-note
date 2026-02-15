@@ -74,8 +74,30 @@ export async function searchMaterialsWithAi(
       };
     }
 
-    const data: GeminiEdgeFunctionResponse = await response.json();
-    const result = mapGeminiResponse(data);
+    let data: unknown;
+    try {
+      data = await response.json();
+    } catch {
+      return {
+        success: false,
+        error: {
+          code: 'PARSE_ERROR',
+          message: 'AIからの回答を解析できませんでした。検索キーワードを変えてお試しください。',
+        },
+      };
+    }
+
+    if (!data || typeof data !== 'object') {
+      return {
+        success: false,
+        error: {
+          code: 'PARSE_ERROR',
+          message: 'AIからの回答を解析できませんでした。検索キーワードを変えてお試しください。',
+        },
+      };
+    }
+
+    const result = mapGeminiResponse(data as GeminiEdgeFunctionResponse);
 
     if (result.items.length === 0 && !result.summary) {
       return {

@@ -41,12 +41,33 @@ export function parseGeminiJsonBlock(text: string): {
       items: Array.isArray(parsed.items)
         ? parsed.items.map(validateAiPriceItem).filter(Boolean) as AiPriceItem[]
         : [],
-      recommendedPriceRange: parsed.recommendedPriceRange ?? null,
+      recommendedPriceRange: validatePriceRange(parsed.recommendedPriceRange),
       summary: typeof parsed.summary === 'string' ? parsed.summary : '',
     };
   } catch {
     return null;
   }
+}
+
+/** Only allow http/https URLs; returns null for other schemes */
+function sanitizeUrl(url: unknown): string | null {
+  if (typeof url !== 'string') return null;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? url : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Validate recommendedPriceRange shape */
+function validatePriceRange(raw: unknown): { min: number; max: number } | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const range = raw as Record<string, unknown>;
+  const min = typeof range.min === 'number' && Number.isFinite(range.min) ? range.min : null;
+  const max = typeof range.max === 'number' && Number.isFinite(range.max) ? range.max : null;
+  if (min === null || max === null || min < 0 || max < 0 || min > max) return null;
+  return { min, max };
 }
 
 /** Validate and normalize a single AiPriceItem */
@@ -66,7 +87,7 @@ function validateAiPriceItem(raw: unknown): AiPriceItem | null {
     price: Math.floor(price),
     taxIncluded: typeof item.taxIncluded === 'boolean' ? item.taxIncluded : true,
     sourceName: typeof item.sourceName === 'string' ? item.sourceName : '不明',
-    sourceUrl: typeof item.sourceUrl === 'string' ? item.sourceUrl : null,
+    sourceUrl: sanitizeUrl(item.sourceUrl),
   };
 }
 
@@ -76,14 +97,20 @@ function validateAiPriceItem(raw: unknown): AiPriceItem | null {
 export function mapGeminiResponse(
   raw: GeminiEdgeFunctionResponse
 ): AiSearchResponse {
-  const parsed = parseGeminiJsonBlock(raw.text);
+  const text = typeof raw.text === 'string' ? raw.text : '';
+  const parsed = parseGeminiJsonBlock(text);
+
+  const rawSources = Array.isArray(raw.sources) ? raw.sources : [];
+  const sources = rawSources.filter(
+    (s) => s && typeof s.uri === 'string' && sanitizeUrl(s.uri) !== null
+  );
 
   return {
-    summary: parsed?.summary ?? raw.text.replace(/```json[\s\S]*?```/, '').trim(),
+    summary: parsed?.summary ?? text.replace(/```json[\s\S]*?```/, '').trim(),
     items: parsed?.items ?? [],
     recommendedPriceRange: parsed?.recommendedPriceRange ?? null,
-    sources: raw.sources,
-    model: raw.model,
+    sources,
+    model: raw.model ?? 'FLASH',
   };
 }
 

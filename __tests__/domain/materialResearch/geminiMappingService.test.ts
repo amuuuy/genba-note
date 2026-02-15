@@ -127,6 +127,62 @@ describe('geminiMappingService', () => {
       expect(result!.recommendedPriceRange).toBeNull();
     });
 
+    it('returns null recommendedPriceRange when shape is invalid', () => {
+      const text = '```json\n{"items": [{"name": "Item", "price": 100, "taxIncluded": true, "sourceName": "Shop", "sourceUrl": null}], "summary": "test", "recommendedPriceRange": {"min": "abc", "max": null}}\n```';
+      const result = parseGeminiJsonBlock(text);
+      expect(result!.recommendedPriceRange).toBeNull();
+    });
+
+    it('returns null recommendedPriceRange when min > max', () => {
+      const text = '```json\n{"items": [{"name": "Item", "price": 100, "taxIncluded": true, "sourceName": "Shop", "sourceUrl": null}], "summary": "test", "recommendedPriceRange": {"min": 3000, "max": 1000}}\n```';
+      const result = parseGeminiJsonBlock(text);
+      expect(result!.recommendedPriceRange).toBeNull();
+    });
+
+    it('nullifies non-http/https sourceUrl', () => {
+      const text = `\`\`\`json
+{
+  "items": [
+    { "name": "Item", "price": 100, "taxIncluded": true, "sourceName": "Shop", "sourceUrl": "javascript:alert(1)" },
+    { "name": "Item2", "price": 200, "taxIncluded": true, "sourceName": "Shop2", "sourceUrl": "myapp://deeplink" }
+  ],
+  "summary": "test"
+}
+\`\`\``;
+
+      const result = parseGeminiJsonBlock(text);
+      expect(result!.items[0].sourceUrl).toBeNull();
+      expect(result!.items[1].sourceUrl).toBeNull();
+    });
+
+    it('allows http and https sourceUrl', () => {
+      const text = `\`\`\`json
+{
+  "items": [
+    { "name": "Item1", "price": 100, "taxIncluded": true, "sourceName": "Shop", "sourceUrl": "https://example.com" },
+    { "name": "Item2", "price": 200, "taxIncluded": true, "sourceName": "Shop2", "sourceUrl": "http://example.com" }
+  ],
+  "summary": "test"
+}
+\`\`\``;
+
+      const result = parseGeminiJsonBlock(text);
+      expect(result!.items[0].sourceUrl).toBe('https://example.com');
+      expect(result!.items[1].sourceUrl).toBe('http://example.com');
+    });
+
+    it('returns empty items when items key is missing from JSON', () => {
+      const text = `\`\`\`json
+{
+  "summary": "Some summary without items"
+}
+\`\`\``;
+
+      const result = parseGeminiJsonBlock(text);
+      expect(result!.items).toEqual([]);
+      expect(result!.summary).toBe('Some summary without items');
+    });
+
     it('floors non-integer prices', () => {
       const text = `\`\`\`json
 {
@@ -179,6 +235,39 @@ describe('geminiMappingService', () => {
       const result = mapGeminiResponse(raw);
       expect(result.summary).toBe('No JSON, just text response from AI.');
       expect(result.items).toHaveLength(0);
+    });
+
+    it('handles non-string text gracefully', () => {
+      const raw = {
+        text: undefined as unknown as string,
+        sources: [],
+        model: 'FLASH' as const,
+        webSearchQueries: [],
+      };
+      const result = mapGeminiResponse(raw);
+      expect(result.summary).toBe('');
+      expect(result.items).toEqual([]);
+    });
+
+    it('handles non-array sources gracefully', () => {
+      const raw = createTestGeminiEdgeFunctionResponse({
+        sources: 'invalid' as unknown as [],
+      });
+      const result = mapGeminiResponse(raw);
+      expect(result.sources).toEqual([]);
+    });
+
+    it('sanitizes non-http/https URIs in sources', () => {
+      const raw = createTestGeminiEdgeFunctionResponse({
+        sources: [
+          { uri: 'https://valid.com', title: 'Valid' },
+          { uri: 'javascript:alert(1)', title: 'Evil' },
+          { uri: 'ftp://files.com', title: 'FTP' },
+        ],
+      });
+      const result = mapGeminiResponse(raw);
+      expect(result.sources).toHaveLength(1);
+      expect(result.sources[0].uri).toBe('https://valid.com');
     });
   });
 

@@ -168,4 +168,60 @@ describe('searchMaterialsWithAi', () => {
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.query).toBe('コンパネ');
   });
+
+  it('returns PARSE_ERROR for malformed response payload (missing text)', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ notText: 123, sources: [] }),
+    });
+
+    const result = await searchMaterialsWithAi({ query: 'コンパネ' });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.code).toBe('PARSE_ERROR');
+    }
+  });
+
+  it('returns PARSE_ERROR when response.json() throws', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => { throw new Error('Invalid JSON'); },
+    });
+
+    const result = await searchMaterialsWithAi({ query: 'コンパネ' });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.code).toBe('PARSE_ERROR');
+    }
+  });
+
+  it('returns PARSE_ERROR when response.json() resolves to null', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => null,
+    });
+
+    const result = await searchMaterialsWithAi({ query: 'コンパネ' });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.code).toBe('PARSE_ERROR');
+    }
+  });
+
+  it('returns PARSE_ERROR when response.json() resolves to a primitive', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => 123,
+    });
+
+    const result = await searchMaterialsWithAi({ query: 'コンパネ' });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.code).toBe('PARSE_ERROR');
+    }
+  });
 });
