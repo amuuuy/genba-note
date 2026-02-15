@@ -6,9 +6,11 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, Pressable, Linking } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { AiPriceItem } from '@/types/materialResearch';
+import { formatCurrency } from '@/utils/currencyFormat';
+import { safeOpenUrl } from '@/utils/safeOpenUrl';
 
 export interface AiPriceItemCardProps {
   /** Price item to display */
@@ -19,15 +21,11 @@ export interface AiPriceItemCardProps {
   testID?: string;
 }
 
-function formatCurrency(value: number): string {
-  return value.toLocaleString('ja-JP');
-}
-
 export const AiPriceItemCard = React.memo(
   function AiPriceItemCard({ item, onRegister, testID }: AiPriceItemCardProps) {
     const handleSourcePress = () => {
       if (item.sourceUrl) {
-        Linking.openURL(item.sourceUrl);
+        safeOpenUrl(item.sourceUrl);
       }
     };
 

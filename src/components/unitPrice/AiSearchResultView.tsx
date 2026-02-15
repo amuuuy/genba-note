@@ -12,12 +12,17 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  Linking,
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { AiSearchResponse, AiPriceItem } from '@/types/materialResearch';
+import { formatCurrency } from '@/utils/currencyFormat';
+import { safeOpenUrl } from '@/utils/safeOpenUrl';
 import { AiPriceItemCard } from './AiPriceItemCard';
+
+import { determineAiSearchViewState } from './aiSearchViewState';
+export type { AiSearchViewState } from './aiSearchViewState';
+export { determineAiSearchViewState };
 
 export interface AiSearchResultViewProps {
   /** AI search result */
@@ -36,10 +41,6 @@ export interface AiSearchResultViewProps {
   testID?: string;
 }
 
-function formatCurrency(value: number): string {
-  return value.toLocaleString('ja-JP');
-}
-
 export const AiSearchResultView: React.FC<AiSearchResultViewProps> = ({
   result,
   isLoading,
@@ -50,11 +51,12 @@ export const AiSearchResultView: React.FC<AiSearchResultViewProps> = ({
   testID,
 }) => {
   const handleSourcePress = useCallback((uri: string) => {
-    Linking.openURL(uri);
+    safeOpenUrl(uri);
   }, []);
 
-  // Loading state
-  if (isLoading) {
+  const viewState = determineAiSearchViewState({ isLoading, error, hasSearched, result });
+
+  if (viewState === 'loading') {
     return (
       <View style={styles.centerContainer} testID={testID}>
         <ActivityIndicator size="large" color="#8B5CF6" />
@@ -64,8 +66,7 @@ export const AiSearchResultView: React.FC<AiSearchResultViewProps> = ({
     );
   }
 
-  // Error state
-  if (error) {
+  if (viewState === 'error') {
     return (
       <View style={styles.centerContainer} testID={testID}>
         <Ionicons name="alert-circle-outline" size={48} color="#FF3B30" />
@@ -77,8 +78,7 @@ export const AiSearchResultView: React.FC<AiSearchResultViewProps> = ({
     );
   }
 
-  // Empty state (before search)
-  if (!hasSearched) {
+  if (viewState === 'empty') {
     return (
       <View style={styles.centerContainer} testID={testID}>
         <Ionicons name="sparkles-outline" size={48} color="#C7C7CC" />
@@ -89,8 +89,7 @@ export const AiSearchResultView: React.FC<AiSearchResultViewProps> = ({
     );
   }
 
-  // No results
-  if (!result || result.items.length === 0) {
+  if (viewState === 'no-results') {
     return (
       <View style={styles.centerContainer} testID={testID}>
         <Ionicons name="search-outline" size={48} color="#C7C7CC" />
@@ -102,7 +101,9 @@ export const AiSearchResultView: React.FC<AiSearchResultViewProps> = ({
     );
   }
 
-  // Results
+  // viewState === 'results' — guard narrows result for TypeScript strict mode
+  if (!result) return null;
+
   return (
     <ScrollView
       style={styles.scrollView}

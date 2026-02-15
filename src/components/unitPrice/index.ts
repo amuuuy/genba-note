@@ -18,3 +18,12 @@ export type { MaterialSearchModalProps } from './MaterialSearchModal';
 
 export { MaterialSearchResultItem } from './MaterialSearchResultItem';
 export type { MaterialSearchResultItemProps } from './MaterialSearchResultItem';
+
+export { AiPriceItemCard } from './AiPriceItemCard';
+export type { AiPriceItemCardProps } from './AiPriceItemCard';
+
+export { AiModelSelector } from './AiModelSelector';
+export type { AiModelSelectorProps } from './AiModelSelector';
+
+export { AiSearchResultView } from './AiSearchResultView';
+export type { AiSearchResultViewProps } from './AiSearchResultView';

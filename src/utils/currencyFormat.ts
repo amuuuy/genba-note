@@ -1,8 +1,17 @@
 /**
  * Currency Formatting Utilities
  *
- * Functions for formatting monetary values in Japanese style (万, 千万, 億).
+ * Functions for formatting monetary values in Japanese style.
  */
+
+/**
+ * Format currency with thousand separators for display.
+ * @param value - Amount in yen
+ * @returns Formatted string with commas (e.g., "1,234,567")
+ */
+export function formatCurrency(value: number): string {
+  return value.toLocaleString('ja-JP');
+}
 
 /**
  * Format a numeric string for Y-axis labels in Japanese currency display.
