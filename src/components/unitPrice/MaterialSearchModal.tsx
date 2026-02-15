@@ -74,21 +74,15 @@ export const MaterialSearchModal: React.FC<MaterialSearchModalProps> = ({
   }, [rakuten, ai, onClose]);
 
   const handleSearch = useCallback(() => {
-    if (!query.trim()) return;
+    if (!query.trim() || isLoading) return;
 
     if (activeTab === 'rakuten') {
-      rakuten.setQuery(query);
-      // Need to trigger search after setting query
-      // useMaterialSearch uses its own query state, so we set it and trigger
-      rakuten.setQuery(query);
-      // Workaround: call search directly with the query
-      setTimeout(() => rakuten.search(), 0);
+      rakuten.search(query);
     } else {
-      ai.setQuery(query);
       setHasAiSearched(true);
-      setTimeout(() => ai.search(), 0);
+      ai.search(query);
     }
-  }, [query, activeTab, rakuten, ai]);
+  }, [query, activeTab, isLoading, rakuten, ai]);
 
   const handleRakutenRegister = useCallback(
     (result: MaterialSearchResult) => {

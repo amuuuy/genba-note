@@ -27,8 +27,8 @@ export interface UseAiPriceSearchReturn {
   model: AiSearchModel;
   /** Change AI model */
   setModel: (model: AiSearchModel) => void;
-  /** Execute search */
-  search: () => Promise<void>;
+  /** Execute search. Pass query to avoid stale-closure issues. */
+  search: (queryOverride?: string) => Promise<void>;
   /** Clear search state (query, result, error). Model selection is preserved. */
   clear: () => void;
 }
@@ -45,14 +45,16 @@ export function useAiPriceSearch(
   const [error, setError] = useState<string | null>(null);
   const [model, setModel] = useState<AiSearchModel>(defaultModel);
 
-  const search = useCallback(async () => {
-    if (!query.trim()) return;
+  const search = useCallback(async (queryOverride?: string) => {
+    const searchQuery = queryOverride ?? query;
+    if (!searchQuery.trim()) return;
 
+    if (queryOverride !== undefined) setQuery(queryOverride);
     setIsLoading(true);
     setError(null);
     setResult(null);
 
-    const response = await searchMaterialsWithAi({ query, model });
+    const response = await searchMaterialsWithAi({ query: searchQuery, model });
 
     if (response.success) {
       setResult(response.data);

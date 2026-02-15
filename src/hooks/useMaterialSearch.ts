@@ -24,8 +24,8 @@ export interface UseMaterialSearchReturn {
   currentPage: number;
   /** Total pages available */
   totalPages: number;
-  /** Execute search (resets to page 1) */
-  search: () => Promise<void>;
+  /** Execute search (resets to page 1). Pass query to avoid stale-closure issues. */
+  search: (queryOverride?: string) => Promise<void>;
   /** Load next page (appends results) */
   loadMore: () => Promise<void>;
   /** Clear all state */
@@ -43,13 +43,15 @@ export function useMaterialSearch(): UseMaterialSearchReturn {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
 
-  const search = useCallback(async () => {
-    if (!query.trim()) return;
+  const search = useCallback(async (queryOverride?: string) => {
+    const searchQuery = queryOverride ?? query;
+    if (!searchQuery.trim()) return;
 
+    if (queryOverride !== undefined) setQuery(queryOverride);
     setIsLoading(true);
     setError(null);
 
-    const result = await searchMaterials({ keyword: query, page: 1 });
+    const result = await searchMaterials({ keyword: searchQuery, page: 1 });
     if (result.success) {
       setResults(result.data.results);
       setCurrentPage(result.data.currentPage);
