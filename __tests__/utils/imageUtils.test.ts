@@ -11,6 +11,7 @@ import {
   moveFinancePhotoToEntryDirectory,
   deleteCustomerPhotosDirectory,
   deleteFinancePhotosDirectory,
+  deleteStoredImage,
 } from '@/utils/imageUtils';
 
 describe('imageUriToBase64', () => {
@@ -204,16 +205,96 @@ describe('path traversal protection', () => {
   });
 
   describe('deleteCustomerPhotosDirectory', () => {
-    it('does not delete when customerId has path traversal', async () => {
-      // Should not throw, just return early
-      await deleteCustomerPhotosDirectory('../../sensitive');
-      // If it reached this point without throwing, validation worked
+    it('throws when customerId has path traversal', async () => {
+      await expect(
+        deleteCustomerPhotosDirectory('../../sensitive')
+      ).rejects.toThrow('Invalid customerId');
     });
   });
 
   describe('deleteFinancePhotosDirectory', () => {
     it('does not delete when financeEntryId has path traversal', async () => {
       await deleteFinancePhotosDirectory('../../sensitive');
+    });
+  });
+
+  describe('deleteStoredImage allowlist', () => {
+    it('allows deletion of seal_images file', async () => {
+      const deleteSpy = jest.spyOn(File.prototype, 'delete');
+      await deleteStoredImage('file:///mock/document/seal_images/seal_123.png');
+      expect(deleteSpy).toHaveBeenCalled();
+      deleteSpy.mockRestore();
+    });
+
+    it('allows deletion of customer_photos file', async () => {
+      const deleteSpy = jest.spyOn(File.prototype, 'delete');
+      await deleteStoredImage('file:///mock/document/customer_photos/cust-1/before/photo.jpg');
+      expect(deleteSpy).toHaveBeenCalled();
+      deleteSpy.mockRestore();
+    });
+
+    it('allows deletion of background_images file', async () => {
+      const deleteSpy = jest.spyOn(File.prototype, 'delete');
+      await deleteStoredImage('file:///mock/document/background_images/bg_123.png');
+      expect(deleteSpy).toHaveBeenCalled();
+      deleteSpy.mockRestore();
+    });
+
+    it('allows deletion of finance_photos file', async () => {
+      const deleteSpy = jest.spyOn(File.prototype, 'delete');
+      await deleteStoredImage('file:///mock/document/finance_photos/entry-1/photo.jpg');
+      expect(deleteSpy).toHaveBeenCalled();
+      deleteSpy.mockRestore();
+    });
+
+    it('rejects URI outside document directory', async () => {
+      const deleteSpy = jest.spyOn(File.prototype, 'delete');
+      await deleteStoredImage('file:///other/path/image.png');
+      expect(deleteSpy).not.toHaveBeenCalled();
+      deleteSpy.mockRestore();
+    });
+
+    it('rejects URI in non-allowed subdirectory', async () => {
+      const deleteSpy = jest.spyOn(File.prototype, 'delete');
+      await deleteStoredImage('file:///mock/document/other_dir/image.png');
+      expect(deleteSpy).not.toHaveBeenCalled();
+      deleteSpy.mockRestore();
+    });
+
+    it('rejects URI with raw path traversal (..)', async () => {
+      const deleteSpy = jest.spyOn(File.prototype, 'delete');
+      await deleteStoredImage('file:///mock/document/seal_images/../../../etc/passwd');
+      expect(deleteSpy).not.toHaveBeenCalled();
+      deleteSpy.mockRestore();
+    });
+
+    it('rejects URI with URL-encoded path traversal (%2e%2e)', async () => {
+      const deleteSpy = jest.spyOn(File.prototype, 'delete');
+      await deleteStoredImage('file:///mock/document/seal_images/%2e%2e/%2e%2e/etc/passwd');
+      expect(deleteSpy).not.toHaveBeenCalled();
+      deleteSpy.mockRestore();
+    });
+
+    it('rejects URI with backslash', async () => {
+      const deleteSpy = jest.spyOn(File.prototype, 'delete');
+      await deleteStoredImage('file:///mock/document/seal_images\\..\\etc\\passwd');
+      expect(deleteSpy).not.toHaveBeenCalled();
+      deleteSpy.mockRestore();
+    });
+
+    it('rejects empty string', async () => {
+      const deleteSpy = jest.spyOn(File.prototype, 'delete');
+      await deleteStoredImage('');
+      expect(deleteSpy).not.toHaveBeenCalled();
+      deleteSpy.mockRestore();
+    });
+
+    it('rejects URI with document prefix but no slash boundary (e.g. documentseal_images)', async () => {
+      const deleteSpy = jest.spyOn(File.prototype, 'delete');
+      // "file:///mock/documentseal_images/foo.png" should NOT pass - missing slash boundary
+      await deleteStoredImage('file:///mock/documentseal_images/foo.png');
+      expect(deleteSpy).not.toHaveBeenCalled();
+      deleteSpy.mockRestore();
     });
   });
 });

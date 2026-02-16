@@ -43,19 +43,21 @@ export function isCacheValid(cache: SubscriptionCache | null): cache is Subscrip
   }
 
   // entitlementExpiration can be number (including 0) or null (lifetime)
-  if (cache.entitlementExpiration !== null && typeof cache.entitlementExpiration !== 'number') {
+  if (cache.entitlementExpiration !== null) {
+    if (typeof cache.entitlementExpiration !== 'number' || !Number.isFinite(cache.entitlementExpiration)) {
+      return false;
+    }
+  }
+
+  // lastVerifiedAt must be a finite number
+  if (typeof cache.lastVerifiedAt !== 'number' || !Number.isFinite(cache.lastVerifiedAt)) {
     return false;
   }
 
-  // lastVerifiedAt must be a valid number
-  if (typeof cache.lastVerifiedAt !== 'number' || Number.isNaN(cache.lastVerifiedAt)) {
-    return false;
-  }
-
-  // lastVerifiedUptime must be a non-negative number
+  // lastVerifiedUptime must be a finite non-negative number
   if (
     typeof cache.lastVerifiedUptime !== 'number' ||
-    Number.isNaN(cache.lastVerifiedUptime) ||
+    !Number.isFinite(cache.lastVerifiedUptime) ||
     cache.lastVerifiedUptime < 0
   ) {
     return false;
@@ -121,22 +123,25 @@ export function validateProOffline(input: ValidationInput): ProValidationResult 
   }
   // null = lifetime, passes condition 2
 
-  // Condition 3a: Uptime rollback detection (reboot)
-  // currentUptime >= last_verified_uptime
-  if (currentUptime < cache.lastVerifiedUptime) {
+  // Condition 3: Uptime check
+  // performance.now() resets to 0 on app restart, so rollback is expected after restart.
+  // Fail-closed: rollback detected → deny Pro and require online re-verification.
+  // This prevents offline grace period extension via repeated app restarts.
+  if (currentUptime >= cache.lastVerifiedUptime) {
+    // Same session: check uptime grace period
+    const uptimeElapsed = currentUptime - cache.lastVerifiedUptime;
+    if (uptimeElapsed > GRACE_PERIOD_MS) {
+      return {
+        isProAllowed: false,
+        reason: 'grace_period_exceeded',
+        requiresOnlineVerification: true,
+      };
+    }
+  } else {
+    // Uptime rollback (app restart) detected - fail-closed
     return {
       isProAllowed: false,
       reason: 'uptime_rollback',
-      requiresOnlineVerification: true,
-    };
-  }
-
-  // Condition 3b: Uptime grace period (elapsed <= 7 days)
-  const uptimeElapsed = currentUptime - cache.lastVerifiedUptime;
-  if (uptimeElapsed > GRACE_PERIOD_MS) {
-    return {
-      isProAllowed: false,
-      reason: 'grace_period_exceeded',
       requiresOnlineVerification: true,
     };
   }
@@ -161,7 +166,7 @@ export function validateProOffline(input: ValidationInput): ProValidationResult 
     };
   }
 
-  // All 4 conditions passed
+  // All conditions passed - same session, within grace period
   return {
     isProAllowed: true,
     reason: 'offline_grace_period',

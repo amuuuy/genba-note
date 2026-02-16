@@ -89,6 +89,36 @@ describe('offlineValidationService', () => {
         expect(result.isProAllowed).toBe(false);
         expect(result.reason).toBe('cache_invalid');
       });
+
+      it('should return cache_invalid when lastVerifiedAt is Infinity', () => {
+        const cache = createValidCache({
+          lastVerifiedAt: Infinity,
+        });
+
+        const result = validateProOffline({
+          cache,
+          currentTime: NOW,
+          currentUptime: CURRENT_UPTIME,
+        });
+
+        expect(result.isProAllowed).toBe(false);
+        expect(result.reason).toBe('cache_invalid');
+      });
+
+      it('should return cache_invalid when lastVerifiedUptime is Infinity', () => {
+        const cache = createValidCache({
+          lastVerifiedUptime: Infinity,
+        });
+
+        const result = validateProOffline({
+          cache,
+          currentTime: NOW,
+          currentUptime: CURRENT_UPTIME,
+        });
+
+        expect(result.isProAllowed).toBe(false);
+        expect(result.reason).toBe('cache_invalid');
+      });
     });
 
     describe('condition 1: entitlement_active check', () => {
@@ -193,10 +223,12 @@ describe('offlineValidationService', () => {
       });
     });
 
-    describe('condition 3: uptime rollback detection', () => {
-      it('should return uptime_rollback when currentUptime < last_verified_uptime (reboot)', () => {
+    describe('condition 3: uptime rollback detection (app restart)', () => {
+      it('should deny Pro on uptime rollback (fail-closed)', () => {
+        // After app restart, currentUptime < lastVerifiedUptime
+        // Fail-closed: deny Pro and require online re-verification
         const cache = createValidCache({
-          lastVerifiedAt: NOW - 1000,
+          lastVerifiedAt: NOW - 1000, // Recent wall-clock (within grace period)
           lastVerifiedUptime: CURRENT_UPTIME + 1000, // Higher than current (reboot detected)
         });
 
@@ -211,7 +243,25 @@ describe('offlineValidationService', () => {
         expect(result.requiresOnlineVerification).toBe(true);
       });
 
-      it('should PASS when currentUptime >= last_verified_uptime', () => {
+      it('should deny on uptime rollback even when wall-clock is within grace period', () => {
+        // Uptime rollback is checked first and fails immediately (fail-closed)
+        const cache = createValidCache({
+          lastVerifiedAt: NOW - 100, // Very recent wall-clock
+          lastVerifiedUptime: CURRENT_UPTIME + 1000, // Reboot detected
+        });
+
+        const result = validateProOffline({
+          cache,
+          currentTime: NOW,
+          currentUptime: CURRENT_UPTIME,
+        });
+
+        expect(result.isProAllowed).toBe(false);
+        expect(result.reason).toBe('uptime_rollback');
+        expect(result.requiresOnlineVerification).toBe(true);
+      });
+
+      it('should PASS with requiresOnlineVerification=false when no rollback', () => {
         const cache = createValidCache({
           lastVerifiedAt: NOW - 1000,
           lastVerifiedUptime: CURRENT_UPTIME - 1000, // Lower than current (normal)
@@ -223,7 +273,9 @@ describe('offlineValidationService', () => {
           currentUptime: CURRENT_UPTIME,
         });
 
-        expect(result.reason).not.toBe('uptime_rollback');
+        // Same session, uptime elapsed within grace → allowed, no online verification needed
+        expect(result.isProAllowed).toBe(true);
+        expect(result.requiresOnlineVerification).toBe(false);
       });
     });
 

@@ -42,12 +42,18 @@ export const v9AddEmailFieldMigration: Migration = {
       // Migrate settings
       const settingsJson = await AsyncStorage.getItem(STORAGE_KEYS.SETTINGS);
       if (settingsJson) {
-        const settings = JSON.parse(settingsJson) as AppSettings;
+        const settings = JSON.parse(settingsJson);
+        // Defensive: guard against corrupted root (e.g. JSON.parse("null") → null)
+        if (!settings || typeof settings !== 'object' || Array.isArray(settings)) {
+          return { success: true };
+        }
+        // Defensive: ensure issuer object exists (handles partial data corruption)
+        const issuer = (settings as AppSettings).issuer ?? {} as AppSettings['issuer'];
         const migratedSettings: AppSettings = {
           ...settings,
           issuer: {
-            ...settings.issuer,
-            email: settings.issuer.email ?? null,
+            ...issuer,
+            email: issuer.email ?? null,
           },
         };
         await AsyncStorage.setItem(

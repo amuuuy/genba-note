@@ -310,6 +310,133 @@ describe('secureStorageService', () => {
       expect(result.success).toBe(true);
       expect(mockedSecureStore.deleteItemAsync).toHaveBeenCalledTimes(4);
     });
+
+    it('should reject partial numeric "123abc" in expiration via getSubscriptionCache', async () => {
+      mockedSecureStore.getItemAsync
+        .mockResolvedValueOnce('true')
+        .mockResolvedValueOnce('123abc')
+        .mockResolvedValueOnce('1000')
+        .mockResolvedValueOnce('2000');
+
+      const result = await getSubscriptionCache();
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('PARSE_ERROR');
+    });
+
+    it('should reject scientific notation "1e3" in lastVerifiedAt via getSubscriptionCache', async () => {
+      mockedSecureStore.getItemAsync
+        .mockResolvedValueOnce('true')
+        .mockResolvedValueOnce('1000')
+        .mockResolvedValueOnce('1e3')
+        .mockResolvedValueOnce('2000');
+
+      const result = await getSubscriptionCache();
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('PARSE_ERROR');
+    });
+
+    it('should reject hex "0x10" in lastVerifiedUptime via getSubscriptionCache', async () => {
+      mockedSecureStore.getItemAsync
+        .mockResolvedValueOnce('true')
+        .mockResolvedValueOnce('1000')
+        .mockResolvedValueOnce('2000')
+        .mockResolvedValueOnce('0x10');
+
+      const result = await getSubscriptionCache();
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('PARSE_ERROR');
+    });
+
+    it('should reject NaN in entitlementExpiration via saveSubscriptionCache', async () => {
+      const result = await saveSubscriptionCache({
+        entitlementActive: true,
+        entitlementExpiration: NaN,
+        lastVerifiedAt: 1000,
+        lastVerifiedUptime: 2000,
+      });
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('WRITE_ERROR');
+      expect(mockedSecureStore.setItemAsync).not.toHaveBeenCalled();
+    });
+
+    it('should reject Infinity in lastVerifiedAt via saveSubscriptionCache', async () => {
+      const result = await saveSubscriptionCache({
+        entitlementActive: true,
+        entitlementExpiration: 1000,
+        lastVerifiedAt: Infinity,
+        lastVerifiedUptime: 2000,
+      });
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('WRITE_ERROR');
+      expect(mockedSecureStore.setItemAsync).not.toHaveBeenCalled();
+    });
+
+    it('should reject negative values in lastVerifiedUptime via saveSubscriptionCache', async () => {
+      const result = await saveSubscriptionCache({
+        entitlementActive: true,
+        entitlementExpiration: 1000,
+        lastVerifiedAt: 2000,
+        lastVerifiedUptime: -1,
+      });
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('WRITE_ERROR');
+      expect(mockedSecureStore.setItemAsync).not.toHaveBeenCalled();
+    });
+
+    it('should reject unsafe integer in entitlementExpiration via saveSubscriptionCache', async () => {
+      const result = await saveSubscriptionCache({
+        entitlementActive: true,
+        entitlementExpiration: Number.MAX_SAFE_INTEGER + 1,
+        lastVerifiedAt: 1000,
+        lastVerifiedUptime: 2000,
+      });
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('WRITE_ERROR');
+      expect(mockedSecureStore.setItemAsync).not.toHaveBeenCalled();
+    });
+
+    it('should accept null entitlementExpiration via saveSubscriptionCache', async () => {
+      mockedSecureStore.setItemAsync.mockResolvedValue();
+
+      const result = await saveSubscriptionCache({
+        entitlementActive: true,
+        entitlementExpiration: null,
+        lastVerifiedAt: 1000,
+        lastVerifiedUptime: 2000,
+      });
+      expect(result.success).toBe(true);
+      expect(mockedSecureStore.setItemAsync).toHaveBeenCalledWith(
+        SUBSCRIPTION_STORE_KEYS.ENTITLEMENT_EXPIRATION,
+        'null'
+      );
+    });
+
+    it('should normalize float values via saveSubscriptionCache (Math.floor)', async () => {
+      mockedSecureStore.setItemAsync.mockResolvedValue();
+
+      const floatCache: SubscriptionCache = {
+        entitlementActive: true,
+        entitlementExpiration: 1000.7,
+        lastVerifiedAt: 2000.9,
+        lastVerifiedUptime: 3000.3,
+      };
+
+      await saveSubscriptionCache(floatCache);
+
+      // Verify Math.floor was applied
+      expect(mockedSecureStore.setItemAsync).toHaveBeenCalledWith(
+        SUBSCRIPTION_STORE_KEYS.ENTITLEMENT_EXPIRATION,
+        '1000'
+      );
+      expect(mockedSecureStore.setItemAsync).toHaveBeenCalledWith(
+        SUBSCRIPTION_STORE_KEYS.LAST_VERIFIED_AT,
+        '2000'
+      );
+      expect(mockedSecureStore.setItemAsync).toHaveBeenCalledWith(
+        SUBSCRIPTION_STORE_KEYS.LAST_VERIFIED_UPTIME,
+        '3000'
+      );
+    });
   });
 
   // === Individual Subscription Value Tests ===
@@ -375,6 +502,56 @@ describe('secureStorageService', () => {
         expect(result.success).toBe(true);
         expect(result.data).toBe(0);
       });
+
+      it('should return PARSE_ERROR for corrupt value', async () => {
+        mockedSecureStore.getItemAsync.mockResolvedValue('not_a_number');
+
+        const result = await getEntitlementExpiration();
+        expect(result.success).toBe(false);
+        expect(result.error?.code).toBe('PARSE_ERROR');
+      });
+
+      it('should return PARSE_ERROR for partial numeric like "123abc"', async () => {
+        mockedSecureStore.getItemAsync.mockResolvedValue('123abc');
+        const result = await getEntitlementExpiration();
+        expect(result.success).toBe(false);
+        expect(result.error?.code).toBe('PARSE_ERROR');
+      });
+
+      it('should return PARSE_ERROR for scientific notation "1e3"', async () => {
+        mockedSecureStore.getItemAsync.mockResolvedValue('1e3');
+        const result = await getEntitlementExpiration();
+        expect(result.success).toBe(false);
+        expect(result.error?.code).toBe('PARSE_ERROR');
+      });
+
+      it('should return PARSE_ERROR for hex "0x10"', async () => {
+        mockedSecureStore.getItemAsync.mockResolvedValue('0x10');
+        const result = await getEntitlementExpiration();
+        expect(result.success).toBe(false);
+        expect(result.error?.code).toBe('PARSE_ERROR');
+      });
+
+      it('should reject NaN via setEntitlementExpiration', async () => {
+        const result = await setEntitlementExpiration(NaN);
+        expect(result.success).toBe(false);
+        expect(result.error?.code).toBe('WRITE_ERROR');
+        expect(mockedSecureStore.setItemAsync).not.toHaveBeenCalled();
+      });
+
+      it('should reject negative via setEntitlementExpiration', async () => {
+        const result = await setEntitlementExpiration(-1);
+        expect(result.success).toBe(false);
+        expect(result.error?.code).toBe('WRITE_ERROR');
+        expect(mockedSecureStore.setItemAsync).not.toHaveBeenCalled();
+      });
+
+      it('should reject Infinity via setEntitlementExpiration', async () => {
+        const result = await setEntitlementExpiration(Infinity);
+        expect(result.success).toBe(false);
+        expect(result.error?.code).toBe('WRITE_ERROR');
+        expect(mockedSecureStore.setItemAsync).not.toHaveBeenCalled();
+      });
     });
 
     describe('last_verified_at', () => {
@@ -396,6 +573,35 @@ describe('secureStorageService', () => {
         expect(result.success).toBe(true);
         expect(result.data).toBeNull();
       });
+
+      it('should return PARSE_ERROR for corrupt value', async () => {
+        mockedSecureStore.getItemAsync.mockResolvedValue('corrupt');
+
+        const result = await getLastVerifiedAt();
+        expect(result.success).toBe(false);
+        expect(result.error?.code).toBe('PARSE_ERROR');
+      });
+
+      it('should return PARSE_ERROR for partial numeric like "123abc"', async () => {
+        mockedSecureStore.getItemAsync.mockResolvedValue('123abc');
+        const result = await getLastVerifiedAt();
+        expect(result.success).toBe(false);
+        expect(result.error?.code).toBe('PARSE_ERROR');
+      });
+
+      it('should reject NaN via setLastVerifiedAt', async () => {
+        const result = await setLastVerifiedAt(NaN);
+        expect(result.success).toBe(false);
+        expect(result.error?.code).toBe('WRITE_ERROR');
+        expect(mockedSecureStore.setItemAsync).not.toHaveBeenCalled();
+      });
+
+      it('should reject negative via setLastVerifiedAt', async () => {
+        const result = await setLastVerifiedAt(-1);
+        expect(result.success).toBe(false);
+        expect(result.error?.code).toBe('WRITE_ERROR');
+        expect(mockedSecureStore.setItemAsync).not.toHaveBeenCalled();
+      });
     });
 
     describe('last_verified_uptime', () => {
@@ -416,6 +622,35 @@ describe('secureStorageService', () => {
         const result = await getLastVerifiedUptime();
         expect(result.success).toBe(true);
         expect(result.data).toBeNull();
+      });
+
+      it('should return PARSE_ERROR for corrupt value', async () => {
+        mockedSecureStore.getItemAsync.mockResolvedValue('abc');
+
+        const result = await getLastVerifiedUptime();
+        expect(result.success).toBe(false);
+        expect(result.error?.code).toBe('PARSE_ERROR');
+      });
+
+      it('should return PARSE_ERROR for partial numeric like "123abc"', async () => {
+        mockedSecureStore.getItemAsync.mockResolvedValue('123abc');
+        const result = await getLastVerifiedUptime();
+        expect(result.success).toBe(false);
+        expect(result.error?.code).toBe('PARSE_ERROR');
+      });
+
+      it('should reject NaN via setLastVerifiedUptime', async () => {
+        const result = await setLastVerifiedUptime(NaN);
+        expect(result.success).toBe(false);
+        expect(result.error?.code).toBe('WRITE_ERROR');
+        expect(mockedSecureStore.setItemAsync).not.toHaveBeenCalled();
+      });
+
+      it('should reject negative via setLastVerifiedUptime', async () => {
+        const result = await setLastVerifiedUptime(-1);
+        expect(result.success).toBe(false);
+        expect(result.error?.code).toBe('WRITE_ERROR');
+        expect(mockedSecureStore.setItemAsync).not.toHaveBeenCalled();
       });
     });
   });

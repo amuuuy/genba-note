@@ -23,6 +23,7 @@ import { STORAGE_KEYS } from '@/utils/constants';
 import { customersQueue } from '@/utils/writeQueue';
 import { getReadOnlyMode } from '@/storage/readOnlyModeState';
 import { deleteWorkLogEntriesByCustomer } from './workLogEntryService';
+import { deletePhotoMetadataByCustomer } from './customerPhotoService';
 import { deleteCustomerPhotosDirectory } from '@/utils/imageUtils';
 
 // === Helper Functions ===
@@ -310,24 +311,40 @@ export async function deleteCustomer(
     }
   });
 
-  if (!customerResult.success) {
+  // If delete failed for a reason other than NOT_FOUND, return early
+  // If NOT_FOUND, still proceed with cascade cleanup (idempotent cleanup for partial failures)
+  if (!customerResult.success && customerResult.error?.code !== 'CUSTOMER_NOT_FOUND') {
     return customerResult;
   }
 
-  // Step 2: Cascade delete work log entries and photos (outside customersQueue to avoid deadlock)
-  // Failures here are logged but don't fail the operation since the customer is already deleted.
-  try {
-    await deleteWorkLogEntriesByCustomer(id);
-  } catch (error) {
-    if (__DEV__) console.warn('Failed to cascade delete work log entries for customer:', id, error);
+  // Step 2: Cascade delete work log entries (outside customersQueue to avoid deadlock)
+  const workLogResult = await deleteWorkLogEntriesByCustomer(id);
+  if (!workLogResult.success && __DEV__) {
+    console.warn('Failed to cascade delete work log entries for customer:', id, workLogResult.error);
   }
 
+  // Step 3: Delete photo files directory FIRST (before metadata)
+  // Order matters: if directory deletion fails, metadata is preserved for retry
+  let directoryDeleted = false;
   try {
     await deleteCustomerPhotosDirectory(id);
+    directoryDeleted = true;
   } catch (error) {
+    // Directory deletion failed - skip metadata deletion to preserve retry capability
     if (__DEV__) console.warn('Failed to cascade delete customer photos directory:', id, error);
   }
 
+  // Step 4: Delete photo metadata only if directory was successfully deleted
+  // Skipping when directory deletion failed preserves metadata for retry
+  if (directoryDeleted) {
+    const photoResult = await deletePhotoMetadataByCustomer(id);
+    if (!photoResult.success && __DEV__) {
+      console.warn('Failed to cascade delete photo metadata for customer:', id, photoResult.error);
+    }
+  }
+
+  // Customer itself is deleted - always return success
+  // Cascade failures are logged but don't change the result since the customer record is gone
   return successResult(undefined);
 }
 

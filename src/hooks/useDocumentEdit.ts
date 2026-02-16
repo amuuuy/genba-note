@@ -495,10 +495,9 @@ export function useDocumentEdit(
         const result = await createDocument(input);
         if (result.success && result.data) {
           // Increment cumulative creation counter (for free tier limits)
-          try {
-            await incrementDocumentCreationCount();
-          } catch {
-            // Non-fatal: counter increment failure should not block document save
+          const counterResult = await incrementDocumentCreationCount();
+          if (!counterResult.success && __DEV__) {
+            console.warn('Failed to increment document creation counter:', counterResult.error);
           }
           dispatch({ type: 'SAVE_SUCCESS', document: result.data });
           return result.data;

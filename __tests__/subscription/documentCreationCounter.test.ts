@@ -3,6 +3,7 @@
  *
  * Tests for the cumulative document creation counter.
  * "Cumulative" means the count only goes up - deleting docs does NOT reduce the count.
+ * Fail-closed: corrupt data blocks creation rather than resetting to 0.
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -16,6 +17,13 @@ import {
 jest.mock('@react-native-async-storage/async-storage', () => ({
   getItem: jest.fn(),
   setItem: jest.fn(),
+}));
+
+// Mock writeQueue to execute immediately (no actual queuing in tests)
+jest.mock('@/utils/writeQueue', () => ({
+  createWriteQueue: () => ({
+    enqueue: <T>(fn: () => Promise<T>) => fn(),
+  }),
 }));
 
 const mockGetItem = AsyncStorage.getItem as jest.MockedFunction<typeof AsyncStorage.getItem>;
@@ -32,34 +40,60 @@ describe('DOCUMENT_CREATION_COUNT_KEY', () => {
 });
 
 describe('getDocumentCreationCount', () => {
-  it('should return 0 when no value stored', async () => {
+  it('should return success with 0 when no value stored', async () => {
     mockGetItem.mockResolvedValue(null);
-    const count = await getDocumentCreationCount();
-    expect(count).toBe(0);
+    const result = await getDocumentCreationCount();
+    expect(result.success).toBe(true);
+    expect(result.count).toBe(0);
   });
 
-  it('should return stored count', async () => {
+  it('should return success with stored count', async () => {
     mockGetItem.mockResolvedValue('5');
-    const count = await getDocumentCreationCount();
-    expect(count).toBe(5);
+    const result = await getDocumentCreationCount();
+    expect(result.success).toBe(true);
+    expect(result.count).toBe(5);
   });
 
-  it('should return 0 when stored value is not a number', async () => {
+  it('should return error when stored value is not a number (fail-closed)', async () => {
     mockGetItem.mockResolvedValue('invalid');
-    const count = await getDocumentCreationCount();
-    expect(count).toBe(0);
+    const result = await getDocumentCreationCount();
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('Corrupt counter value');
   });
 
-  it('should return 0 when stored value is negative', async () => {
+  it('should return error when stored value is negative (fail-closed)', async () => {
     mockGetItem.mockResolvedValue('-3');
-    const count = await getDocumentCreationCount();
-    expect(count).toBe(0);
+    const result = await getDocumentCreationCount();
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('Corrupt counter value');
   });
 
-  it('should return 0 on read error', async () => {
+  it('should return error for partial numeric like "123abc" (fail-closed)', async () => {
+    mockGetItem.mockResolvedValue('123abc');
+    const result = await getDocumentCreationCount();
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('Corrupt counter value');
+  });
+
+  it('should return error for scientific notation "1e3" (fail-closed)', async () => {
+    mockGetItem.mockResolvedValue('1e3');
+    const result = await getDocumentCreationCount();
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('Corrupt counter value');
+  });
+
+  it('should return error for hex "0x10" (fail-closed)', async () => {
+    mockGetItem.mockResolvedValue('0x10');
+    const result = await getDocumentCreationCount();
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('Corrupt counter value');
+  });
+
+  it('should return error on read error (fail-closed)', async () => {
     mockGetItem.mockRejectedValue(new Error('storage error'));
-    const count = await getDocumentCreationCount();
-    expect(count).toBe(0);
+    const result = await getDocumentCreationCount();
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('storage error');
   });
 });
 
@@ -68,9 +102,10 @@ describe('incrementDocumentCreationCount', () => {
     mockGetItem.mockResolvedValue(null);
     mockSetItem.mockResolvedValue(undefined);
 
-    const newCount = await incrementDocumentCreationCount();
+    const result = await incrementDocumentCreationCount();
 
-    expect(newCount).toBe(1);
+    expect(result.success).toBe(true);
+    expect(result.count).toBe(1);
     expect(mockSetItem).toHaveBeenCalledWith(DOCUMENT_CREATION_COUNT_KEY, '1');
   });
 
@@ -78,26 +113,31 @@ describe('incrementDocumentCreationCount', () => {
     mockGetItem.mockResolvedValue('3');
     mockSetItem.mockResolvedValue(undefined);
 
-    const newCount = await incrementDocumentCreationCount();
+    const result = await incrementDocumentCreationCount();
 
-    expect(newCount).toBe(4);
+    expect(result.success).toBe(true);
+    expect(result.count).toBe(4);
     expect(mockSetItem).toHaveBeenCalledWith(DOCUMENT_CREATION_COUNT_KEY, '4');
   });
 
-  it('should handle corrupted storage gracefully (start from 0)', async () => {
+  it('should block increment on corrupted storage (fail-closed)', async () => {
     mockGetItem.mockResolvedValue('corrupt');
     mockSetItem.mockResolvedValue(undefined);
 
-    const newCount = await incrementDocumentCreationCount();
+    const result = await incrementDocumentCreationCount();
 
-    expect(newCount).toBe(1);
-    expect(mockSetItem).toHaveBeenCalledWith(DOCUMENT_CREATION_COUNT_KEY, '1');
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('Corrupt counter value');
+    expect(mockSetItem).not.toHaveBeenCalled();
   });
 
-  it('should throw on write error', async () => {
+  it('should return error on write failure', async () => {
     mockGetItem.mockResolvedValue('0');
     mockSetItem.mockRejectedValue(new Error('write error'));
 
-    await expect(incrementDocumentCreationCount()).rejects.toThrow('write error');
+    const result = await incrementDocumentCreationCount();
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('write error');
   });
 });

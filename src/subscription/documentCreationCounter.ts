@@ -4,40 +4,85 @@
  * Tracks the cumulative number of documents ever created.
  * This counter only increases - deleting documents does NOT decrease it.
  * Used to enforce the free tier document creation limit.
+ *
+ * Fail-closed: corrupt/unreadable counter blocks document creation.
+ * Atomic: read-modify-write is serialized via documentCounterQueue.
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createWriteQueue } from '@/utils/writeQueue';
 
 export const DOCUMENT_CREATION_COUNT_KEY = '@genba_document_creation_count';
 
+/** Dedicated queue for counter RMW atomicity */
+const documentCounterQueue = createWriteQueue();
+
+/** Result type for counter operations */
+export interface CounterResult {
+  success: boolean;
+  count: number;
+  error?: string;
+}
+
 /**
  * Get the cumulative document creation count.
- * Returns 0 if no value is stored, value is corrupt, or on read error.
+ * Fail-closed: returns error on corrupt or unreadable data.
  */
-export async function getDocumentCreationCount(): Promise<number> {
+export async function getDocumentCreationCount(): Promise<CounterResult> {
   try {
     const value = await AsyncStorage.getItem(DOCUMENT_CREATION_COUNT_KEY);
-    if (value === null) return 0;
+    if (value === null) return { success: true, count: 0 };
 
-    const count = parseInt(value, 10);
-    if (isNaN(count) || count < 0) return 0;
+    if (!/^\d+$/.test(value)) {
+      return {
+        success: false,
+        count: 0,
+        error: `Corrupt counter value: ${value}`,
+      };
+    }
+    const count = Number(value);
+    if (!Number.isSafeInteger(count) || count < 0) {
+      return {
+        success: false,
+        count: 0,
+        error: `Corrupt counter value: ${value}`,
+      };
+    }
 
-    return count;
-  } catch {
-    return 0;
+    return { success: true, count };
+  } catch (error) {
+    return {
+      success: false,
+      count: 0,
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 }
 
 /**
  * Increment the cumulative document creation count by 1.
- * Should be called once each time a NEW document is created (not on edits).
+ * Serialized via documentCounterQueue to prevent RMW race conditions.
+ * Fail-closed: rejects if current count is corrupt or unreadable.
  *
- * @returns The new count after incrementing
- * @throws If AsyncStorage write fails
+ * @returns CounterResult with the new count, or error
  */
-export async function incrementDocumentCreationCount(): Promise<number> {
-  const current = await getDocumentCreationCount();
-  const newCount = current + 1;
-  await AsyncStorage.setItem(DOCUMENT_CREATION_COUNT_KEY, String(newCount));
-  return newCount;
+export async function incrementDocumentCreationCount(): Promise<CounterResult> {
+  return documentCounterQueue.enqueue(async () => {
+    const current = await getDocumentCreationCount();
+    if (!current.success) {
+      return current; // Propagate error - fail-closed
+    }
+
+    const newCount = current.count + 1;
+    try {
+      await AsyncStorage.setItem(DOCUMENT_CREATION_COUNT_KEY, String(newCount));
+      return { success: true, count: newCount };
+    } catch (error) {
+      return {
+        success: false,
+        count: current.count,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  });
 }

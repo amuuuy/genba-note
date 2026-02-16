@@ -13,6 +13,7 @@ import {
   searchCustomers,
 } from '@/domain/customer/customerService';
 import { deleteWorkLogEntriesByCustomer } from '@/domain/customer/workLogEntryService';
+import { deletePhotoMetadataByCustomer } from '@/domain/customer/customerPhotoService';
 import { deleteCustomerPhotosDirectory } from '@/utils/imageUtils';
 import { setReadOnlyMode } from '@/storage/readOnlyModeState';
 import { customersQueue } from '@/utils/writeQueue';
@@ -33,6 +34,11 @@ jest.mock('@/utils/uuid', () => ({
 // Mock workLogEntryService
 jest.mock('@/domain/customer/workLogEntryService', () => ({
   deleteWorkLogEntriesByCustomer: jest.fn(async () => ({ success: true })),
+}));
+
+// Mock customerPhotoService
+jest.mock('@/domain/customer/customerPhotoService', () => ({
+  deletePhotoMetadataByCustomer: jest.fn(async () => ({ success: true })),
 }));
 
 // Mock imageUtils
@@ -265,13 +271,16 @@ describe('customerService', () => {
       );
     });
 
-    it('should fail if customer not found', async () => {
+    it('should still attempt cascade cleanup when customer not found (idempotent)', async () => {
       mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify([]));
 
       const result = await deleteCustomer('non-existent');
 
-      expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('CUSTOMER_NOT_FOUND');
+      // Customer not found is ok - still attempt cascade cleanup for orphan data
+      expect(deleteWorkLogEntriesByCustomer).toHaveBeenCalledWith('non-existent');
+      expect(deleteCustomerPhotosDirectory).toHaveBeenCalledWith('non-existent');
+      // Final result depends on cascade results (success if all cascade steps succeed)
+      expect(result.success).toBe(true);
     });
 
     it('should cascade delete work log entries', async () => {
@@ -296,20 +305,51 @@ describe('customerService', () => {
       expect(deleteCustomerPhotosDirectory).toHaveBeenCalledWith('customer-1');
     });
 
-    it('should still delete customer even if cascade operations fail', async () => {
+    it('should cascade delete photo metadata when directory deletion succeeds', async () => {
       const customer = createTestCustomer({ id: 'customer-1' });
       mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify([customer]));
       mockedAsyncStorage.setItem.mockResolvedValue(undefined);
-      (deleteWorkLogEntriesByCustomer as jest.Mock).mockRejectedValueOnce(new Error('cascade error'));
-      jest.spyOn(console, 'warn').mockImplementation();
 
       const result = await deleteCustomer('customer-1');
 
       expect(result.success).toBe(true);
+      expect(deletePhotoMetadataByCustomer).toHaveBeenCalledWith('customer-1');
+    });
+
+    it('should still succeed when cascade work log deletion fails (customer is deleted)', async () => {
+      const customer = createTestCustomer({ id: 'customer-1' });
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify([customer]));
+      mockedAsyncStorage.setItem.mockResolvedValue(undefined);
+      (deleteWorkLogEntriesByCustomer as jest.Mock).mockResolvedValueOnce({ success: false, error: { message: 'cascade error' } });
+      jest.spyOn(console, 'warn').mockImplementation();
+
+      const result = await deleteCustomer('customer-1');
+
+      // Customer itself is deleted (setItem called to remove from list)
       expect(mockedAsyncStorage.setItem).toHaveBeenCalledWith(
         STORAGE_KEYS.CUSTOMERS,
         JSON.stringify([])
       );
+      // Success because customer record is removed; cascade failure is logged
+      expect(result.success).toBe(true);
+    });
+
+    it('should still succeed when photo directory deletion throws (customer is deleted)', async () => {
+      const customer = createTestCustomer({ id: 'customer-1' });
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify([customer]));
+      mockedAsyncStorage.setItem.mockResolvedValue(undefined);
+      (deleteWorkLogEntriesByCustomer as jest.Mock).mockResolvedValueOnce({ success: true });
+      (deleteCustomerPhotosDirectory as jest.Mock).mockRejectedValueOnce(new Error('EPERM'));
+      jest.spyOn(console, 'warn').mockImplementation();
+
+      const result = await deleteCustomer('customer-1');
+
+      // Customer is deleted
+      expect(mockedAsyncStorage.setItem).toHaveBeenCalled();
+      // Success because customer record is removed; directory failure is logged
+      expect(result.success).toBe(true);
+      // Metadata deletion should be skipped when directory deletion fails
+      expect(deletePhotoMetadataByCustomer).not.toHaveBeenCalled();
     });
   });
 

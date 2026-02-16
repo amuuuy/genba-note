@@ -99,8 +99,12 @@ export default function DocumentListScreen() {
   // Check free tier document limit before creating
   const checkDocumentLimitAndNavigate = useCallback(
     async (type: 'estimate' | 'invoice') => {
-      const count = await getDocumentCreationCount();
-      const check = canCreateDocument(count, isPro);
+      const counterResult = await getDocumentCreationCount();
+      if (!counterResult.success) {
+        Alert.alert('エラー', 'データの読み込みに失敗しました。アプリを再起動してください。');
+        return;
+      }
+      const check = canCreateDocument(counterResult.count, isPro);
       if (!check.allowed) {
         Alert.alert(
           '書類作成の上限に達しました',

@@ -246,10 +246,9 @@ export async function convertEstimateToInvoice(
   }
 
   // 7. Increment creation counter (non-fatal if fails)
-  try {
-    await incrementDocumentCreationCount();
-  } catch {
-    // Non-fatal: counter increment failure should not block conversion
+  const counterResult = await incrementDocumentCreationCount();
+  if (!counterResult.success && __DEV__) {
+    console.warn('Failed to increment document creation counter:', counterResult.error);
   }
 
   // 8. Save sensitive issuer snapshot (non-fatal if fails)

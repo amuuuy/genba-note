@@ -438,7 +438,47 @@ export async function deletePhotoMetadataOnly(
 }
 
 /**
- * Delete all photos for a customer
+ * Delete all photo metadata for a customer (without deleting files).
+ * Used by customerService where directory deletion is managed separately.
+ */
+export async function deletePhotoMetadataByCustomer(
+  customerId: string
+): Promise<CustomerDomainResult<void>> {
+  if (getReadOnlyMode()) {
+    return readOnlyError();
+  }
+
+  try {
+    const queueResult = await photosQueue.enqueue(async () => {
+      if (getReadOnlyMode()) {
+        return { success: false as const, readonly: true as const };
+      }
+
+      const photos = await getAllPhotosFromStorage();
+      const remaining = photos.filter((p) => p.customerId !== customerId);
+      await saveAllPhotosToStorage(remaining);
+      return { success: true as const };
+    });
+
+    if ('readonly' in queueResult && queueResult.readonly) {
+      return readOnlyError();
+    }
+
+    return successResult(undefined);
+  } catch (error) {
+    return errorResult(
+      createCustomerServiceError(
+        'STORAGE_ERROR',
+        'Failed to delete customer photo metadata',
+        { originalError: error instanceof Error ? error.message : String(error) }
+      )
+    );
+  }
+}
+
+/**
+ * Delete all photos for a customer (metadata + directory).
+ * For standalone use outside customerService cascade.
  */
 export async function deletePhotosByCustomer(
   customerId: string

@@ -166,6 +166,30 @@ describe('v3-add-fax-field migration', () => {
     });
   });
 
+  describe('corrupted settings root', () => {
+    it('should succeed when settings JSON parses to null', async () => {
+      (AsyncStorage.getItem as jest.Mock).mockImplementation(async (key: string) => {
+        if (key === STORAGE_KEYS.DOCUMENTS) return null;
+        if (key === STORAGE_KEYS.SETTINGS) return 'null';
+        return null;
+      });
+
+      const result = await v3AddFaxFieldMigration.migrate();
+      expect(result.success).toBe(true);
+    });
+
+    it('should succeed when settings JSON parses to an array', async () => {
+      (AsyncStorage.getItem as jest.Mock).mockImplementation(async (key: string) => {
+        if (key === STORAGE_KEYS.DOCUMENTS) return null;
+        if (key === STORAGE_KEYS.SETTINGS) return '[]';
+        return null;
+      });
+
+      const result = await v3AddFaxFieldMigration.migrate();
+      expect(result.success).toBe(true);
+    });
+  });
+
   describe('error handling', () => {
     it('should return error on failure', async () => {
       (AsyncStorage.getItem as jest.Mock).mockRejectedValue(new Error('Storage error'));

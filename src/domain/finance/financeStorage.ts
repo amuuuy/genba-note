@@ -138,7 +138,7 @@ export async function saveFinanceEntry(
       const updatedEntry: FinanceEntry = {
         ...entry,
         updatedAt: now,
-        createdAt: existingIndex === -1 ? now : entry.createdAt,
+        createdAt: existingIndex === -1 ? now : entries[existingIndex].createdAt,
       };
 
       if (existingIndex !== -1) {

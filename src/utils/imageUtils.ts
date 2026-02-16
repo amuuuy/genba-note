@@ -118,12 +118,52 @@ export async function copyBackgroundImageToPermanentStorage(sourceUri: string): 
   }
 }
 
+/** Allowed subdirectories for image deletion (fail-closed) */
+const ALLOWED_IMAGE_SUBDIRS = [
+  SEAL_IMAGES_SUBDIR,
+  CUSTOMER_PHOTOS_SUBDIR,
+  BACKGROUND_IMAGES_SUBDIR,
+  FINANCE_PHOTOS_SUBDIR,
+] as const;
+
 /**
- * Delete stored image from app storage
+ * Check if a URI is within the app's allowed image directories.
+ * Prevents deletion of files outside the managed directories.
+ * Fail-closed: rejects path traversal, URL-encoded traversal, and decode failures.
+ */
+function isAllowedImageUri(uri: string): boolean {
+  if (typeof uri !== 'string' || !uri) return false;
+
+  // Reject path traversal sequences (raw)
+  if (uri.includes('..') || uri.includes('\\')) return false;
+
+  // Reject path traversal sequences (URL-encoded)
+  try {
+    const decoded = decodeURIComponent(uri);
+    if (decoded.includes('..') || decoded.includes('\\')) return false;
+  } catch {
+    return false; // fail-closed on decode error
+  }
+
+  const docUri = Paths.document.uri;
+  const docPrefix = docUri.endsWith('/') ? docUri : docUri + '/';
+  if (!uri.startsWith(docPrefix)) return false;
+  const relative = uri.slice(docPrefix.length);
+  return ALLOWED_IMAGE_SUBDIRS.some((subdir) => relative.startsWith(subdir + '/'));
+}
+
+/**
+ * Delete stored image from app storage.
+ * Fail-closed: only deletes files within allowed image subdirectories.
  *
  * @param uri - Image URI to delete
  */
 export async function deleteStoredImage(uri: string): Promise<void> {
+  if (!isAllowedImageUri(uri)) {
+    if (__DEV__) console.warn('deleteStoredImage: URI outside allowed directories, skipping:', uri);
+    return;
+  }
+
   try {
     const file = new File(uri);
     if (file.exists) {
@@ -280,20 +320,15 @@ export async function deleteCustomerPhotosDirectory(
   customerId: string
 ): Promise<void> {
   if (!validatePathSegment(customerId)) {
-    if (__DEV__) console.warn('Invalid customerId rejected:', customerId);
-    return;
+    throw new Error(`Invalid customerId: ${customerId}`);
   }
-  try {
-    const customerDir = new Directory(
-      Paths.document,
-      CUSTOMER_PHOTOS_SUBDIR,
-      customerId
-    );
-    if (customerDir.exists) {
-      customerDir.delete();
-    }
-  } catch (error) {
-    if (__DEV__) console.error('Failed to delete customer photos directory:', error);
+  const customerDir = new Directory(
+    Paths.document,
+    CUSTOMER_PHOTOS_SUBDIR,
+    customerId
+  );
+  if (customerDir.exists) {
+    customerDir.delete();
   }
 }
 

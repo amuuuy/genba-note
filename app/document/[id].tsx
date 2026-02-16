@@ -238,7 +238,7 @@ export default function DocumentEditScreen() {
       pathname: '/document/preview',
       params: { previewData: JSON.stringify(previewDocument) },
     });
-  }, [state.documentId, state.documentNo, state.values, state.status, state.lineItems]);
+  }, [state.documentId, state.documentNo, state.values, state.status, state.lineItems, state.issuerSnapshot]);
 
   // Handle save as draft (existing save behavior)
   const handleSaveDraft = useCallback(async () => {

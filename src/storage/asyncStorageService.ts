@@ -163,7 +163,7 @@ export async function saveDocument(
       const updatedDocument = {
         ...document,
         updatedAt: now,
-        createdAt: existingIndex === -1 ? now : document.createdAt,
+        createdAt: existingIndex === -1 ? now : documents[existingIndex].createdAt,
       };
 
       if (existingIndex !== -1) {
@@ -412,7 +412,7 @@ export async function saveUnitPrice(
       const updatedUnitPrice = {
         ...unitPrice,
         updatedAt: now,
-        createdAt: existingIndex === -1 ? now : unitPrice.createdAt,
+        createdAt: existingIndex === -1 ? now : unitPrices[existingIndex].createdAt,
       };
 
       if (existingIndex !== -1) {

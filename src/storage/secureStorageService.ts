@@ -268,6 +268,15 @@ export async function deleteIssuerSnapshot(
 // === Subscription Cache ===
 
 /**
+ * Validate a subscription timestamp value.
+ * Shared rule for get (string parse) and save (number input) paths.
+ * Rejects NaN, Infinity, negative, and unsafe integers.
+ */
+function isValidSubscriptionTimestamp(value: number): boolean {
+  return Number.isFinite(value) && value >= 0 && Number.isSafeInteger(Math.floor(value));
+}
+
+/**
  * Get complete subscription cache
  * Returns null if any required value is missing
  */
@@ -299,9 +308,13 @@ export async function getSubscriptionCache(): Promise<
     if (expirationStr === 'null') {
       entitlementExpiration = null;
     } else {
-      const parsed = parseInt(expirationStr, 10);
-      if (!Number.isFinite(parsed)) {
-        // Invalid/corrupted data - treat cache as invalid
+      if (!/^\d+$/.test(expirationStr)) {
+        return errorResult(
+          createError('PARSE_ERROR', 'Invalid entitlement expiration value')
+        );
+      }
+      const parsed = Number(expirationStr);
+      if (!Number.isSafeInteger(parsed)) {
         return errorResult(
           createError('PARSE_ERROR', 'Invalid entitlement expiration value')
         );
@@ -309,11 +322,16 @@ export async function getSubscriptionCache(): Promise<
       entitlementExpiration = parsed;
     }
 
-    const lastVerifiedAt = parseInt(verifiedAtStr, 10);
-    const lastVerifiedUptime = parseInt(uptimeStr, 10);
+    // Strict validation: digits-only + safe integer (consistent with individual getters)
+    if (!/^\d+$/.test(verifiedAtStr) || !/^\d+$/.test(uptimeStr)) {
+      return errorResult(
+        createError('PARSE_ERROR', 'Invalid subscription cache values')
+      );
+    }
+    const lastVerifiedAt = Number(verifiedAtStr);
+    const lastVerifiedUptime = Number(uptimeStr);
 
-    // Validate all parsed numbers
-    if (!Number.isFinite(lastVerifiedAt) || !Number.isFinite(lastVerifiedUptime)) {
+    if (!Number.isSafeInteger(lastVerifiedAt) || !Number.isSafeInteger(lastVerifiedUptime)) {
       return errorResult(
         createError('PARSE_ERROR', 'Invalid subscription cache values')
       );
@@ -347,12 +365,29 @@ export async function saveSubscriptionCache(
   const readOnlyError = checkReadOnlyMode();
   if (readOnlyError) return readOnlyError;
 
+  // Validate inputs before writing (same rules as get-side parsing)
+  if (cache.entitlementExpiration !== null && !isValidSubscriptionTimestamp(cache.entitlementExpiration)) {
+    return errorResult(
+      createError('WRITE_ERROR', 'Invalid entitlement_expiration value')
+    );
+  }
+  if (!isValidSubscriptionTimestamp(cache.lastVerifiedAt)) {
+    return errorResult(
+      createError('WRITE_ERROR', 'Invalid lastVerifiedAt value')
+    );
+  }
+  if (!isValidSubscriptionTimestamp(cache.lastVerifiedUptime)) {
+    return errorResult(
+      createError('WRITE_ERROR', 'Invalid lastVerifiedUptime value')
+    );
+  }
+
   try {
-    // Convert expiration: null -> 'null' string, number -> string
+    // Normalize: Math.floor for consistency with individual setters
     const expirationStr =
       cache.entitlementExpiration === null
         ? 'null'
-        : String(cache.entitlementExpiration);
+        : String(Math.floor(cache.entitlementExpiration));
 
     await Promise.all([
       SecureStore.setItemAsync(
@@ -365,11 +400,11 @@ export async function saveSubscriptionCache(
       ),
       SecureStore.setItemAsync(
         SUBSCRIPTION_STORE_KEYS.LAST_VERIFIED_AT,
-        String(cache.lastVerifiedAt)
+        String(Math.floor(cache.lastVerifiedAt))
       ),
       SecureStore.setItemAsync(
         SUBSCRIPTION_STORE_KEYS.LAST_VERIFIED_UPTIME,
-        String(cache.lastVerifiedUptime)
+        String(Math.floor(cache.lastVerifiedUptime))
       ),
     ]);
 
@@ -487,7 +522,18 @@ export async function getEntitlementExpiration(): Promise<
       return successResult(null);
     }
 
-    return successResult(parseInt(value, 10));
+    if (!/^\d+$/.test(value)) {
+      return errorResult(
+        createError('PARSE_ERROR', `Invalid entitlement_expiration value: ${value}`)
+      );
+    }
+    const parsed = Number(value);
+    if (!Number.isSafeInteger(parsed)) {
+      return errorResult(
+        createError('PARSE_ERROR', `Invalid entitlement_expiration value: ${value}`)
+      );
+    }
+    return successResult(parsed);
   } catch (error) {
     return errorResult(
       createError(
@@ -509,8 +555,14 @@ export async function setEntitlementExpiration(
   const readOnlyError = checkReadOnlyMode();
   if (readOnlyError) return readOnlyError;
 
+  if (expiration !== null && !isValidSubscriptionTimestamp(expiration)) {
+    return errorResult(
+      createError('WRITE_ERROR', 'Invalid entitlement_expiration value')
+    );
+  }
+
   try {
-    const value = expiration === null ? 'null' : String(expiration);
+    const value = expiration === null ? 'null' : String(Math.floor(expiration));
     await SecureStore.setItemAsync(
       SUBSCRIPTION_STORE_KEYS.ENTITLEMENT_EXPIRATION,
       value
@@ -542,7 +594,18 @@ export async function getLastVerifiedAt(): Promise<
       return successResult(null);
     }
 
-    return successResult(parseInt(value, 10));
+    if (!/^\d+$/.test(value)) {
+      return errorResult(
+        createError('PARSE_ERROR', `Invalid last_verified_at value: ${value}`)
+      );
+    }
+    const parsed = Number(value);
+    if (!Number.isSafeInteger(parsed)) {
+      return errorResult(
+        createError('PARSE_ERROR', `Invalid last_verified_at value: ${value}`)
+      );
+    }
+    return successResult(parsed);
   } catch (error) {
     return errorResult(
       createError(
@@ -563,10 +626,16 @@ export async function setLastVerifiedAt(
   const readOnlyError = checkReadOnlyMode();
   if (readOnlyError) return readOnlyError;
 
+  if (!isValidSubscriptionTimestamp(timestamp)) {
+    return errorResult(
+      createError('WRITE_ERROR', 'Invalid last_verified_at value')
+    );
+  }
+
   try {
     await SecureStore.setItemAsync(
       SUBSCRIPTION_STORE_KEYS.LAST_VERIFIED_AT,
-      String(timestamp)
+      String(Math.floor(timestamp))
     );
     return successResult(undefined);
   } catch (error) {
@@ -595,7 +664,18 @@ export async function getLastVerifiedUptime(): Promise<
       return successResult(null);
     }
 
-    return successResult(parseInt(value, 10));
+    if (!/^\d+$/.test(value)) {
+      return errorResult(
+        createError('PARSE_ERROR', `Invalid last_verified_uptime value: ${value}`)
+      );
+    }
+    const parsed = Number(value);
+    if (!Number.isSafeInteger(parsed)) {
+      return errorResult(
+        createError('PARSE_ERROR', `Invalid last_verified_uptime value: ${value}`)
+      );
+    }
+    return successResult(parsed);
   } catch (error) {
     return errorResult(
       createError(
@@ -616,10 +696,16 @@ export async function setLastVerifiedUptime(
   const readOnlyError = checkReadOnlyMode();
   if (readOnlyError) return readOnlyError;
 
+  if (!isValidSubscriptionTimestamp(uptime)) {
+    return errorResult(
+      createError('WRITE_ERROR', 'Invalid last_verified_uptime value')
+    );
+  }
+
   try {
     await SecureStore.setItemAsync(
       SUBSCRIPTION_STORE_KEYS.LAST_VERIFIED_UPTIME,
-      String(uptime)
+      String(Math.floor(uptime))
     );
     return successResult(undefined);
   } catch (error) {
