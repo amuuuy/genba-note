@@ -342,3 +342,26 @@ export function unitPriceToLineItemInput(
     quantityMilli,
   };
 }
+
+/**
+ * Convert a LineItemInput to UnitPriceInput for registering to unit price list
+ * Reverse of unitPriceToLineItemInput.
+ * quantityMilli is not transferred (unit prices don't store quantity).
+ *
+ * @param input - Source line item input
+ * @returns UnitPriceInput ready for createUnitPrice
+ */
+export function lineItemToUnitPriceInput(
+  input: LineItemInput
+): UnitPriceInput {
+  return {
+    name: input.name,
+    unit: input.unit,
+    defaultPrice: input.unitPrice,
+    defaultTaxRate: input.taxRate,
+    category: null,
+    notes: null,
+    packQty: null,
+    packPrice: null,
+  };
+}

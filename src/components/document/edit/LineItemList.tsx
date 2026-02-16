@@ -36,6 +36,8 @@ export interface LineItemListProps {
   disabled?: boolean;
   /** Error message for line items */
   error?: string | null;
+  /** Callback to register a line item to the unit price list */
+  onRegisterToUnitPrice?: (input: LineItemInput) => void | Promise<void>;
   /** Test ID */
   testID?: string;
 }
@@ -50,6 +52,7 @@ function LineItemListComponent({
   onRemove,
   disabled = false,
   error,
+  onRegisterToUnitPrice,
   testID,
 }: LineItemListProps) {
   // Modal states
@@ -123,6 +126,17 @@ function LineItemListComponent({
         const success = onAdd(input);
         if (success) {
           setEditorVisible(false);
+          // Prompt to register to unit price list
+          if (onRegisterToUnitPrice) {
+            Alert.alert(
+              '単価表にも登録しますか？',
+              `「${input.name}」を単価表に登録すると、次回から単価表から選択して追加できます。`,
+              [
+                { text: 'しない', style: 'cancel' },
+                { text: '登録する', onPress: () => onRegisterToUnitPrice(input) },
+              ]
+            );
+          }
         } else {
           Alert.alert(
             '追加エラー',
@@ -132,7 +146,7 @@ function LineItemListComponent({
         }
       }
     },
-    [editingItem, onAdd, onUpdate]
+    [editingItem, onAdd, onUpdate, onRegisterToUnitPrice]
   );
 
   // Handle cancel from editor

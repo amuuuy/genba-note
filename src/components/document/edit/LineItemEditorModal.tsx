@@ -337,6 +337,7 @@ export const LineItemEditorModal: React.FC<LineItemEditorModalProps> = ({
               ))}
             </View>
           </View>
+
         </ScrollView>
       </KeyboardAvoidingView>
     </Modal>

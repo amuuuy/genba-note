@@ -42,6 +42,9 @@ import { enrichDocumentWithTotals } from '@/domain/lineItem/calculationService';
 import { resolveIssuerInfo } from '@/pdf/issuerResolverService';
 import { getPdfErrorMessage } from '@/constants/errorMessages';
 import { changeDocumentStatus, sanitizeDocumentType } from '@/domain/document';
+import { createUnitPrice, lineItemToUnitPriceInput, listUnitPrices } from '@/domain/unitPrice';
+import { canCreateUnitPrice } from '@/subscription/freeTierLimitsService';
+import type { LineItemInput } from '@/domain/lineItem/lineItemService';
 import { getSettings } from '@/storage/asyncStorageService';
 
 /**
@@ -459,6 +462,53 @@ export default function DocumentEditScreen() {
     router.back();
   }, []);
 
+  // Handle registering a line item to the unit price list
+  const isRegisteringUnitPrice = useRef(false);
+  const handleRegisterToUnitPrice = useCallback(
+    async (input: LineItemInput) => {
+      // Prevent double-tap
+      if (isRegisteringUnitPrice.current) return;
+      isRegisteringUnitPrice.current = true;
+
+      try {
+        // Get current unit price count for free-tier check (fail-closed)
+        const listResult = await listUnitPrices();
+        if (!listResult.success) {
+          Alert.alert('エラー', '単価表の読み込みに失敗しました。');
+          return;
+        }
+        const currentCount = listResult.data?.length ?? 0;
+
+        const check = canCreateUnitPrice(currentCount, isPro);
+        if (!check.allowed) {
+          Alert.alert(
+            '単価マスタの上限に達しました',
+            `無料プランでは${check.limit}件まで登録できます。\nProプランにアップグレードすると無制限に登録できます。`,
+            [
+              { text: 'キャンセル', style: 'cancel' },
+              { text: 'Proプランを見る', onPress: () => router.push('/paywall') },
+            ]
+          );
+          return;
+        }
+
+        const unitPriceInput = lineItemToUnitPriceInput(input);
+        const result = await createUnitPrice(unitPriceInput);
+
+        if (result.success) {
+          Alert.alert('単価表に登録しました', `「${input.name}」を単価表に追加しました。`);
+        } else {
+          Alert.alert('エラー', '単価表への登録に失敗しました。');
+        }
+      } catch {
+        Alert.alert('エラー', '単価表への登録中に予期しないエラーが発生しました。');
+      } finally {
+        isRegisteringUnitPrice.current = false;
+      }
+    },
+    [isPro]
+  );
+
   // Display error messages when they occur (handles async state updates)
   // Show for both existing documents (documentId exists) and new documents (isNewDocument)
   // Exclude initial load errors (which are shown in the error state UI)
@@ -592,6 +642,7 @@ export default function DocumentEditScreen() {
           onLineItemUpdate={lineItemEditor.updateItem}
           onLineItemRemove={lineItemEditor.removeItem}
           onStatusTransition={handleStatusTransition}
+          onRegisterToUnitPrice={handleRegisterToUnitPrice}
           disabled={state.isSaving || isPublishing || isReadOnlyMode}
         />
       </KeyboardAvoidingView>

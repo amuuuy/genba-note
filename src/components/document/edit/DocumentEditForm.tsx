@@ -44,6 +44,8 @@ export interface DocumentEditFormProps {
   onLineItemRemove: (id: string) => boolean;
   /** Callback when status transition is requested */
   onStatusTransition: (newStatus: DocumentStatus, paidAt?: string) => void;
+  /** Callback to register a line item to the unit price list */
+  onRegisterToUnitPrice?: (input: LineItemInput) => void | Promise<void>;
   /** Whether form is disabled (e.g., while saving) */
   disabled?: boolean;
   /** Test ID */
@@ -66,6 +68,7 @@ function DocumentEditFormComponent({
   onLineItemUpdate,
   onLineItemRemove,
   onStatusTransition,
+  onRegisterToUnitPrice,
   disabled = false,
   testID,
 }: DocumentEditFormProps) {
@@ -210,6 +213,7 @@ function DocumentEditFormComponent({
         onRemove={onLineItemRemove}
         disabled={isFieldsDisabled}
         error={errors.lineItems}
+        onRegisterToUnitPrice={onRegisterToUnitPrice}
       />
 
       {/* Totals */}

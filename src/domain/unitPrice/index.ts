@@ -57,4 +57,5 @@ export {
   deleteUnitPriceById,
   duplicateUnitPrice,
   unitPriceToLineItemInput,
+  lineItemToUnitPriceInput,
 } from './unitPriceService';
