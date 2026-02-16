@@ -64,6 +64,16 @@ describe('kanbanTransitionService', () => {
       expect(result).toEqual({ newStatus: 'draft' });
     });
 
+    it('estimate issued → sent_waiting = sent', () => {
+      const result = resolveDropTransition('issued', 'sent_waiting', 'estimate');
+      expect(result).toEqual({ newStatus: 'sent' });
+    });
+
+    it('invoice issued → sent_waiting = sent', () => {
+      const result = resolveDropTransition('issued', 'sent_waiting', 'invoice');
+      expect(result).toEqual({ newStatus: 'sent' });
+    });
+
     // === Invalid transitions (snap-back) ===
 
     it('estimate sent → completed = issued', () => {

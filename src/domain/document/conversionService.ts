@@ -29,6 +29,7 @@ import {
 import { generateUUID } from '@/utils/uuid';
 import { getTodayString } from '@/utils/dateUtils';
 import { incrementDocumentCreationCount } from '@/subscription/documentCreationCounter';
+import { enforceDocumentCreationLimit } from './documentService';
 
 // === Result Types ===
 
@@ -40,6 +41,17 @@ export interface ConversionResult {
   invoice: Document;
   /** The original estimate (unchanged) */
   originalEstimate: Document;
+}
+
+/**
+ * Options for estimate-to-invoice conversion.
+ * isPro defaults to false (fail-closed: treats user as free-tier).
+ */
+export interface ConvertEstimateOptions {
+  /** Today's date override for testing */
+  today?: string;
+  /** Whether the user has Pro access. Defaults to false (fail-closed). */
+  isPro?: boolean;
 }
 
 // === Helper Functions ===
@@ -145,14 +157,19 @@ async function saveSensitiveSnapshot(
  * - Re-fetches issuer snapshot from CURRENT settings (not estimate's snapshot)
  *
  * @param estimateId - ID of the estimate to convert
- * @param today - Optional today's date for testing (defaults to getTodayString())
+ * @param options - Optional options (today override, isPro flag)
  * @returns Result containing the new invoice and original estimate
  */
 export async function convertEstimateToInvoice(
   estimateId: string,
-  today?: string
+  options?: ConvertEstimateOptions
 ): Promise<DomainResult<ConversionResult, DocumentServiceError>> {
-  const todayDate = today ?? getTodayString();
+  const todayDate = options?.today ?? getTodayString();
+  const isPro = options?.isPro ?? false;
+
+  // Free-tier limit guard (before any other operation)
+  const limitError = await enforceDocumentCreationLimit(isPro);
+  if (limitError) return limitError;
 
   // 1. Get the source estimate
   const estimateResult = await getDocumentById(estimateId);

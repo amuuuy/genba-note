@@ -80,18 +80,20 @@ export {
   changeDocumentStatus,
   deleteDocumentById,
   duplicateDocument,
+  enforceDocumentCreationLimit,
 } from './documentService';
 
 export type {
   CreateDocumentInput,
   UpdateDocumentInput,
+  CreateDocumentOptions,
 } from './documentService';
 
 // === Conversion Service (async) ===
 
 export { convertEstimateToInvoice } from './conversionService';
 
-export type { ConversionResult } from './conversionService';
+export type { ConversionResult, ConvertEstimateOptions } from './conversionService';
 
 // === Status Grouping (pure functions) ===
 

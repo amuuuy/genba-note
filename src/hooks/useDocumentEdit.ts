@@ -34,7 +34,6 @@ import {
 } from '@/domain/document/documentValidation';
 import { getAllowedTransitions, getTransitionRequirements } from '@/domain/document/statusTransitionService';
 import { getTodayString } from '@/utils/dateUtils';
-import { incrementDocumentCreationCount } from '@/subscription/documentCreationCounter';
 
 // === Types ===
 
@@ -352,6 +351,54 @@ export function validateFormValues(
   return errors;
 }
 
+// === Testable Create Helper ===
+
+/**
+ * Perform document creation via domain service.
+ * Extracted from save() callback for testability (renderHook unavailable in node test env).
+ * The hook's save() delegates to this function for new documents.
+ */
+export async function performDocumentCreate(
+  state: DocumentEditState,
+  customerId: string | null,
+  isPro: boolean
+): Promise<{ document: Document | null; errorMessage: string | null }> {
+  const carriedForwardAmount = state.values.carriedForwardAmount
+    ? parseInt(state.values.carriedForwardAmount, 10)
+    : null;
+  const input: CreateDocumentInput = {
+    type: state.values.type,
+    clientName: state.values.clientName,
+    clientAddress: state.values.clientAddress || null,
+    customerId,
+    subject: state.values.subject || null,
+    issueDate: state.values.issueDate,
+    validUntil:
+      state.values.type === 'estimate'
+        ? state.values.validUntil || null
+        : null,
+    dueDate:
+      state.values.type === 'invoice'
+        ? state.values.dueDate || null
+        : null,
+    lineItems: state.lineItems.map(({ id, ...rest }) => rest),
+    carriedForwardAmount:
+      carriedForwardAmount && !isNaN(carriedForwardAmount)
+        ? carriedForwardAmount
+        : null,
+    notes: state.values.notes || null,
+  };
+
+  const result = await createDocument(input, { isPro });
+  if (result.success && result.data) {
+    return { document: result.data, errorMessage: null };
+  }
+  return {
+    document: null,
+    errorMessage: result.error?.message ?? '保存に失敗しました',
+  };
+}
+
 // === Hook ===
 
 export interface UseDocumentEditReturn {
@@ -386,10 +433,12 @@ export interface UseDocumentEditReturn {
  *
  * @param documentId - Document ID to load, or 'new' for new document
  * @param documentType - Document type for new documents
+ * @param isPro - Whether the user has Pro access (passed to domain layer for limit checks)
  */
 export function useDocumentEdit(
   documentId: string | null,
-  documentType: DocumentType = 'estimate'
+  documentType: DocumentType = 'estimate',
+  isPro: boolean = false
 ): UseDocumentEditReturn {
   const [state, dispatch] = useReducer(documentEditReducer, initialState);
 
@@ -465,47 +514,17 @@ export function useDocumentEdit(
 
     try {
       if (!state.documentId) {
-        // Create new document
-        const carriedForwardAmount = state.values.carriedForwardAmount
-          ? parseInt(state.values.carriedForwardAmount, 10)
-          : null;
-        const input: CreateDocumentInput = {
-          type: state.values.type,
-          clientName: state.values.clientName,
-          clientAddress: state.values.clientAddress || null,
-          customerId: state.customerId,
-          subject: state.values.subject || null,
-          issueDate: state.values.issueDate,
-          validUntil:
-            state.values.type === 'estimate'
-              ? state.values.validUntil || null
-              : null,
-          dueDate:
-            state.values.type === 'invoice'
-              ? state.values.dueDate || null
-              : null,
-          lineItems: state.lineItems.map(({ id, ...rest }) => rest),
-          carriedForwardAmount:
-            carriedForwardAmount && !isNaN(carriedForwardAmount)
-              ? carriedForwardAmount
-              : null,
-          notes: state.values.notes || null,
-        };
-
-        const result = await createDocument(input);
-        if (result.success && result.data) {
-          // Increment cumulative creation counter (for free tier limits)
-          const counterResult = await incrementDocumentCreationCount();
-          if (!counterResult.success && __DEV__) {
-            console.warn('Failed to increment document creation counter:', counterResult.error);
-          }
-          dispatch({ type: 'SAVE_SUCCESS', document: result.data });
-          return result.data;
+        // Create new document (delegates to extracted helper)
+        const { document, errorMessage } = await performDocumentCreate(
+          state,
+          state.customerId,
+          isPro
+        );
+        if (document) {
+          dispatch({ type: 'SAVE_SUCCESS', document });
+          return document;
         } else {
-          dispatch({
-            type: 'SAVE_ERROR',
-            message: result.error?.message ?? '保存に失敗しました',
-          });
+          dispatch({ type: 'SAVE_ERROR', message: errorMessage! });
           return null;
         }
       } else {
@@ -554,7 +573,7 @@ export function useDocumentEdit(
       });
       return null;
     }
-  }, [state.documentId, state.values, state.lineItems, state.status, state.customerId]);
+  }, [state.documentId, state.values, state.lineItems, state.status, state.customerId, isPro]);
 
   const changeStatus = useCallback(
     async (newStatus: DocumentStatus, paidAt?: string): Promise<boolean> => {

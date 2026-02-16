@@ -37,6 +37,11 @@ import {
 } from '@/storage/secureStorageService';
 import { generateUUID } from '@/utils/uuid';
 import { getTodayString } from '@/utils/dateUtils';
+import {
+  getDocumentCreationCount,
+  incrementDocumentCreationCount,
+} from '@/subscription/documentCreationCounter';
+import { canCreateDocument as checkFreeTierLimit } from '@/subscription/freeTierLimitsService';
 
 // === Input Types ===
 
@@ -73,7 +78,50 @@ export interface UpdateDocumentInput {
   notes?: string | null;
 }
 
+/**
+ * Options for document creation operations.
+ * isPro defaults to false (fail-closed: treats user as free-tier).
+ */
+export interface CreateDocumentOptions {
+  /** Today's date override for testing */
+  today?: string;
+  /** Whether the user has Pro access. Defaults to false (fail-closed). */
+  isPro?: boolean;
+}
+
 // === Helper Functions ===
+
+/**
+ * Enforce free-tier document creation limit.
+ * Returns null if allowed, or an error result if blocked.
+ * Pro users bypass the check entirely.
+ * Free-tier users with counter read failure are fail-closed (blocked).
+ */
+export async function enforceDocumentCreationLimit(
+  isPro: boolean
+): Promise<DomainResult<never, DocumentServiceError> | null> {
+  if (isPro) return null;
+
+  const counterResult = await getDocumentCreationCount();
+  if (!counterResult.success) {
+    return errorResult(
+      createDocumentServiceError(
+        'FREE_TIER_LIMIT_EXCEEDED',
+        'Failed to verify document creation limit'
+      )
+    );
+  }
+  const check = checkFreeTierLimit(counterResult.count, false);
+  if (!check.allowed) {
+    return errorResult(
+      createDocumentServiceError(
+        'FREE_TIER_LIMIT_EXCEEDED',
+        `Free tier document limit reached (${check.current}/${check.limit})`
+      )
+    );
+  }
+  return null;
+}
 
 /**
  * Generate UUIDs for line items
@@ -165,14 +213,19 @@ async function saveSensitiveSnapshot(
  * Create a new document
  *
  * @param input - Document creation input
- * @param today - Optional today's date for testing
+ * @param options - Optional options (today override, isPro flag)
  * @returns Result containing created document
  */
 export async function createDocument(
   input: CreateDocumentInput,
-  today?: string
+  options?: CreateDocumentOptions
 ): Promise<DomainResult<Document, DocumentServiceError>> {
-  const todayDate = today ?? getTodayString();
+  const todayDate = options?.today ?? getTodayString();
+  const isPro = options?.isPro ?? false;
+
+  // Free-tier limit guard (before numbering to avoid wasting a number)
+  const limitError = await enforceDocumentCreationLimit(isPro);
+  if (limitError) return limitError;
 
   // Generate document number
   const numberResult = await generateDocumentNumber(input.type);
@@ -255,6 +308,12 @@ export async function createDocument(
     // Document is saved but snapshot failed - log for debugging but don't fail the operation
     // The document can still be used, just without sensitive issuer info in exports
     if (__DEV__) console.warn('Failed to save sensitive snapshot for document:', documentId);
+  }
+
+  // Increment document creation counter (non-fatal if fails)
+  const counterIncrResult = await incrementDocumentCreationCount();
+  if (!counterIncrResult.success && __DEV__) {
+    console.warn('Failed to increment document creation counter');
   }
 
   return successResult(saveResult.data!);
@@ -506,14 +565,19 @@ export async function deleteDocumentById(
  * Duplicate a document with new ID and number
  *
  * @param id - Source document ID
- * @param today - Optional today's date for testing
+ * @param options - Optional options (today override, isPro flag)
  * @returns Result containing duplicated document
  */
 export async function duplicateDocument(
   id: string,
-  today?: string
+  options?: CreateDocumentOptions
 ): Promise<DomainResult<Document, DocumentServiceError>> {
-  const todayDate = today ?? getTodayString();
+  const todayDate = options?.today ?? getTodayString();
+  const isPro = options?.isPro ?? false;
+
+  // Free-tier limit guard
+  const limitError = await enforceDocumentCreationLimit(isPro);
+  if (limitError) return limitError;
 
   // Get source document
   const existingResult = await getDocumentById(id);
@@ -573,6 +637,12 @@ export async function duplicateDocument(
   const snapshotResult = await saveSensitiveSnapshot(newDocumentId);
   if (!snapshotResult.success) {
     if (__DEV__) console.warn('Failed to save sensitive snapshot for document:', newDocumentId);
+  }
+
+  // Increment document creation counter (non-fatal if fails)
+  const dupCounterResult = await incrementDocumentCreationCount();
+  if (!dupCounterResult.success && __DEV__) {
+    console.warn('Failed to increment document creation counter');
   }
 
   return successResult(saveResult.data!);

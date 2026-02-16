@@ -222,6 +222,30 @@ describe('useKanbanBoard', () => {
         newStatus: 'issued',
       });
     });
+
+    it('estimate issued → sent_waiting = transition to sent', () => {
+      const docs = [
+        asDocWithTotals({ id: 'est-1', status: 'issued', type: 'estimate' }),
+      ];
+      const result = resolveHandleDrop(docs, 'est-1', 'sent_waiting');
+      expect(result).toEqual({
+        action: 'transition',
+        docId: 'est-1',
+        newStatus: 'sent',
+      });
+    });
+
+    it('invoice issued → sent_waiting = transition to sent', () => {
+      const docs = [
+        asInvoiceWithTotals({ id: 'inv-1', status: 'issued' }),
+      ];
+      const result = resolveHandleDrop(docs, 'inv-1', 'sent_waiting');
+      expect(result).toEqual({
+        action: 'transition',
+        docId: 'inv-1',
+        newStatus: 'sent',
+      });
+    });
   });
 
   describe('full drop → changeDocumentStatus flow', () => {
@@ -274,6 +298,16 @@ describe('useKanbanBoard', () => {
           '2026-01-20'
         );
       }
+    });
+
+    it('issued → sent_waiting calls changeDocumentStatus(id, sent)', async () => {
+      const docs = [
+        asInvoiceWithTotals({ id: 'inv-1', status: 'issued' }),
+      ];
+      const result = await executeDropFlow(docs, 'inv-1', 'sent_waiting');
+
+      expect(result.action).toBe('transition');
+      expect(mockChangeDocumentStatus).toHaveBeenCalledWith('inv-1', 'sent');
     });
 
     it('noop does not call changeDocumentStatus', async () => {

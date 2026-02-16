@@ -60,6 +60,10 @@ export default function DocumentEditScreen() {
   const documentId = isNewDocument ? null : id ?? null;
   const documentType = sanitizeDocumentType(type);
 
+  // Pro status (must be declared before useDocumentEdit which uses it)
+  // Default to false (fail-closed): free-tier limits apply until Pro status is confirmed
+  const [isPro, setIsPro] = useState(false);
+
   // Document edit state
   const {
     state,
@@ -70,7 +74,7 @@ export default function DocumentEditScreen() {
     changeStatus,
     shouldShowSentWarning,
     acknowledgeSentWarning,
-  } = useDocumentEdit(documentId, documentType);
+  } = useDocumentEdit(documentId, documentType, isPro);
 
   // Line item editor state
   const lineItemEditor = useLineItemEditor(state.lineItems);
@@ -82,7 +86,6 @@ export default function DocumentEditScreen() {
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [showPublishConfirm, setShowPublishConfirm] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
-  const [isPro, setIsPro] = useState(true); // Default to true, update on mount
   const [pdfValidation, setPdfValidation] = useState<PdfValidationResult | null>(null);
   const [showFilenameEdit, setShowFilenameEdit] = useState(false);
   const [savedDocumentForPdf, setSavedDocumentForPdf] = useState<Document | null>(null);
@@ -93,9 +96,11 @@ export default function DocumentEditScreen() {
     return generateFilenameTitle(savedDocumentForPdf.documentNo, savedDocumentForPdf.type);
   }, [savedDocumentForPdf]);
 
-  // Check Pro status on mount
+  // Check Pro status on mount (fail-closed: errors keep isPro=false)
   useEffect(() => {
-    checkProStatus().then((result) => setIsPro(result.isPro));
+    checkProStatus()
+      .then((result) => setIsPro(result.isPro))
+      .catch(() => setIsPro(false));
   }, []);
 
   // Track if we've synced initial line items from document to editor

@@ -53,7 +53,8 @@ export type DocumentServiceErrorCode =
   | 'TRANSITION_ERROR' // status transition failed
   | 'NUMBERING_ERROR' // numbering failed
   | 'EDIT_FORBIDDEN' // editing forbidden field in paid status
-  | 'SNAPSHOT_ERROR'; // issuer snapshot operation failed
+  | 'SNAPSHOT_ERROR' // issuer snapshot operation failed
+  | 'FREE_TIER_LIMIT_EXCEEDED'; // free tier document creation limit reached
 
 // === Error Interfaces ===
 

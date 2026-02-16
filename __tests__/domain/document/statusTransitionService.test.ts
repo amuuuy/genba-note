@@ -113,6 +113,10 @@ describe('statusTransitionService', () => {
       it('should NOT allow issued -> issued', () => {
         expect(canTransition('estimate', 'issued', 'issued')).toBe(false);
       });
+
+      it('should allow issued -> sent', () => {
+        expect(canTransition('estimate', 'issued', 'sent')).toBe(true);
+      });
     });
 
     describe('invoice transitions', () => {
@@ -157,6 +161,10 @@ describe('statusTransitionService', () => {
       it('should NOT allow issued -> issued', () => {
         expect(canTransition('invoice', 'issued', 'issued')).toBe(false);
       });
+
+      it('should allow issued -> sent', () => {
+        expect(canTransition('invoice', 'issued', 'sent')).toBe(true);
+      });
     });
   });
 
@@ -180,9 +188,11 @@ describe('statusTransitionService', () => {
       expect(allowed).toEqual([]);
     });
 
-    it('should return [draft] for estimate issued', () => {
+    it('should return [draft, sent] for estimate issued', () => {
       const allowed = getAllowedTransitions('estimate', 'issued');
-      expect(allowed).toEqual(['draft']);
+      expect(allowed).toContain('draft');
+      expect(allowed).toContain('sent');
+      expect(allowed).toHaveLength(2);
     });
 
     it('should return [sent, issued] for invoice draft', () => {
@@ -204,9 +214,11 @@ describe('statusTransitionService', () => {
       expect(allowed).toEqual(['sent']);
     });
 
-    it('should return [draft] for invoice issued', () => {
+    it('should return [draft, sent] for invoice issued', () => {
       const allowed = getAllowedTransitions('invoice', 'issued');
-      expect(allowed).toEqual(['draft']);
+      expect(allowed).toContain('draft');
+      expect(allowed).toContain('sent');
+      expect(allowed).toHaveLength(2);
     });
   });
 
@@ -277,6 +289,24 @@ describe('statusTransitionService', () => {
       expect(result.error?.code).toBe('INVALID_TRANSITION');
     });
 
+    it('should transition estimate from issued to sent', () => {
+      const doc = createTestDocument({ type: 'estimate', status: 'issued' });
+      const result = executeTransition(doc, 'sent');
+
+      expect(result.success).toBe(true);
+      expect(result.data?.status).toBe('sent');
+      expect(result.data?.paidAt).toBeNull();
+    });
+
+    it('should transition invoice from issued to sent', () => {
+      const doc = createTestInvoice({ status: 'issued' });
+      const result = executeTransition(doc, 'sent');
+
+      expect(result.success).toBe(true);
+      expect(result.data?.status).toBe('sent');
+      expect(result.data?.paidAt).toBeNull();
+    });
+
     it('should preserve other fields during transition', () => {
       const doc = createTestInvoice({
         status: 'draft',
@@ -320,6 +350,13 @@ describe('statusTransitionService', () => {
 
     it('should return { requiresPaidAt: false, clearsPaidAt: false } for estimate sent -> issued', () => {
       const reqs = getTransitionRequirements('estimate', 'sent', 'issued');
+      expect(reqs).not.toBeNull();
+      expect(reqs?.requiresPaidAt).toBe(false);
+      expect(reqs?.clearsPaidAt).toBe(false);
+    });
+
+    it('should return { requiresPaidAt: false, clearsPaidAt: false } for issued -> sent', () => {
+      const reqs = getTransitionRequirements('invoice', 'issued', 'sent');
       expect(reqs).not.toBeNull();
       expect(reqs?.requiresPaidAt).toBe(false);
       expect(reqs?.clearsPaidAt).toBe(false);
