@@ -10,7 +10,7 @@
 
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
 
 import type { PdfTemplateInput, PdfGenerationResult, PdfGenerationOptions, PreviewOrientation } from './types';
 import { DEFAULT_SEAL_SIZE } from './types';
@@ -110,9 +110,9 @@ async function sharePdf(fileUri: string): Promise<PdfGenerationResult> {
  *
  * @param fileUri - File URI to delete
  */
-async function cleanupPdfFile(fileUri: string): Promise<void> {
+function cleanupPdfFile(fileUri: string): void {
   try {
-    await FileSystem.deleteAsync(fileUri, { idempotent: true });
+    new File(fileUri).delete();
   } catch {
     // Silently ignore cleanup failures
   }
@@ -197,19 +197,21 @@ export async function generateAndSharePdf(
   const fileUri = pdfResult.fileUri!;
   let shareUri = fileUri;
 
-  // 4.5. Rename PDF if customFilename is provided (M19)
-  if (options?.customFilename !== undefined) {
+  // 4.5. Copy PDF to cacheDirectory with custom filename (M19)
+  if (options?.customFilename !== undefined && Paths?.cache?.uri) {
+    const sanitized = sanitizeFilename(
+      options.customFilename,
+      generateFilenameTitle(input.document.documentNo, input.document.type)
+    );
     try {
-      const sanitized = sanitizeFilename(
-        options.customFilename,
-        generateFilenameTitle(input.document.documentNo, input.document.type)
-      );
-      const dirPath = fileUri.substring(0, fileUri.lastIndexOf('/') + 1);
-      const targetUri = dirPath + sanitized;
-      await FileSystem.moveAsync({ from: fileUri, to: targetUri });
-      shareUri = targetUri;
-    } catch {
-      // If rename fails, fall back to sharing the original temp file
+      const sourceFile = new File(fileUri);
+      const destFile = new File(Paths.cache, sanitized);
+      sourceFile.copy(destFile);
+      shareUri = destFile.uri;
+    } catch (error) {
+      console.warn('[PDF] Failed to copy PDF with custom filename:', error);
+      // Best-effort cleanup of partial cache file (security: prevent sensitive data residue)
+      try { new File(Paths.cache, sanitized).delete(); } catch { /* ignore */ }
       shareUri = fileUri;
     }
   }
@@ -220,9 +222,9 @@ export async function generateAndSharePdf(
     return shareResult;
   } finally {
     // 6. Always cleanup temporary PDF file (security: remove sensitive data)
-    await cleanupPdfFile(shareUri);
+    cleanupPdfFile(shareUri);
     if (shareUri !== fileUri) {
-      await cleanupPdfFile(fileUri);
+      cleanupPdfFile(fileUri);
     }
   }
 }

@@ -19,6 +19,14 @@ describe('getBackgroundOverlayCss', () => {
     expect(css).toContain('pointer-events: none');
     expect(css).toContain('.document-container');
   });
+
+  it('document-container does not set z-index (allows mix-blend-mode to cross stacking contexts)', () => {
+    const css = getBackgroundOverlayCss();
+    // .document-container must NOT have z-index to prevent stacking context isolation.
+    // Without z-index, seal images with mix-blend-mode: multiply can blend with the
+    // bg-overlay beneath, making white backgrounds transparent on colored/patterned backgrounds.
+    expect(css).not.toMatch(/\.document-container[^}]*z-index/);
+  });
 });
 
 describe('getBackgroundCss', () => {

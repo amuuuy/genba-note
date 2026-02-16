@@ -38,7 +38,6 @@ export function getBackgroundOverlayCss(): string {
     }
     .document-container {
       position: relative;
-      z-index: 1;
     }`;
 }
 

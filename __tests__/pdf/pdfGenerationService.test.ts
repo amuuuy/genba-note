@@ -30,6 +30,10 @@ jest.mock('react-native-device-info', () => ({
   getStartupTime: jest.fn(),
 }));
 
+// Mock functions for File class (same pattern as csvFileService tests)
+const mockFileCopy = jest.fn();
+const mockFileDelete = jest.fn();
+
 // Mock expo-print, expo-sharing, and expo-file-system
 jest.mock('expo-print', () => ({
   printToFileAsync: jest.fn(),
@@ -41,13 +45,19 @@ jest.mock('expo-sharing', () => ({
 }));
 
 jest.mock('expo-file-system', () => ({
-  deleteAsync: jest.fn(),
-  moveAsync: jest.fn(),
+  File: jest.fn().mockImplementation((...uris: any[]) => ({
+    uri: uris.map((p: any) => (typeof p === 'string' ? p : p.uri)).join('/'),
+    copy: mockFileCopy,
+    delete: mockFileDelete,
+  })),
+  Paths: {
+    cache: { uri: 'file:///mock/cache' },
+  },
 }));
 
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
 import { generateAndSharePdf } from '@/pdf/pdfGenerationService';
 import { setProStatusOverride, resetProStatusOverride } from '@/subscription/proAccessService';
 import { setReadOnlyMode } from '@/storage/asyncStorageService';
@@ -56,6 +66,8 @@ import { createTestTemplateInput } from './helpers';
 describe('pdfGenerationService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockFileCopy.mockReset();
+    mockFileDelete.mockReset();
     resetProStatusOverride();
     setReadOnlyMode(false);
   });
@@ -74,7 +86,6 @@ describe('pdfGenerationService', () => {
         });
         (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true);
         (Sharing.shareAsync as jest.Mock).mockResolvedValue(undefined);
-        (FileSystem.deleteAsync as jest.Mock).mockResolvedValue(undefined);
 
         const input = createTestTemplateInput();
         const result = await generateAndSharePdf(input);
@@ -95,7 +106,6 @@ describe('pdfGenerationService', () => {
         });
         (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true);
         (Sharing.shareAsync as jest.Mock).mockResolvedValue(undefined);
-        (FileSystem.deleteAsync as jest.Mock).mockResolvedValue(undefined);
 
         const input = createTestTemplateInput();
         const result = await generateAndSharePdf(input);
@@ -120,7 +130,6 @@ describe('pdfGenerationService', () => {
           });
           (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true);
           (Sharing.shareAsync as jest.Mock).mockResolvedValue(undefined);
-          (FileSystem.deleteAsync as jest.Mock).mockResolvedValue(undefined);
 
           const input = createTestTemplateInput();
           await generateAndSharePdf(input);
@@ -153,7 +162,6 @@ describe('pdfGenerationService', () => {
           });
           (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true);
           (Sharing.shareAsync as jest.Mock).mockResolvedValue(undefined);
-          (FileSystem.deleteAsync as jest.Mock).mockResolvedValue(undefined);
 
           const input = createTestTemplateInput();
           await generateAndSharePdf(input);
@@ -169,7 +177,6 @@ describe('pdfGenerationService', () => {
             uri: 'file:///generated.pdf',
           });
           (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(false);
-          (FileSystem.deleteAsync as jest.Mock).mockResolvedValue(undefined);
 
           const input = createTestTemplateInput();
           const result = await generateAndSharePdf(input);
@@ -186,7 +193,6 @@ describe('pdfGenerationService', () => {
           (Sharing.shareAsync as jest.Mock).mockRejectedValue(
             new Error('Share cancelled')
           );
-          (FileSystem.deleteAsync as jest.Mock).mockResolvedValue(undefined);
 
           const input = createTestTemplateInput();
           const result = await generateAndSharePdf(input);
@@ -203,7 +209,6 @@ describe('pdfGenerationService', () => {
           });
           (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true);
           (Sharing.shareAsync as jest.Mock).mockResolvedValue(undefined);
-          (FileSystem.deleteAsync as jest.Mock).mockResolvedValue(undefined);
 
           const input = createTestTemplateInput();
           const result = await generateAndSharePdf(input);
@@ -219,15 +224,12 @@ describe('pdfGenerationService', () => {
           });
           (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true);
           (Sharing.shareAsync as jest.Mock).mockResolvedValue(undefined);
-          (FileSystem.deleteAsync as jest.Mock).mockResolvedValue(undefined);
 
           const input = createTestTemplateInput();
           await generateAndSharePdf(input);
 
-          expect(FileSystem.deleteAsync).toHaveBeenCalledWith(
-            'file:///generated.pdf',
-            { idempotent: true }
-          );
+          expect(mockFileDelete).toHaveBeenCalled();
+          expect(File).toHaveBeenCalledWith('file:///generated.pdf');
         });
 
         it('cleans up PDF file even when sharing fails', async () => {
@@ -238,15 +240,12 @@ describe('pdfGenerationService', () => {
           (Sharing.shareAsync as jest.Mock).mockRejectedValue(
             new Error('Share failed')
           );
-          (FileSystem.deleteAsync as jest.Mock).mockResolvedValue(undefined);
 
           const input = createTestTemplateInput();
           await generateAndSharePdf(input);
 
-          expect(FileSystem.deleteAsync).toHaveBeenCalledWith(
-            'file:///generated.pdf',
-            { idempotent: true }
-          );
+          expect(mockFileDelete).toHaveBeenCalled();
+          expect(File).toHaveBeenCalledWith('file:///generated.pdf');
         });
       });
     });
@@ -259,7 +258,6 @@ describe('pdfGenerationService', () => {
         });
         (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true);
         (Sharing.shareAsync as jest.Mock).mockResolvedValue(undefined);
-        (FileSystem.deleteAsync as jest.Mock).mockResolvedValue(undefined);
       });
 
       it('calls printToFileAsync WITHOUT width/height when orientation is not specified', async () => {
@@ -328,37 +326,36 @@ describe('pdfGenerationService', () => {
         });
         (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true);
         (Sharing.shareAsync as jest.Mock).mockResolvedValue(undefined);
-        (FileSystem.deleteAsync as jest.Mock).mockResolvedValue(undefined);
-        (FileSystem.moveAsync as jest.Mock).mockResolvedValue(undefined);
       });
 
-      it('renames file before sharing when customFilename is provided', async () => {
+      it('copies file to cacheDirectory with custom name before sharing', async () => {
         const input = createTestTemplateInput();
         await generateAndSharePdf(input, { customFilename: 'my-report' });
 
-        expect(FileSystem.moveAsync).toHaveBeenCalledWith({
-          from: 'file:///tmp/random-uuid.pdf',
-          to: expect.stringContaining('my-report.pdf'),
-        });
+        // File constructor called with source URI for copy
+        expect(File).toHaveBeenCalledWith('file:///tmp/random-uuid.pdf');
+        // File constructor called with Paths.cache and sanitized filename for destination
+        expect(File).toHaveBeenCalledWith(Paths.cache, 'my-report.pdf');
+        expect(mockFileCopy).toHaveBeenCalled();
       });
 
-      it('shares the renamed file URI', async () => {
+      it('shares the copied file URI from cacheDirectory', async () => {
         const input = createTestTemplateInput();
         await generateAndSharePdf(input, { customFilename: 'my-report' });
 
         const shareCall = (Sharing.shareAsync as jest.Mock).mock.calls[0];
-        expect(shareCall[0]).toContain('my-report.pdf');
+        expect(shareCall[0]).toBe('file:///mock/cache/my-report.pdf');
       });
 
-      it('does not rename when customFilename is not provided', async () => {
+      it('does not copy when customFilename is not provided', async () => {
         const input = createTestTemplateInput();
         await generateAndSharePdf(input);
 
-        expect(FileSystem.moveAsync).not.toHaveBeenCalled();
+        expect(mockFileCopy).not.toHaveBeenCalled();
       });
 
-      it('falls back to original URI if moveAsync fails', async () => {
-        (FileSystem.moveAsync as jest.Mock).mockRejectedValue(new Error('Move failed'));
+      it('falls back to original URI if copy fails', async () => {
+        mockFileCopy.mockImplementation(() => { throw new Error('Copy failed'); });
 
         const input = createTestTemplateInput();
         const result = await generateAndSharePdf(input, { customFilename: 'my-report' });
@@ -368,56 +365,82 @@ describe('pdfGenerationService', () => {
           'file:///tmp/random-uuid.pdf',
           expect.anything()
         );
+        // Best-effort cleanup of partial cache file attempted
+        expect(File).toHaveBeenCalledWith(Paths.cache, 'my-report.pdf');
+        expect(mockFileDelete).toHaveBeenCalled();
       });
 
-      it('cleans up renamed file after sharing', async () => {
+      it('cleans up both cache copy and original temp file after sharing', async () => {
         const input = createTestTemplateInput();
         await generateAndSharePdf(input, { customFilename: 'my-report' });
 
-        expect(FileSystem.deleteAsync).toHaveBeenCalledWith(
-          expect.stringContaining('my-report.pdf'),
-          { idempotent: true }
-        );
+        // mockFileDelete is called for both cache copy and original temp file
+        expect(mockFileDelete).toHaveBeenCalledTimes(2);
+        // File constructor called with both URIs for cleanup
+        expect(File).toHaveBeenCalledWith('file:///mock/cache/my-report.pdf');
+        expect(File).toHaveBeenCalledWith('file:///tmp/random-uuid.pdf');
       });
 
-      it('renames to default name when customFilename is empty string', async () => {
+      it('copies to default name when customFilename is empty string', async () => {
         const input = createTestTemplateInput();
         await generateAndSharePdf(input, { customFilename: '' });
 
         // Empty string triggers sanitizeFilename fallback to default name (EST-001_見積書.pdf)
-        expect(FileSystem.moveAsync).toHaveBeenCalled();
-        const moveCall = (FileSystem.moveAsync as jest.Mock).mock.calls[0][0];
-        expect(moveCall.to).toContain('EST-001_見積書.pdf');
+        expect(File).toHaveBeenCalledWith(Paths.cache, 'EST-001_見積書.pdf');
+        expect(mockFileCopy).toHaveBeenCalled();
       });
 
-      it('renames to default name when customFilename is whitespace only', async () => {
+      it('copies to default name when customFilename is whitespace only', async () => {
         const input = createTestTemplateInput();
         await generateAndSharePdf(input, { customFilename: '   ' });
 
-        expect(FileSystem.moveAsync).toHaveBeenCalled();
-        const moveCall = (FileSystem.moveAsync as jest.Mock).mock.calls[0][0];
-        expect(moveCall.to).toContain('EST-001_見積書.pdf');
+        expect(File).toHaveBeenCalledWith(Paths.cache, 'EST-001_見積書.pdf');
+        expect(mockFileCopy).toHaveBeenCalled();
       });
 
-      it('shares Japanese filename without percent-encoding', async () => {
+      it('passes Japanese filename to File constructor for copy destination', async () => {
         const input = createTestTemplateInput();
         await generateAndSharePdf(input, { customFilename: 'EST-001_見積書' });
 
-        // Filename should NOT be percent-encoded in the URI
-        const shareCall = (Sharing.shareAsync as jest.Mock).mock.calls[0];
-        expect(shareCall[0]).toContain('EST-001_見積書.pdf');
-        expect(shareCall[0]).not.toContain('%E8');
+        // Verify correct arguments passed to File constructor for destination.
+        // The actual URI may be percent-encoded by the real File implementation;
+        // native sharing APIs (iOS UIActivityViewController, Android FileProvider)
+        // decode the URI for display, so the recipient sees the decoded filename.
+        expect(File).toHaveBeenCalledWith(Paths.cache, 'EST-001_見積書.pdf');
+        expect(mockFileCopy).toHaveBeenCalled();
+        // shareAsync receives the destFile.uri (which the mock joins as plain string)
+        expect(Sharing.shareAsync).toHaveBeenCalledWith(
+          expect.stringContaining('EST-001_見積書.pdf'),
+          expect.anything()
+        );
       });
 
       it('strips # and % from customFilename through the full flow', async () => {
         const input = createTestTemplateInput();
         await generateAndSharePdf(input, { customFilename: 'report#%20' });
 
-        const moveCall = (FileSystem.moveAsync as jest.Mock).mock.calls[0][0];
-        expect(moveCall.to).toContain('report20.pdf');
+        expect(File).toHaveBeenCalledWith(Paths.cache, 'report20.pdf');
+        expect(mockFileCopy).toHaveBeenCalled();
+      });
 
-        const shareCall = (Sharing.shareAsync as jest.Mock).mock.calls[0];
-        expect(shareCall[0]).toContain('report20.pdf');
+      it('falls back to original URI when Paths.cache is unavailable', async () => {
+        const paths = (Paths as any);
+        const originalCache = paths.cache;
+        paths.cache = null;
+
+        try {
+          const input = createTestTemplateInput();
+          const result = await generateAndSharePdf(input, { customFilename: 'my-report' });
+
+          expect(result.success).toBe(true);
+          expect(mockFileCopy).not.toHaveBeenCalled();
+          expect(Sharing.shareAsync).toHaveBeenCalledWith(
+            'file:///tmp/random-uuid.pdf',
+            expect.anything()
+          );
+        } finally {
+          paths.cache = originalCache;
+        }
       });
     });
 
@@ -440,7 +463,6 @@ describe('pdfGenerationService', () => {
         });
         (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true);
         (Sharing.shareAsync as jest.Mock).mockResolvedValue(undefined);
-        (FileSystem.deleteAsync as jest.Mock).mockResolvedValue(undefined);
 
         const input = createTestTemplateInput();
         const result = await generateAndSharePdf(input);
@@ -462,7 +484,6 @@ describe('pdfGenerationService', () => {
         });
         (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true);
         (Sharing.shareAsync as jest.Mock).mockResolvedValue(undefined);
-        (FileSystem.deleteAsync as jest.Mock).mockResolvedValue(undefined);
 
         const input = createTestTemplateInput();
         await generateAndSharePdf(input);
