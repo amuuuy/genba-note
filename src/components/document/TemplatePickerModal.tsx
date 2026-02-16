@@ -1,7 +1,7 @@
 /**
  * TemplatePickerModal Component
  *
- * Modal for temporarily switching document template in preview screen.
+ * Modal for temporarily switching document template and seal size in preview screen.
  * Selection is immediate (no confirm button) and does not persist to settings.
  */
 
@@ -15,13 +15,16 @@ import {
   ScrollView,
 } from 'react-native';
 import { TEMPLATE_OPTIONS } from '@/constants/templateOptions';
-import type { DocumentTemplateId } from '@/types/settings';
+import { SEAL_SIZE_OPTIONS } from '@/constants/sealSizeOptions';
+import type { DocumentTemplateId, SealSize } from '@/types/settings';
 
 export interface TemplatePickerModalProps {
   visible: boolean;
   currentTemplateId: DocumentTemplateId;
   onSelect: (templateId: DocumentTemplateId) => void;
   onClose: () => void;
+  currentSealSize?: SealSize;
+  onSealSizeSelect?: (sealSize: SealSize) => void;
   testID?: string;
 }
 
@@ -30,6 +33,8 @@ export const TemplatePickerModal: React.FC<TemplatePickerModalProps> = ({
   currentTemplateId,
   onSelect,
   onClose,
+  currentSealSize,
+  onSealSizeSelect,
   testID,
 }) => {
   return (
@@ -66,6 +71,47 @@ export const TemplatePickerModal: React.FC<TemplatePickerModalProps> = ({
                 </Pressable>
               );
             })}
+
+            {/* Seal Size Section */}
+            {currentSealSize != null && onSealSizeSelect && (
+              <>
+                <View style={styles.sectionDivider} />
+                <Text style={styles.sectionTitle}>印鑑サイズ</Text>
+                <View style={styles.sealSizeRow}>
+                  {SEAL_SIZE_OPTIONS.map((option) => {
+                    const isSelected = currentSealSize === option.value;
+                    return (
+                      <Pressable
+                        key={option.value}
+                        style={[
+                          styles.sealSizeChip,
+                          isSelected && styles.sealSizeChipSelected,
+                        ]}
+                        onPress={() => onSealSizeSelect(option.value)}
+                        testID={testID ? `${testID}-seal-${option.value.toLowerCase()}` : undefined}
+                      >
+                        <Text
+                          style={[
+                            styles.sealSizeChipLabel,
+                            isSelected && styles.sealSizeChipLabelSelected,
+                          ]}
+                        >
+                          {option.label}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.sealSizeChipDescription,
+                            isSelected && styles.sealSizeChipDescriptionSelected,
+                          ]}
+                        >
+                          {option.description}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </>
+            )}
           </ScrollView>
           <Pressable style={styles.closeButton} onPress={onClose}>
             <Text style={styles.closeButtonText}>閉じる</Text>
@@ -151,6 +197,52 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#666',
     lineHeight: 18,
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: '#E5E5EA',
+    marginVertical: 16,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 10,
+  },
+  sealSizeRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  sealSizeChip: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+  },
+  sealSizeChipSelected: {
+    borderColor: '#007AFF',
+    backgroundColor: '#F0F7FF',
+  },
+  sealSizeChipLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+  sealSizeChipLabelSelected: {
+    color: '#007AFF',
+  },
+  sealSizeChipDescription: {
+    fontSize: 11,
+    color: '#666',
+    textAlign: 'center',
+  },
+  sealSizeChipDescriptionSelected: {
+    color: '#007AFF',
   },
   closeButton: {
     marginTop: 12,

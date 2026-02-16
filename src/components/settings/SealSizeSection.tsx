@@ -8,6 +8,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { FormSection } from '@/components/common/FormSection';
+import { SEAL_SIZE_OPTIONS } from '@/constants/sealSizeOptions';
 import type { SealSize } from '@/types/settings';
 
 export interface SealSizeSectionProps {
@@ -19,30 +20,6 @@ export interface SealSizeSectionProps {
   disabled?: boolean;
 }
 
-interface SealSizeOption {
-  value: SealSize;
-  label: string;
-  description: string;
-}
-
-const sealSizeOptions: SealSizeOption[] = [
-  {
-    value: 'SMALL',
-    label: '小',
-    description: '小さめの印影サイズ',
-  },
-  {
-    value: 'MEDIUM',
-    label: '中',
-    description: '標準の印影サイズ（デフォルト）',
-  },
-  {
-    value: 'LARGE',
-    label: '大',
-    description: '大きめの印影サイズ',
-  },
-];
-
 /**
  * Seal size selection section
  */
@@ -53,7 +30,7 @@ export const SealSizeSection: React.FC<SealSizeSectionProps> = ({
 }) => {
   return (
     <FormSection title="印鑑サイズ" testID="seal-size-section">
-      {sealSizeOptions.map((option) => {
+      {SEAL_SIZE_OPTIONS.map((option) => {
         const isSelected = value === option.value;
         return (
           <Pressable
