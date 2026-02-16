@@ -35,6 +35,8 @@ export function getBackgroundOverlayCss(): string {
       height: 100%;
       z-index: 0;
       pointer-events: none;
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
     }
     .document-container {
       position: relative;

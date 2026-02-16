@@ -20,6 +20,17 @@ describe('getBackgroundOverlayCss', () => {
     expect(css).toContain('.document-container');
   });
 
+  it('includes print-color-adjust: exact for PDF background rendering', () => {
+    const css = getBackgroundOverlayCss();
+    // Use regex to match standalone property (not -webkit- prefixed variant)
+    expect(css).toMatch(/[\s;{]print-color-adjust:\s*exact/);
+  });
+
+  it('includes -webkit-print-color-adjust: exact for WebKit PDF rendering', () => {
+    const css = getBackgroundOverlayCss();
+    expect(css).toContain('-webkit-print-color-adjust: exact');
+  });
+
   it('document-container does not set z-index (allows mix-blend-mode to cross stacking contexts)', () => {
     const css = getBackgroundOverlayCss();
     // .document-container must NOT have z-index to prevent stacking context isolation.
