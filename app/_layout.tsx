@@ -7,7 +7,7 @@
  * - Defines navigation stack
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Stack } from 'expo-router';
 import {
@@ -15,6 +15,7 @@ import {
   useReadOnlyModeContext,
 } from '@/contexts/ReadOnlyModeContext';
 import { ReadOnlyBanner, ErrorBoundary } from '@/components/common';
+import { configureRevenueCat } from '@/subscription';
 
 /**
  * Inner layout component that uses ReadOnlyMode context
@@ -23,6 +24,24 @@ function RootLayoutContent() {
   const { isReadOnlyMode, isInitialized, migrationError, retryMigrations } =
     useReadOnlyModeContext();
   const [isRetrying, setIsRetrying] = useState(false);
+  const [isRevenueCatReady, setIsRevenueCatReady] = useState(false);
+
+  // Initialize RevenueCat SDK once after migrations complete.
+  // Must complete before Stack mounts to prevent child useEffect race conditions.
+  useEffect(() => {
+    if (!isInitialized || isRevenueCatReady) return;
+    const apiKey = process.env.EXPO_PUBLIC_REVENUECAT_PUBLIC_KEY;
+    if (!apiKey) {
+      setIsRevenueCatReady(true);
+      return;
+    }
+    configureRevenueCat(apiKey).then((result) => {
+      if (!result.success && __DEV__) {
+        console.error('RevenueCat init failed:', result.error?.code);
+      }
+      setIsRevenueCatReady(true);
+    });
+  }, [isInitialized, isRevenueCatReady]);
 
   const handleRetry = useCallback(async () => {
     setIsRetrying(true);
@@ -33,8 +52,8 @@ function RootLayoutContent() {
     }
   }, [retryMigrations]);
 
-  // Show loading while migrations are running
-  if (!isInitialized) {
+  // Show loading while migrations are running or RevenueCat is initializing
+  if (!isInitialized || !isRevenueCatReady) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#007AFF" />
