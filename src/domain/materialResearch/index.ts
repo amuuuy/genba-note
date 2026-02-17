@@ -24,3 +24,9 @@ export {
 export type { GeminiEdgeFunctionResponse } from './geminiMappingService';
 
 export { searchMaterialsWithAi } from './geminiSearchService';
+
+export {
+  unitPriceInputToLineItemInput,
+  searchResultToLineItemInput,
+  aiPriceItemToLineItemInput,
+} from './lineItemMappingService';

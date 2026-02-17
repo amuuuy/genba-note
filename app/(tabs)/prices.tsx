@@ -47,6 +47,7 @@ export default function UnitPricesScreen() {
   // Unit price list state
   const {
     unitPrices,
+    totalCount,
     isLoading,
     error,
     searchText,
@@ -56,6 +57,7 @@ export default function UnitPricesScreen() {
     setCategory,
     refresh,
     createItem,
+    createItems,
     updateItem,
     deleteItem,
   } = useUnitPriceList();
@@ -81,7 +83,7 @@ export default function UnitPricesScreen() {
 
   // Handle create button press (with free tier limit check)
   const handleCreatePress = useCallback(() => {
-    const check = canCreateUnitPrice(unitPrices.length, isPro);
+    const check = canCreateUnitPrice(totalCount, isPro);
     if (!check.allowed) {
       Alert.alert(
         '単価マスタの上限に達しました',
@@ -95,7 +97,7 @@ export default function UnitPricesScreen() {
     }
     setEditingUnitPrice(null);
     setEditorVisible(true);
-  }, [unitPrices.length, isPro]);
+  }, [totalCount, isPro]);
 
   // Handle item press (edit)
   const handleItemPress = useCallback((unitPrice: UnitPrice) => {
@@ -155,7 +157,7 @@ export default function UnitPricesScreen() {
   // Handle material research register (with free tier limit check)
   const handleResearchRegister = useCallback(async (input: UnitPriceInput) => {
     if (isReadOnlyMode) return;
-    const check = canCreateUnitPrice(unitPrices.length, isPro);
+    const check = canCreateUnitPrice(totalCount, isPro);
     if (!check.allowed) {
       Alert.alert(
         '単価マスタの上限に達しました',
@@ -173,7 +175,35 @@ export default function UnitPricesScreen() {
     } else {
       Alert.alert('エラー', '登録に失敗しました');
     }
-  }, [isReadOnlyMode, createItem, unitPrices.length, isPro]);
+  }, [isReadOnlyMode, createItem, totalCount, isPro]);
+
+  // Handle bulk register from material research (with free tier limit check)
+  const handleResearchBulkRegister = useCallback(async (inputs: UnitPriceInput[]) => {
+    if (isReadOnlyMode || inputs.length === 0) return;
+    const check = canCreateUnitPrice(totalCount, isPro);
+    if (!check.allowed) {
+      Alert.alert(
+        '単価マスタの上限に達しました',
+        `無料プランでは${check.limit}件まで登録できます。\nProプランにアップグレードすると無制限に登録できます。`,
+        [
+          { text: 'キャンセル', style: 'cancel' },
+          { text: 'Proプランを見る', onPress: () => router.push('/paywall') },
+        ]
+      );
+      return;
+    }
+    // Trim to remaining capacity
+    const remaining = check.limit != null ? check.limit - totalCount : Infinity;
+    const toRegister = inputs.slice(0, remaining);
+    const successCount = await createItems(toRegister);
+    if (successCount === inputs.length) {
+      Alert.alert('登録完了', `${successCount}件を単価マスタに登録しました`);
+    } else if (successCount > 0) {
+      Alert.alert('一部登録完了', `${successCount}/${inputs.length}件を登録しました`);
+    } else {
+      Alert.alert('エラー', '登録に失敗しました');
+    }
+  }, [isReadOnlyMode, createItems, totalCount, isPro]);
 
   // Build category filter options
   const categoryOptions: FilterOption<string>[] = [
@@ -305,6 +335,7 @@ export default function UnitPricesScreen() {
       <MaterialSearchModal
         visible={researchModalVisible}
         onRegister={handleResearchRegister}
+        onBulkRegister={handleResearchBulkRegister}
         onClose={() => setResearchModalVisible(false)}
         testID="material-search-modal"
       />

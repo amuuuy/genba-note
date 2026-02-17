@@ -22,6 +22,7 @@ import { unitPriceToLineItemInput } from '@/domain/unitPrice';
 import { LineItemRow } from './LineItemRow';
 import { LineItemEditorModal } from './LineItemEditorModal';
 import { UnitPricePickerModal } from './UnitPricePickerModal';
+import { MaterialSearchModal } from '@/components/unitPrice';
 
 export interface LineItemListProps {
   /** Current line items */
@@ -58,6 +59,7 @@ function LineItemListComponent({
   // Modal states
   const [editorVisible, setEditorVisible] = useState(false);
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [researchModalVisible, setResearchModalVisible] = useState(false);
   const [editingItem, setEditingItem] = useState<LineItem | null>(null);
 
   // Open editor for new item
@@ -184,6 +186,30 @@ function LineItemListComponent({
     setPickerVisible(false);
   }, []);
 
+  // Handle bulk add from material research
+  const handleResearchAddLineItems = useCallback(
+    (inputs: LineItemInput[]) => {
+      if (inputs.length === 0) return;
+      let successCount = 0;
+      for (const input of inputs) {
+        const success = onAdd(input);
+        if (!success) break; // MAX_LINE_ITEMS reached
+        successCount++;
+      }
+      if (successCount === inputs.length) {
+        Alert.alert('追加完了', `${successCount}件の明細を追加しました`);
+      } else if (successCount > 0) {
+        Alert.alert(
+          '一部追加完了',
+          `${successCount}/${inputs.length}件を追加しました。明細の最大件数に達しました。`
+        );
+      } else {
+        Alert.alert('追加エラー', '明細の最大件数に達しているため追加できません。');
+      }
+    },
+    [onAdd]
+  );
+
   const renderItem = useCallback(
     ({ item, index }: { item: LineItem; index: number }) => (
       <LineItemRow
@@ -237,27 +263,38 @@ function LineItemListComponent({
 
       {/* Add buttons */}
       {!disabled && (
-        <View style={styles.addButtons}>
+        <>
+          <View style={styles.addButtons}>
+            <Pressable
+              style={styles.addButton}
+              onPress={handleAddPress}
+              accessibilityLabel="明細を追加"
+              accessibilityRole="button"
+            >
+              <Ionicons name="add-circle-outline" size={20} color="#007AFF" />
+              <Text style={styles.addButtonText}>手入力で追加</Text>
+            </Pressable>
+            <View style={styles.buttonDivider} />
+            <Pressable
+              style={styles.addButton}
+              onPress={() => setPickerVisible(true)}
+              accessibilityLabel="単価表から追加"
+              accessibilityRole="button"
+            >
+              <Ionicons name="list-outline" size={20} color="#007AFF" />
+              <Text style={styles.addButtonText}>単価表から追加</Text>
+            </Pressable>
+          </View>
           <Pressable
-            style={styles.addButton}
-            onPress={handleAddPress}
-            accessibilityLabel="明細を追加"
+            style={styles.researchButton}
+            onPress={() => setResearchModalVisible(true)}
+            accessibilityLabel="リサーチから追加"
             accessibilityRole="button"
           >
-            <Ionicons name="add-circle-outline" size={20} color="#007AFF" />
-            <Text style={styles.addButtonText}>手入力で追加</Text>
+            <Ionicons name="sparkles-outline" size={20} color="#8B5CF6" />
+            <Text style={styles.researchButtonText}>リサーチから追加</Text>
           </Pressable>
-          <View style={styles.buttonDivider} />
-          <Pressable
-            style={styles.addButton}
-            onPress={() => setPickerVisible(true)}
-            accessibilityLabel="単価表から追加"
-            accessibilityRole="button"
-          >
-            <Ionicons name="list-outline" size={20} color="#007AFF" />
-            <Text style={styles.addButtonText}>単価表から追加</Text>
-          </Pressable>
-        </View>
+        </>
       )}
 
       {/* Editor Modal */}
@@ -274,6 +311,14 @@ function LineItemListComponent({
         visible={pickerVisible}
         onSelect={handleUnitPriceSelect}
         onCancel={handlePickerCancel}
+      />
+
+      {/* Material Research Modal */}
+      <MaterialSearchModal
+        visible={researchModalVisible}
+        mode="lineItem"
+        onAddLineItems={handleResearchAddLineItems}
+        onClose={() => setResearchModalVisible(false)}
       />
     </View>
   );
@@ -372,5 +417,25 @@ const styles = StyleSheet.create({
     width: StyleSheet.hairlineWidth,
     backgroundColor: '#E5E5E5',
     marginVertical: 10,
+  },
+  researchButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginTop: 8,
+    paddingVertical: 14,
+    gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  researchButtonText: {
+    fontSize: 15,
+    color: '#8B5CF6',
+    fontWeight: '500',
   },
 });

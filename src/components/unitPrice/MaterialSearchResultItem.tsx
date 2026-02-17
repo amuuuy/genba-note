@@ -3,18 +3,25 @@
  *
  * Displays a single material search result from Rakuten API.
  * Shows product image, name, shop, price, and a register button.
+ * Supports optional checkbox for multi-select mode.
  */
 
 import React from 'react';
-import { View, Text, Image, StyleSheet, Pressable } from 'react-native';
+import { View, Text, Image, StyleSheet, Pressable, type GestureResponderEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { MaterialSearchResult } from '@/types/materialResearch';
 
 export interface MaterialSearchResultItemProps {
   /** Search result to display */
   result: MaterialSearchResult;
-  /** Callback when register button is pressed */
+  /** Callback when register button is pressed (single item edit flow) */
   onRegister: (result: MaterialSearchResult) => void;
+  /** Whether multi-select checkboxes are shown */
+  selectable?: boolean;
+  /** Whether this item is currently selected */
+  selected?: boolean;
+  /** Callback when selection is toggled */
+  onToggleSelect?: (result: MaterialSearchResult) => void;
   /** Test ID */
   testID?: string;
 }
@@ -33,10 +40,38 @@ export const MaterialSearchResultItem = React.memo(
   function MaterialSearchResultItem({
     result,
     onRegister,
+    selectable = false,
+    selected = false,
+    onToggleSelect,
     testID,
   }: MaterialSearchResultItemProps) {
     return (
-      <View style={styles.container} testID={testID}>
+      <Pressable
+        style={[styles.container, selected && styles.containerSelected]}
+        onPress={selectable && onToggleSelect ? () => onToggleSelect(result) : undefined}
+        testID={testID}
+      >
+        {/* Checkbox (multi-select mode) */}
+        {selectable && (
+          <Pressable
+            style={styles.checkbox}
+            onPress={(e: GestureResponderEvent) => {
+              e.stopPropagation();
+              onToggleSelect?.(result);
+            }}
+            hitSlop={8}
+            accessibilityLabel={selected ? `${result.name}の選択を解除` : `${result.name}を選択`}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: selected }}
+          >
+            <Ionicons
+              name={selected ? 'checkbox' : 'square-outline'}
+              size={22}
+              color={selected ? '#007AFF' : '#C7C7CC'}
+            />
+          </Pressable>
+        )}
+
         {/* Product image */}
         {result.imageUrl ? (
           <Image
@@ -76,20 +111,23 @@ export const MaterialSearchResultItem = React.memo(
           )}
         </View>
 
-        {/* Register button */}
+        {/* Register button (single item edit flow) */}
         <Pressable
           style={({ pressed }) => [
             styles.registerButton,
             pressed && styles.registerButtonPressed,
           ]}
-          onPress={() => onRegister(result)}
-          accessibilityLabel={`${result.name}を単価マスタに登録`}
+          onPress={(e: GestureResponderEvent) => {
+            e.stopPropagation();
+            onRegister(result);
+          }}
+          accessibilityLabel={`${result.name}を編集して登録`}
           accessibilityRole="button"
           hitSlop={8}
         >
           <Ionicons name="add-circle" size={28} color="#007AFF" />
         </Pressable>
-      </View>
+      </Pressable>
     );
   }
 );
@@ -105,6 +143,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#E5E5E5',
+  },
+  containerSelected: {
+    backgroundColor: '#E3F2FD',
+  },
+  checkbox: {
+    marginRight: 10,
+    padding: 2,
   },
   image: {
     width: 48,

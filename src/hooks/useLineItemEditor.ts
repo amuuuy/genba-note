@@ -115,6 +115,7 @@ export function useLineItemEditor(
   const addItem = useCallback((input: LineItemInput): boolean => {
     const result = addLineItem(lineItemsRef.current, input);
     if (result.success && result.data) {
+      lineItemsRef.current = result.data!;
       setState((prev) => ({
         ...prev,
         lineItems: result.data!,

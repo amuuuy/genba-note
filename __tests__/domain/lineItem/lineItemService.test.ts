@@ -190,6 +190,26 @@ describe('lineItemService', () => {
 
       expect(lineItems.length).toBe(originalLength);
     });
+
+    it('should support consecutive adds using returned data (bulk add pattern)', () => {
+      let current = createTestLineItems(0);
+      const inputs: LineItemInput[] = [
+        { name: 'Item A', quantityMilli: 1000, unit: '式', unitPrice: 1000, taxRate: 10 },
+        { name: 'Item B', quantityMilli: 2000, unit: 'm', unitPrice: 2000, taxRate: 10 },
+        { name: 'Item C', quantityMilli: 3000, unit: '本', unitPrice: 3000, taxRate: 10 },
+      ];
+
+      for (const input of inputs) {
+        const result = addLineItem(current, input);
+        expect(result.success).toBe(true);
+        current = result.data!;
+      }
+
+      expect(current).toHaveLength(3);
+      expect(current[0].name).toBe('Item A');
+      expect(current[1].name).toBe('Item B');
+      expect(current[2].name).toBe('Item C');
+    });
   });
 
   describe('updateLineItem', () => {

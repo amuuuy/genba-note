@@ -27,6 +27,8 @@ export interface UnitPriceEditorModalProps {
   visible: boolean;
   /** Existing unit price (null for new item) */
   unitPrice: UnitPrice | null;
+  /** Pre-populated input for new items (e.g. from material research) */
+  initialInput?: UnitPriceInput | null;
   /** Callback when save is pressed */
   onSave: (input: UnitPriceInput) => void;
   /** Callback when cancel is pressed */
@@ -130,6 +132,7 @@ function validateForm(state: FormState): FormErrors {
 export const UnitPriceEditorModal: React.FC<UnitPriceEditorModalProps> = ({
   visible,
   unitPrice,
+  initialInput,
   onSave,
   onCancel,
   testID,
@@ -168,6 +171,19 @@ export const UnitPriceEditorModal: React.FC<UnitPriceEditorModalProps> = ({
           packQty: unitPrice.packQty?.toString() ?? '',
           packPrice: unitPrice.packPrice?.toString() ?? '',
         });
+      } else if (initialInput) {
+        // Pre-populate from research result (new item with initial values)
+        setForm({
+          name: initialInput.name,
+          unit: initialInput.unit,
+          defaultPrice: initialInput.defaultPrice.toString(),
+          defaultTaxRate: initialInput.defaultTaxRate,
+          category: initialInput.category ?? '',
+          notes: initialInput.notes ?? '',
+          usePackInput: false,
+          packQty: '',
+          packPrice: '',
+        });
       } else {
         setForm({
           name: '',
@@ -183,7 +199,7 @@ export const UnitPriceEditorModal: React.FC<UnitPriceEditorModalProps> = ({
       }
       setErrors({});
     }
-  }, [visible, unitPrice]);
+  }, [visible, unitPrice, initialInput]);
 
   const updateField = useCallback(
     <K extends keyof FormState>(field: K, value: FormState[K]) => {

@@ -3,10 +3,11 @@
  *
  * Displays a single AI price research result.
  * Similar layout to MaterialSearchResultItem but without product image.
+ * Supports optional checkbox for multi-select mode.
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, type GestureResponderEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { AiPriceItem } from '@/types/materialResearch';
 import { formatCurrency } from '@/utils/currencyFormat';
@@ -15,22 +16,61 @@ import { safeOpenUrl } from '@/utils/safeOpenUrl';
 export interface AiPriceItemCardProps {
   /** Price item to display */
   item: AiPriceItem;
-  /** Callback when register button is pressed */
+  /** Callback when register button is pressed (single item edit flow) */
   onRegister: (item: AiPriceItem) => void;
+  /** Whether multi-select checkboxes are shown */
+  selectable?: boolean;
+  /** Whether this item is currently selected */
+  selected?: boolean;
+  /** Callback when selection is toggled */
+  onToggleSelect?: (item: AiPriceItem) => void;
   /** Test ID */
   testID?: string;
 }
 
 export const AiPriceItemCard = React.memo(
-  function AiPriceItemCard({ item, onRegister, testID }: AiPriceItemCardProps) {
-    const handleSourcePress = () => {
+  function AiPriceItemCard({
+    item,
+    onRegister,
+    selectable = false,
+    selected = false,
+    onToggleSelect,
+    testID,
+  }: AiPriceItemCardProps) {
+    const handleSourcePress = (e: GestureResponderEvent) => {
+      e.stopPropagation();
       if (item.sourceUrl) {
         safeOpenUrl(item.sourceUrl);
       }
     };
 
     return (
-      <View style={styles.container} testID={testID}>
+      <Pressable
+        style={[styles.container, selected && styles.containerSelected]}
+        onPress={selectable && onToggleSelect ? () => onToggleSelect(item) : undefined}
+        testID={testID}
+      >
+        {/* Checkbox (multi-select mode) */}
+        {selectable && (
+          <Pressable
+            style={styles.checkbox}
+            onPress={(e: GestureResponderEvent) => {
+              e.stopPropagation();
+              onToggleSelect?.(item);
+            }}
+            hitSlop={8}
+            accessibilityLabel={selected ? `${item.name}の選択を解除` : `${item.name}を選択`}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: selected }}
+          >
+            <Ionicons
+              name={selected ? 'checkbox' : 'square-outline'}
+              size={22}
+              color={selected ? '#8B5CF6' : '#C7C7CC'}
+            />
+          </Pressable>
+        )}
+
         {/* AI icon */}
         <View style={styles.iconContainer}>
           <Ionicons name="sparkles" size={24} color="#8B5CF6" />
@@ -62,20 +102,23 @@ export const AiPriceItemCard = React.memo(
           </View>
         </View>
 
-        {/* Register button */}
+        {/* Register button (single item edit flow) */}
         <Pressable
           style={({ pressed }) => [
             styles.registerButton,
             pressed && styles.registerButtonPressed,
           ]}
-          onPress={() => onRegister(item)}
-          accessibilityLabel={`${item.name}を単価マスタに登録`}
+          onPress={(e: GestureResponderEvent) => {
+            e.stopPropagation();
+            onRegister(item);
+          }}
+          accessibilityLabel={`${item.name}を編集して登録`}
           accessibilityRole="button"
           hitSlop={8}
         >
           <Ionicons name="add-circle" size={28} color="#007AFF" />
         </Pressable>
-      </View>
+      </Pressable>
     );
   }
 );
@@ -91,6 +134,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#E5E5E5',
+  },
+  containerSelected: {
+    backgroundColor: '#F5F3FF',
+  },
+  checkbox: {
+    marginRight: 10,
+    padding: 2,
   },
   iconContainer: {
     width: 48,

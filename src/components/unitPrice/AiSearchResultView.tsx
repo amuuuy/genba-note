@@ -33,10 +33,18 @@ export interface AiSearchResultViewProps {
   error: string | null;
   /** Whether initial search has been performed */
   hasSearched: boolean;
-  /** Callback when a price item is registered */
+  /** Callback when a price item is registered (single item edit flow) */
   onRegister: (item: AiPriceItem) => void;
   /** Callback to retry search */
   onRetry: () => void;
+  /** Whether multi-select checkboxes are shown */
+  selectable?: boolean;
+  /** AI item IDs mapped by array index (for selection tracking) */
+  aiItemIds?: string[];
+  /** Set of selected AI item IDs */
+  selectedIds?: Set<string>;
+  /** Callback when selection is toggled */
+  onToggleSelect?: (item: AiPriceItem, id: string) => void;
   /** Test ID */
   testID?: string;
 }
@@ -48,6 +56,10 @@ export const AiSearchResultView: React.FC<AiSearchResultViewProps> = ({
   hasSearched,
   onRegister,
   onRetry,
+  selectable = false,
+  aiItemIds,
+  selectedIds,
+  onToggleSelect,
   testID,
 }) => {
   const handleSourcePress = useCallback((uri: string) => {
@@ -134,14 +146,24 @@ export const AiSearchResultView: React.FC<AiSearchResultViewProps> = ({
       {/* Price items */}
       <View style={styles.itemsSection}>
         <Text style={styles.sectionTitle}>価格比較</Text>
-        {result.items.map((item, index) => (
-          <AiPriceItemCard
-            key={`ai-item-${index}`}
-            item={item}
-            onRegister={onRegister}
-            testID={`ai-price-item-${index}`}
-          />
-        ))}
+        {result.items.map((item, index) => {
+          const itemId = aiItemIds?.[index];
+          return (
+            <AiPriceItemCard
+              key={itemId ?? `ai-item-${index}`}
+              item={item}
+              onRegister={onRegister}
+              selectable={selectable}
+              selected={itemId ? selectedIds?.has(itemId) : false}
+              onToggleSelect={
+                selectable && onToggleSelect && itemId
+                  ? (i) => onToggleSelect(i, itemId)
+                  : undefined
+              }
+              testID={`ai-price-item-${index}`}
+            />
+          );
+        })}
       </View>
 
       {/* Grounding sources */}

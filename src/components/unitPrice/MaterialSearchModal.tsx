@@ -5,9 +5,14 @@
  * Supports two search modes via tab switching:
  * - Rakuten Search: Product listings from Rakuten Ichiba API
  * - AI Price Research: Web-wide price research via Gemini + Google Search
+ *
+ * Features:
+ * - mode='unitPrice': Register results to unit price master (with edit-before-register)
+ * - mode='lineItem': Add results as document line items (with edit-before-add)
+ * - Multi-select with bulk add via checkboxes and floating action bar
  */
 
-import React, { useCallback, useState, useRef } from 'react';
+import React, { useCallback, useState, useRef, useMemo, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -22,20 +27,37 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { UnitPriceInput } from '@/domain/unitPrice';
+import type { LineItemInput } from '@/domain/lineItem/lineItemService';
 import type { MaterialSearchResult, AiPriceItem, SearchSource } from '@/types/materialResearch';
 import { searchResultToUnitPriceInput } from '@/domain/materialResearch/rakutenMappingService';
 import { aiPriceItemToUnitPriceInput } from '@/domain/materialResearch/geminiMappingService';
+import {
+  searchResultToLineItemInput,
+  aiPriceItemToLineItemInput,
+} from '@/domain/materialResearch/lineItemMappingService';
 import { useMaterialSearch } from '@/hooks/useMaterialSearch';
 import { useAiPriceSearch } from '@/hooks/useAiPriceSearch';
+import { useMultiSelect } from '@/hooks/useMultiSelect';
+import { generateUUID } from '@/utils/uuid';
 import { MaterialSearchResultItem } from './MaterialSearchResultItem';
 import { AiSearchResultView } from './AiSearchResultView';
 import { AiModelSelector } from './AiModelSelector';
+import { UnitPriceEditorModal } from './UnitPriceEditorModal';
+import { LineItemEditorModal } from '../document/edit/LineItemEditorModal';
+
+export type MaterialSearchMode = 'unitPrice' | 'lineItem';
 
 export interface MaterialSearchModalProps {
   /** Whether the modal is visible */
   visible: boolean;
-  /** Callback when a search result is registered as unit price */
-  onRegister: (input: UnitPriceInput) => void;
+  /** Mode: 'unitPrice' for unit price master, 'lineItem' for document line items */
+  mode?: MaterialSearchMode;
+  /** Callback when a single unit price is registered (unitPrice mode, after edit) */
+  onRegister?: (input: UnitPriceInput) => void;
+  /** Callback for bulk unit price registration (unitPrice mode) */
+  onBulkRegister?: (inputs: UnitPriceInput[]) => void;
+  /** Callback for adding line items (lineItem mode, single or bulk) */
+  onAddLineItems?: (inputs: LineItemInput[]) => void;
   /** Callback when modal is closed */
   onClose: () => void;
   /** Test ID */
@@ -47,7 +69,10 @@ export interface MaterialSearchModalProps {
  */
 export const MaterialSearchModal: React.FC<MaterialSearchModalProps> = ({
   visible,
+  mode = 'unitPrice',
   onRegister,
+  onBulkRegister,
+  onAddLineItems,
   onClose,
   testID,
 }) => {
@@ -62,6 +87,39 @@ export const MaterialSearchModal: React.FC<MaterialSearchModalProps> = ({
   // AI search hook
   const ai = useAiPriceSearch();
 
+  // Multi-select
+  const selection = useMultiSelect();
+
+  // Stable IDs for AI items (since AiPriceItem has no id field)
+  const [aiItemIds, setAiItemIds] = useState<string[]>([]);
+
+  // Assign UUIDs to AI items when results change
+  useEffect(() => {
+    if (ai.result?.items) {
+      setAiItemIds(ai.result.items.map(() => generateUUID()));
+    } else {
+      setAiItemIds([]);
+    }
+  }, [ai.result]);
+
+  // AI items lookup map: id -> AiPriceItem
+  const aiItemMap = useMemo(() => {
+    const map = new Map<string, AiPriceItem>();
+    if (ai.result?.items) {
+      ai.result.items.forEach((item, index) => {
+        const id = aiItemIds[index];
+        if (id) map.set(id, item);
+      });
+    }
+    return map;
+  }, [ai.result, aiItemIds]);
+
+  // Edit-before-register state (unitPrice mode)
+  const [editingUnitPriceInput, setEditingUnitPriceInput] = useState<UnitPriceInput | null>(null);
+
+  // Edit-before-add state (lineItem mode)
+  const [editingLineItemInput, setEditingLineItemInput] = useState<LineItemInput | null>(null);
+
   const isLoading = activeTab === 'rakuten' ? rakuten.isLoading : ai.isLoading;
 
   const handleClose = useCallback(() => {
@@ -70,11 +128,17 @@ export const MaterialSearchModal: React.FC<MaterialSearchModalProps> = ({
     setQuery('');
     setActiveTab('rakuten');
     setHasAiSearched(false);
+    selection.clear();
+    setAiItemIds([]);
+    setEditingUnitPriceInput(null);
+    setEditingLineItemInput(null);
     onClose();
-  }, [rakuten, ai, onClose]);
+  }, [rakuten, ai, selection, onClose]);
 
   const handleSearch = useCallback(() => {
     if (!query.trim() || isLoading) return;
+
+    selection.clear();
 
     if (activeTab === 'rakuten') {
       rakuten.search(query);
@@ -82,43 +146,148 @@ export const MaterialSearchModal: React.FC<MaterialSearchModalProps> = ({
       setHasAiSearched(true);
       ai.search(query);
     }
-  }, [query, activeTab, isLoading, rakuten, ai]);
+  }, [query, activeTab, isLoading, rakuten, ai, selection]);
+
+  // --- Single item register (opens editor) ---
 
   const handleRakutenRegister = useCallback(
     (result: MaterialSearchResult) => {
-      const input = searchResultToUnitPriceInput(result);
-      onRegister(input);
+      if (mode === 'unitPrice') {
+        const input = searchResultToUnitPriceInput(result);
+        setEditingUnitPriceInput(input);
+      } else {
+        const input = searchResultToLineItemInput(result);
+        setEditingLineItemInput(input);
+      }
     },
-    [onRegister]
+    [mode]
   );
 
   const handleAiRegister = useCallback(
     (item: AiPriceItem) => {
-      const input = aiPriceItemToUnitPriceInput(item);
-      onRegister(input);
+      if (mode === 'unitPrice') {
+        const input = aiPriceItemToUnitPriceInput(item);
+        setEditingUnitPriceInput(input);
+      } else {
+        const input = aiPriceItemToLineItemInput(item);
+        setEditingLineItemInput(input);
+      }
+    },
+    [mode]
+  );
+
+  // --- Editor save callbacks ---
+
+  const handleUnitPriceEditorSave = useCallback(
+    (input: UnitPriceInput) => {
+      setEditingUnitPriceInput(null);
+      onRegister?.(input);
     },
     [onRegister]
   );
 
-  const handleTabChange = useCallback((tab: SearchSource) => {
-    setActiveTab(tab);
+  const handleLineItemEditorSave = useCallback(
+    (input: LineItemInput) => {
+      setEditingLineItemInput(null);
+      onAddLineItems?.([input]);
+    },
+    [onAddLineItems]
+  );
+
+  const handleEditorCancel = useCallback(() => {
+    setEditingUnitPriceInput(null);
+    setEditingLineItemInput(null);
   }, []);
 
-  // Sync query to the active hook when search is triggered
+  // --- Multi-select toggle ---
+
+  const handleRakutenToggleSelect = useCallback(
+    (result: MaterialSearchResult) => {
+      selection.toggle(result.id);
+    },
+    [selection]
+  );
+
+  const handleAiToggleSelect = useCallback(
+    (_item: AiPriceItem, id: string) => {
+      selection.toggle(id);
+    },
+    [selection]
+  );
+
+  // --- Bulk add ---
+
+  const handleBulkAdd = useCallback(() => {
+    if (selection.selectedCount === 0) return;
+
+    if (mode === 'unitPrice') {
+      const inputs: UnitPriceInput[] = [];
+
+      // Collect selected Rakuten items
+      for (const result of rakuten.results) {
+        if (selection.isSelected(result.id)) {
+          inputs.push(searchResultToUnitPriceInput(result));
+        }
+      }
+
+      // Collect selected AI items
+      for (const [id, item] of aiItemMap) {
+        if (selection.isSelected(id)) {
+          inputs.push(aiPriceItemToUnitPriceInput(item));
+        }
+      }
+
+      if (inputs.length > 0) {
+        onBulkRegister?.(inputs);
+      }
+    } else {
+      const inputs: LineItemInput[] = [];
+
+      for (const result of rakuten.results) {
+        if (selection.isSelected(result.id)) {
+          inputs.push(searchResultToLineItemInput(result));
+        }
+      }
+
+      for (const [id, item] of aiItemMap) {
+        if (selection.isSelected(id)) {
+          inputs.push(aiPriceItemToLineItemInput(item));
+        }
+      }
+
+      if (inputs.length > 0) {
+        onAddLineItems?.(inputs);
+      }
+    }
+
+    selection.clear();
+  }, [mode, selection, rakuten.results, aiItemMap, onBulkRegister, onAddLineItems]);
+
+  // --- Tab change ---
+
+  const handleTabChange = useCallback((tab: SearchSource) => {
+    setActiveTab(tab);
+    selection.clear();
+  }, [selection]);
+
   const handleSubmitEditing = useCallback(() => {
     handleSearch();
   }, [handleSearch]);
 
-  // Rakuten-specific callbacks
+  // --- Rakuten list rendering ---
+
   const renderRakutenItem = useCallback(
     ({ item }: { item: MaterialSearchResult }) => (
       <MaterialSearchResultItem
         result={item}
         onRegister={handleRakutenRegister}
+        selectable
+        selected={selection.isSelected(item.id)}
+        onToggleSelect={handleRakutenToggleSelect}
         testID={`search-result-${item.id}`}
       />
     ),
-    [handleRakutenRegister]
+    [handleRakutenRegister, selection, handleRakutenToggleSelect]
   );
 
   const renderRakutenEmpty = useCallback(() => {
@@ -318,7 +487,10 @@ export const MaterialSearchModal: React.FC<MaterialSearchModalProps> = ({
             keyExtractor={(item) => item.id}
             ListEmptyComponent={renderRakutenEmpty}
             ListFooterComponent={renderRakutenFooter}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[
+              styles.listContent,
+              selection.selectedCount > 0 && styles.listContentWithSelectionBar,
+            ]}
             keyboardShouldPersistTaps="handled"
           />
         ) : (
@@ -329,10 +501,68 @@ export const MaterialSearchModal: React.FC<MaterialSearchModalProps> = ({
             hasSearched={hasAiSearched}
             onRegister={handleAiRegister}
             onRetry={handleSearch}
+            selectable
+            aiItemIds={aiItemIds}
+            selectedIds={selection.selectedIds}
+            onToggleSelect={handleAiToggleSelect}
             testID="ai-search-results"
           />
         )}
+
+        {/* Selection bar (shown when items are selected) */}
+        {selection.selectedCount > 0 && (
+          <View style={styles.selectionBar}>
+            <Text style={styles.selectionCount}>
+              {selection.selectedCount}件選択中
+            </Text>
+            <View style={styles.selectionActions}>
+              <Pressable
+                style={styles.selectionClearButton}
+                onPress={selection.clear}
+                accessibilityLabel="選択を解除"
+                accessibilityRole="button"
+              >
+                <Text style={styles.selectionClearText}>解除</Text>
+              </Pressable>
+              <Pressable
+                style={styles.bulkAddButton}
+                onPress={handleBulkAdd}
+                accessibilityLabel={`${selection.selectedCount}件追加`}
+                accessibilityRole="button"
+              >
+                <Ionicons name="add-circle" size={20} color="#fff" />
+                <Text style={styles.bulkAddText}>
+                  {selection.selectedCount}件追加
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
       </KeyboardAvoidingView>
+
+      {/* UnitPrice editor modal (unitPrice mode, single item edit) */}
+      {mode === 'unitPrice' && (
+        <UnitPriceEditorModal
+          visible={editingUnitPriceInput !== null}
+          unitPrice={null}
+          initialInput={editingUnitPriceInput}
+          onSave={handleUnitPriceEditorSave}
+          onCancel={handleEditorCancel}
+          testID="research-unit-price-editor"
+        />
+      )}
+
+      {/* LineItem editor modal (lineItem mode, single item edit) */}
+      {mode === 'lineItem' && (
+        <LineItemEditorModal
+          visible={editingLineItemInput !== null}
+          lineItem={null}
+          initialInput={editingLineItemInput}
+          onSave={handleLineItemEditorSave}
+          onCancel={handleEditorCancel}
+          testID="research-line-item-editor"
+        />
+      )}
     </Modal>
   );
 };
@@ -468,6 +698,9 @@ const styles = StyleSheet.create({
   listContent: {
     flexGrow: 1,
   },
+  listContentWithSelectionBar: {
+    paddingBottom: 70,
+  },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -509,5 +742,63 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     color: '#007AFF',
+  },
+  // Selection bar
+  selectionBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#C6C6C8',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  selectionCount: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#333',
+  },
+  selectionActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  selectionClearButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  selectionClearText: {
+    fontSize: 15,
+    color: '#8E8E93',
+  },
+  bulkAddButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#007AFF',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 6,
+  },
+  bulkAddText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#fff',
   },
 });

@@ -49,6 +49,7 @@ describe('useUnitPriceList', () => {
       // Type-level test: verify the interface has expected properties
       const expectedReturn: UseUnitPriceListReturn = {
         unitPrices: [],
+        totalCount: 0,
         isLoading: false,
         error: null,
         searchText: '',
@@ -58,12 +59,14 @@ describe('useUnitPriceList', () => {
         setCategory: jest.fn(),
         refresh: jest.fn(),
         createItem: jest.fn(),
+        createItems: jest.fn(),
         updateItem: jest.fn(),
         deleteItem: jest.fn(),
       };
 
       // Verify properties exist with correct types
       expect(Array.isArray(expectedReturn.unitPrices)).toBe(true);
+      expect(typeof expectedReturn.totalCount).toBe('number');
       expect(typeof expectedReturn.isLoading).toBe('boolean');
       expect(typeof expectedReturn.searchText).toBe('string');
       expect(Array.isArray(expectedReturn.categories)).toBe(true);
@@ -71,6 +74,7 @@ describe('useUnitPriceList', () => {
       expect(typeof expectedReturn.setCategory).toBe('function');
       expect(typeof expectedReturn.refresh).toBe('function');
       expect(typeof expectedReturn.createItem).toBe('function');
+      expect(typeof expectedReturn.createItems).toBe('function');
       expect(typeof expectedReturn.updateItem).toBe('function');
       expect(typeof expectedReturn.deleteItem).toBe('function');
     });

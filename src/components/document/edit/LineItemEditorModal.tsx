@@ -27,6 +27,8 @@ export interface LineItemEditorModalProps {
   visible: boolean;
   /** Existing line item (null for new item) */
   lineItem: LineItem | null;
+  /** Pre-populated input for new items (e.g. from material research) */
+  initialInput?: LineItemInput | null;
   /** Callback when save is pressed */
   onSave: (input: LineItemInput) => void;
   /** Callback when cancel is pressed */
@@ -89,6 +91,7 @@ function validateForm(state: FormState): FormErrors {
 export const LineItemEditorModal: React.FC<LineItemEditorModalProps> = ({
   visible,
   lineItem,
+  initialInput,
   onSave,
   onCancel,
   onOpenUnitPricePicker,
@@ -117,6 +120,15 @@ export const LineItemEditorModal: React.FC<LineItemEditorModalProps> = ({
           unitPrice: lineItem.unitPrice.toString(),
           taxRate: lineItem.taxRate,
         });
+      } else if (initialInput) {
+        // Pre-populate from research result (new item with initial values)
+        setForm({
+          name: initialInput.name,
+          quantity: fromQuantityMilli(initialInput.quantityMilli).toString(),
+          unit: initialInput.unit,
+          unitPrice: initialInput.unitPrice.toString(),
+          taxRate: initialInput.taxRate,
+        });
       } else {
         setForm({
           name: '',
@@ -128,7 +140,7 @@ export const LineItemEditorModal: React.FC<LineItemEditorModalProps> = ({
       }
       setErrors({});
     }
-  }, [visible, lineItem]);
+  }, [visible, lineItem, initialInput]);
 
   const updateField = useCallback(
     <K extends keyof FormState>(field: K, value: FormState[K]) => {

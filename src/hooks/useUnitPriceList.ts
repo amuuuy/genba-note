@@ -40,6 +40,8 @@ interface UnitPriceListState {
 export interface UseUnitPriceListReturn {
   /** Filtered and sorted unit prices */
   unitPrices: UnitPrice[];
+  /** Total number of unit prices (unfiltered) */
+  totalCount: number;
   /** Whether list is loading */
   isLoading: boolean;
   /** Error message */
@@ -58,6 +60,8 @@ export interface UseUnitPriceListReturn {
   refresh: () => Promise<void>;
   /** Create a new unit price */
   createItem: (input: UnitPriceInput) => Promise<boolean>;
+  /** Create multiple unit prices in batch (refreshes list once at end) */
+  createItems: (inputs: UnitPriceInput[]) => Promise<number>;
   /** Update a unit price */
   updateItem: (id: string, updates: UpdateUnitPriceInput) => Promise<boolean>;
   /** Delete a unit price */
@@ -154,6 +158,23 @@ export function useUnitPriceList(): UseUnitPriceListReturn {
   );
 
   /**
+   * Create multiple unit prices in batch (refreshes list once at end)
+   * @returns number of successfully created items
+   */
+  const createItems = useCallback(
+    async (inputs: UnitPriceInput[]): Promise<number> => {
+      let count = 0;
+      for (const input of inputs) {
+        const result = await createUnitPrice(input);
+        if (result.success) count++;
+      }
+      if (count > 0) await refresh();
+      return count;
+    },
+    [refresh]
+  );
+
+  /**
    * Update a unit price
    * @returns true if successful
    */
@@ -187,6 +208,7 @@ export function useUnitPriceList(): UseUnitPriceListReturn {
 
   return {
     unitPrices,
+    totalCount: state.allUnitPrices.length,
     isLoading: state.isLoading,
     error: state.error,
     searchText: state.searchText,
@@ -196,6 +218,7 @@ export function useUnitPriceList(): UseUnitPriceListReturn {
     setCategory,
     refresh,
     createItem,
+    createItems,
     updateItem,
     deleteItem,
   };
