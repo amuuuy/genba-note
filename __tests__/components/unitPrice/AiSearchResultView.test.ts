@@ -63,6 +63,31 @@ describe('AiSearchResultView', () => {
       };
       expect(props.testID).toBe('ai-search-results');
     });
+
+    it('accepts optional hasSelectionBar prop', () => {
+      const props: AiSearchResultViewProps = {
+        result: null,
+        isLoading: false,
+        error: null,
+        hasSearched: false,
+        onRegister: jest.fn(),
+        onRetry: jest.fn(),
+        hasSelectionBar: true,
+      };
+      expect(props.hasSelectionBar).toBe(true);
+    });
+
+    it('hasSelectionBar defaults to undefined when not provided', () => {
+      const props: AiSearchResultViewProps = {
+        result: null,
+        isLoading: false,
+        error: null,
+        hasSearched: false,
+        onRegister: jest.fn(),
+        onRetry: jest.fn(),
+      };
+      expect(props.hasSelectionBar).toBeUndefined();
+    });
   });
 
   describe('determineAiSearchViewState', () => {

@@ -45,6 +45,8 @@ export interface AiSearchResultViewProps {
   selectedIds?: Set<string>;
   /** Callback when selection is toggled */
   onToggleSelect?: (item: AiPriceItem, id: string) => void;
+  /** Whether the floating selection bar is visible (adds bottom padding) */
+  hasSelectionBar?: boolean;
   /** Test ID */
   testID?: string;
 }
@@ -60,6 +62,7 @@ export const AiSearchResultView: React.FC<AiSearchResultViewProps> = ({
   aiItemIds,
   selectedIds,
   onToggleSelect,
+  hasSelectionBar = false,
   testID,
 }) => {
   const handleSourcePress = useCallback((uri: string) => {
@@ -119,7 +122,10 @@ export const AiSearchResultView: React.FC<AiSearchResultViewProps> = ({
   return (
     <ScrollView
       style={styles.scrollView}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[
+        styles.scrollContent,
+        hasSelectionBar && styles.scrollContentWithSelectionBar,
+      ]}
       testID={testID}
     >
       {/* Summary card */}
@@ -245,6 +251,9 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 24,
+  },
+  scrollContentWithSelectionBar: {
+    paddingBottom: 70,
   },
   summaryCard: {
     margin: 16,

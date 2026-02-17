@@ -47,22 +47,40 @@ import { LineItemEditorModal } from '../document/edit/LineItemEditorModal';
 
 export type MaterialSearchMode = 'unitPrice' | 'lineItem';
 
-export interface MaterialSearchModalProps {
+interface MaterialSearchModalBaseProps {
   /** Whether the modal is visible */
   visible: boolean;
-  /** Mode: 'unitPrice' for unit price master, 'lineItem' for document line items */
-  mode?: MaterialSearchMode;
-  /** Callback when a single unit price is registered (unitPrice mode, after edit) */
-  onRegister?: (input: UnitPriceInput) => void;
-  /** Callback for bulk unit price registration (unitPrice mode) */
-  onBulkRegister?: (inputs: UnitPriceInput[]) => void;
-  /** Callback for adding line items (lineItem mode, single or bulk) */
-  onAddLineItems?: (inputs: LineItemInput[]) => void;
   /** Callback when modal is closed */
   onClose: () => void;
   /** Test ID */
   testID?: string;
 }
+
+interface MaterialSearchModalUnitPriceProps extends MaterialSearchModalBaseProps {
+  /** Mode: 'unitPrice' for unit price master (default) */
+  mode?: 'unitPrice';
+  /** Callback when a single unit price is registered (after edit) */
+  onRegister?: (input: UnitPriceInput) => void;
+  /** Callback for bulk unit price registration */
+  onBulkRegister?: (inputs: UnitPriceInput[]) => void;
+  /** Not available in unitPrice mode */
+  onAddLineItems?: never;
+}
+
+interface MaterialSearchModalLineItemProps extends MaterialSearchModalBaseProps {
+  /** Mode: 'lineItem' for document line items */
+  mode: 'lineItem';
+  /** Callback for adding line items (single or bulk) */
+  onAddLineItems?: (inputs: LineItemInput[]) => void;
+  /** Not available in lineItem mode */
+  onRegister?: never;
+  /** Not available in lineItem mode */
+  onBulkRegister?: never;
+}
+
+export type MaterialSearchModalProps =
+  | MaterialSearchModalUnitPriceProps
+  | MaterialSearchModalLineItemProps;
 
 /**
  * Material search modal for price research
@@ -505,6 +523,7 @@ export const MaterialSearchModal: React.FC<MaterialSearchModalProps> = ({
             aiItemIds={aiItemIds}
             selectedIds={selection.selectedIds}
             onToggleSelect={handleAiToggleSelect}
+            hasSelectionBar={selection.selectedCount > 0}
             testID="ai-search-results"
           />
         )}
