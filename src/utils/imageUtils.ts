@@ -406,6 +406,12 @@ export async function copyFinancePhotoToTempStorage(
   sourceUri: string
 ): Promise<string | null> {
   try {
+    const sourceFile = new File(sourceUri);
+    if (sourceFile.size > MAX_PHOTO_SIZE_BYTES) {
+      if (__DEV__) console.warn(`Finance temp photo exceeds size limit: ${sourceFile.size} bytes`);
+      return null;
+    }
+
     // Generate unique filename with timestamp and UUID
     const timestamp = Date.now();
     const uuid = generateUUID().slice(0, 8); // Short UUID for filename
@@ -421,7 +427,6 @@ export async function copyFinancePhotoToTempStorage(
     destDir.create({ intermediates: true, idempotent: true });
 
     // Copy file to temporary storage
-    const sourceFile = new File(sourceUri);
     const destFile = new File(destDir, filename);
 
     sourceFile.copy(destFile);

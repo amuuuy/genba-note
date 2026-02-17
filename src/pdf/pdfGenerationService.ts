@@ -106,21 +106,28 @@ async function sharePdf(fileUri: string): Promise<PdfGenerationResult> {
 }
 
 /**
- * Remove orphaned PDF files from the cache directory.
- * Call on app startup to clean up files left behind by app crashes.
+ * Remove orphaned PDF files from the cache directory (recursive).
+ * Scans subdirectories (e.g. cache/Print/ used by expo-print) to ensure
+ * all orphaned PDFs are cleaned up after app crashes.
  * Failures are silently ignored to avoid blocking app startup.
  */
 export function cleanupOrphanedPdfCache(): void {
   try {
     const cacheDir = new Directory(Paths.cache);
     if (!cacheDir.exists) return;
-    for (const entry of cacheDir.list()) {
-      if (entry instanceof File && entry.uri.endsWith('.pdf')) {
-        try { entry.delete(); } catch { /* ignore individual file errors */ }
-      }
-    }
+    deletePdfFilesRecursive(cacheDir);
   } catch {
     // Silent - cleanup failure should not block app startup
+  }
+}
+
+function deletePdfFilesRecursive(dir: Directory): void {
+  for (const entry of dir.list()) {
+    if (entry instanceof File && entry.uri.toLowerCase().endsWith('.pdf')) {
+      try { entry.delete(); } catch { /* ignore individual file errors */ }
+    } else if (entry instanceof Directory) {
+      try { deletePdfFilesRecursive(entry); } catch { /* ignore subdirectory errors */ }
+    }
   }
 }
 

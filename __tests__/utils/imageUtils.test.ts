@@ -10,6 +10,7 @@ import {
   copyBackgroundImageToPermanentStorage,
   copyCustomerPhotoToPermanentStorage,
   copyFinancePhotoToPermanentStorage,
+  copyFinancePhotoToTempStorage,
   moveFinancePhotoToEntryDirectory,
   deleteCustomerPhotosDirectory,
   deleteFinancePhotosDirectory,
@@ -402,6 +403,24 @@ describe('image file size validation', () => {
       const result = await copyFinancePhotoToPermanentStorage(
         'file:///source/receipt.jpg',
         'finance-entry-123'
+      );
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('copyFinancePhotoToTempStorage', () => {
+    it('returns URI when file size is within limit', async () => {
+      (File as any)._mockSize = 30 * 1024 * 1024; // 30MB
+      const result = await copyFinancePhotoToTempStorage(
+        'file:///source/receipt.jpg'
+      );
+      expect(result).not.toBeNull();
+    });
+
+    it('returns null when file exceeds 50MB limit', async () => {
+      (File as any)._mockSize = 51 * 1024 * 1024; // 51MB
+      const result = await copyFinancePhotoToTempStorage(
+        'file:///source/receipt.jpg'
       );
       expect(result).toBeNull();
     });

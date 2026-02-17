@@ -99,14 +99,23 @@ export const CustomerAutoComplete: React.FC<CustomerAutoCompleteProps> = ({
   }, [isFocused, suggestions.length, value]);
 
   const handleFocus = useCallback(() => {
+    if (blurTimerRef.current) {
+      clearTimeout(blurTimerRef.current);
+      blurTimerRef.current = null;
+    }
     setIsFocused(true);
   }, []);
 
   const handleBlur = useCallback(() => {
+    // Clear any pending blur timer before creating a new one
+    if (blurTimerRef.current) {
+      clearTimeout(blurTimerRef.current);
+    }
     // Delay hiding suggestions to allow item press to register
     blurTimerRef.current = setTimeout(() => {
       setIsFocused(false);
       setShowSuggestions(false);
+      blurTimerRef.current = null;
     }, 200);
   }, []);
 

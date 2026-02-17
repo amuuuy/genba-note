@@ -14,7 +14,6 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
-  Linking,
   Platform,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -24,6 +23,7 @@ import Purchases, {
 } from 'react-native-purchases';
 import { restorePurchases } from '@/subscription/subscriptionService';
 import { getSubscriptionErrorMessage } from '@/constants/errorMessages';
+import { safeOpenUrl } from '@/utils/safeOpenUrl';
 import {
   FREE_DOCUMENT_LIMIT,
   FREE_CUSTOMER_LIMIT,
@@ -185,11 +185,11 @@ export default function PaywallScreen() {
   }, []);
 
   const handleOpenTerms = useCallback(() => {
-    Linking.openURL(TERMS_OF_SERVICE_URL);
+    safeOpenUrl(TERMS_OF_SERVICE_URL);
   }, []);
 
   const handleOpenPrivacy = useCallback(() => {
-    Linking.openURL(PRIVACY_POLICY_URL);
+    safeOpenUrl(PRIVACY_POLICY_URL);
   }, []);
 
   const isPurchaseLoading = isLoading && loadingOperation === 'purchase';
