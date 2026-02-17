@@ -7,10 +7,15 @@
 // Mock File class
 export class File {
   static _mockExists = true;
+  static _mockSize = 1024;
   uri: string;
 
   get exists(): boolean {
     return File._mockExists;
+  }
+
+  get size(): number {
+    return File._mockSize;
   }
 
   constructor(...paths: (string | File | Directory)[]) {
@@ -67,6 +72,7 @@ export class File {
 
 // Mock Directory class
 export class Directory {
+  static _mockListEntries: (File | Directory)[] = [];
   uri: string;
   exists = true;
 
@@ -82,6 +88,10 @@ export class Directory {
 
   delete(): void {
     // No-op
+  }
+
+  list(): (File | Directory)[] {
+    return Directory._mockListEntries;
   }
 
   validatePath(): void {

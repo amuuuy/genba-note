@@ -29,6 +29,13 @@ function validatePathSegment(segment: string): boolean {
   return true;
 }
 
+/** Maximum seal image file size (10MB) */
+export const MAX_SEAL_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
+/** Maximum background image file size (10MB) */
+export const MAX_BACKGROUND_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
+/** Maximum photo file size (50MB) */
+export const MAX_PHOTO_SIZE_BYTES = 50 * 1024 * 1024;
+
 /** Subdirectory name for seal images */
 const SEAL_IMAGES_SUBDIR = 'seal_images';
 
@@ -69,6 +76,12 @@ export async function imageUriToBase64(uri: string): Promise<string | null> {
  */
 export async function copyImageToPermanentStorage(sourceUri: string): Promise<string | null> {
   try {
+    const sourceFile = new File(sourceUri);
+    if (sourceFile.size > MAX_SEAL_IMAGE_SIZE_BYTES) {
+      if (__DEV__) console.warn(`Seal image exceeds size limit: ${sourceFile.size} bytes`);
+      return null;
+    }
+
     // Generate unique filename with timestamp
     const timestamp = Date.now();
     const extension = sourceUri.split('.').pop() || 'png';
@@ -79,7 +92,6 @@ export async function copyImageToPermanentStorage(sourceUri: string): Promise<st
     destDir.create({ intermediates: true, idempotent: true });
 
     // Use document directory for permanent storage
-    const sourceFile = new File(sourceUri);
     const destFile = new File(destDir, filename);
 
     sourceFile.copy(destFile);
@@ -99,6 +111,12 @@ export async function copyImageToPermanentStorage(sourceUri: string): Promise<st
  */
 export async function copyBackgroundImageToPermanentStorage(sourceUri: string): Promise<string | null> {
   try {
+    const sourceFile = new File(sourceUri);
+    if (sourceFile.size > MAX_BACKGROUND_IMAGE_SIZE_BYTES) {
+      if (__DEV__) console.warn(`Background image exceeds size limit: ${sourceFile.size} bytes`);
+      return null;
+    }
+
     const timestamp = Date.now();
     const extension = sourceUri.split('.').pop() || 'png';
     const filename = `bg_${timestamp}.${extension}`;
@@ -106,7 +124,6 @@ export async function copyBackgroundImageToPermanentStorage(sourceUri: string): 
     const destDir = new Directory(Paths.document, BACKGROUND_IMAGES_SUBDIR);
     destDir.create({ intermediates: true, idempotent: true });
 
-    const sourceFile = new File(sourceUri);
     const destFile = new File(destDir, filename);
 
     sourceFile.copy(destFile);
@@ -283,6 +300,12 @@ export async function copyCustomerPhotoToPermanentStorage(
     return null;
   }
   try {
+    const sourceFile = new File(sourceUri);
+    if (sourceFile.size > MAX_PHOTO_SIZE_BYTES) {
+      if (__DEV__) console.warn(`Customer photo exceeds size limit: ${sourceFile.size} bytes`);
+      return null;
+    }
+
     // Generate unique filename with timestamp and UUID
     const timestamp = Date.now();
     const uuid = generateUUID().slice(0, 8); // Short UUID for filename
@@ -299,7 +322,6 @@ export async function copyCustomerPhotoToPermanentStorage(
     destDir.create({ intermediates: true, idempotent: true });
 
     // Copy file to permanent storage
-    const sourceFile = new File(sourceUri);
     const destFile = new File(destDir, filename);
 
     sourceFile.copy(destFile);
@@ -473,6 +495,12 @@ export async function copyFinancePhotoToPermanentStorage(
     return null;
   }
   try {
+    const sourceFile = new File(sourceUri);
+    if (sourceFile.size > MAX_PHOTO_SIZE_BYTES) {
+      if (__DEV__) console.warn(`Finance photo exceeds size limit: ${sourceFile.size} bytes`);
+      return null;
+    }
+
     // Generate unique filename with timestamp and UUID
     const timestamp = Date.now();
     const uuid = generateUUID().slice(0, 8); // Short UUID for filename
@@ -488,7 +516,6 @@ export async function copyFinancePhotoToPermanentStorage(
     destDir.create({ intermediates: true, idempotent: true });
 
     // Copy file to permanent storage
-    const sourceFile = new File(sourceUri);
     const destFile = new File(destDir, filename);
 
     sourceFile.copy(destFile);

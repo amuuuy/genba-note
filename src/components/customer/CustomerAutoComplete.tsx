@@ -59,6 +59,14 @@ export const CustomerAutoComplete: React.FC<CustomerAutoCompleteProps> = ({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
+  const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear blur timer on unmount
+  useEffect(() => {
+    return () => {
+      if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+    };
+  }, []);
 
   // Fetch suggestions when value changes
   useEffect(() => {
@@ -96,7 +104,7 @@ export const CustomerAutoComplete: React.FC<CustomerAutoCompleteProps> = ({
 
   const handleBlur = useCallback(() => {
     // Delay hiding suggestions to allow item press to register
-    setTimeout(() => {
+    blurTimerRef.current = setTimeout(() => {
       setIsFocused(false);
       setShowSuggestions(false);
     }, 200);

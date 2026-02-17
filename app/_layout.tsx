@@ -16,6 +16,7 @@ import {
 } from '@/contexts/ReadOnlyModeContext';
 import { ReadOnlyBanner, ErrorBoundary } from '@/components/common';
 import { configureRevenueCat } from '@/subscription';
+import { cleanupOrphanedPdfCache } from '@/pdf/pdfGenerationService';
 
 /**
  * Inner layout component that uses ReadOnlyMode context
@@ -25,6 +26,11 @@ function RootLayoutContent() {
     useReadOnlyModeContext();
   const [isRetrying, setIsRetrying] = useState(false);
   const [isRevenueCatReady, setIsRevenueCatReady] = useState(false);
+
+  // Cleanup orphaned PDF cache files from previous app crashes
+  useEffect(() => {
+    cleanupOrphanedPdfCache();
+  }, []);
 
   // Initialize RevenueCat SDK once after migrations complete.
   // Must complete before Stack mounts to prevent child useEffect race conditions.

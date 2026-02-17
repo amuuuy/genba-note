@@ -10,7 +10,7 @@
 
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { File, Paths } from 'expo-file-system';
+import { File, Paths, Directory } from 'expo-file-system';
 
 import type { PdfTemplateInput, PdfGenerationResult, PdfGenerationOptions, PreviewOrientation } from './types';
 import { DEFAULT_SEAL_SIZE } from './types';
@@ -102,6 +102,25 @@ async function sharePdf(fileUri: string): Promise<PdfGenerationResult> {
         originalError: error instanceof Error ? error : undefined,
       },
     };
+  }
+}
+
+/**
+ * Remove orphaned PDF files from the cache directory.
+ * Call on app startup to clean up files left behind by app crashes.
+ * Failures are silently ignored to avoid blocking app startup.
+ */
+export function cleanupOrphanedPdfCache(): void {
+  try {
+    const cacheDir = new Directory(Paths.cache);
+    if (!cacheDir.exists) return;
+    for (const entry of cacheDir.list()) {
+      if (entry instanceof File && entry.uri.endsWith('.pdf')) {
+        try { entry.delete(); } catch { /* ignore individual file errors */ }
+      }
+    }
+  } catch {
+    // Silent - cleanup failure should not block app startup
   }
 }
 
