@@ -28,6 +28,10 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   getAllKeys: jest.fn().mockResolvedValue([]),
 }));
 
+jest.mock('expo-router', () => ({
+  useFocusEffect: jest.fn(),
+}));
+
 jest.mock('@/domain/unitPrice', () => ({
   listUnitPrices: jest.fn(),
   createUnitPrice: jest.fn(),

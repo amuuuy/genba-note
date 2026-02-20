@@ -5,7 +5,8 @@
  * Extends useUnitPricePicker with create, update, delete capabilities.
  */
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useFocusEffect } from 'expo-router';
 import type { UnitPrice, UnitPriceFilter } from '@/types/unitPrice';
 import {
   listUnitPrices,
@@ -107,10 +108,25 @@ export function useUnitPriceList(): UseUnitPriceListReturn {
     }
   }, []);
 
+  // Track first useFocusEffect call to skip it (useEffect handles initial load)
+  const isFirstFocusRef = useRef(true);
+
   // Load on mount
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // Refresh when screen comes into focus (skip first call to avoid double fetch)
+  useFocusEffect(
+    useCallback(() => {
+      // Skip first focus (initial mount) - useEffect already handles initial load
+      if (isFirstFocusRef.current) {
+        isFirstFocusRef.current = false;
+        return;
+      }
+      refresh();
+    }, [refresh])
+  );
 
   const setSearchText = useCallback((text: string) => {
     setState((prev) => ({ ...prev, searchText: text }));
