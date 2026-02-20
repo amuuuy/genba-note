@@ -28,7 +28,7 @@ const PATTERN_MAP: Record<Exclude<BackgroundDesign, 'NONE' | 'IMAGE'>, string> =
 export function getBackgroundOverlayCss(): string {
   return `
     .bg-overlay {
-      position: fixed;
+      position: absolute;
       top: 0;
       left: 0;
       width: 100%;
@@ -40,6 +40,7 @@ export function getBackgroundOverlayCss(): string {
     }
     .document-container {
       position: relative;
+      overflow: hidden;
     }`;
 }
 

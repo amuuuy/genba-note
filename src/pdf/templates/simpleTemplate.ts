@@ -729,8 +729,8 @@ export function generateSimpleTemplate(
   </style>
 </head>
 <body>
-  ${backgroundHtml}
   <div class="document-container">
+    ${backgroundHtml}
     <!-- Title -->
     <div class="simple-title">${title}</div>
 

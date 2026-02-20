@@ -663,8 +663,8 @@ export function generateClassicTemplate(
   </style>
 </head>
 <body>
-  ${backgroundHtml}
   <div class="document-container">
+    ${backgroundHtml}
     <!-- Title with "御" prefix and double underline -->
     ${renderTitle(doc)}
 

@@ -782,8 +782,8 @@ export function generateInvoiceAccountingTemplate(
   </style>
 </head>
 <body>
-  ${accountingBackgroundHtml}
   <div class="document-container">
+    ${accountingBackgroundHtml}
     <!-- Title with meta info -->
     ${renderTitleWithMeta(doc)}
 

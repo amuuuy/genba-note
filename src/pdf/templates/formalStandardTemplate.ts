@@ -692,8 +692,8 @@ export function generateFormalStandardTemplate(
   </style>
 </head>
 <body>
-  ${backgroundHtml}
   <div class="document-container">
+    ${backgroundHtml}
     <!-- Title -->
     ${titleHtml}
 

@@ -654,8 +654,8 @@ export function generateModernTemplate(
   </style>
 </head>
 <body>
-  ${backgroundHtml}
   <div class="document-container">
+    ${backgroundHtml}
     ${titleHtml}
     ${metaHtml}
     ${clientHtml}

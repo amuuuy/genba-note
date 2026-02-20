@@ -576,8 +576,8 @@ export function generateConstructionTemplate(
   </style>
 </head>
 <body>
-  ${backgroundHtml}
   <div class="document-container">
+    ${backgroundHtml}
     <!-- Date -->
     ${dateHtml}
 

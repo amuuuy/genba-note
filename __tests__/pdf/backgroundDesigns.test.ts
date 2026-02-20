@@ -14,7 +14,7 @@ describe('getBackgroundOverlayCss', () => {
   it('returns CSS for .bg-overlay class', () => {
     const css = getBackgroundOverlayCss();
     expect(css).toContain('.bg-overlay');
-    expect(css).toContain('position: fixed');
+    expect(css).toContain('position: absolute');
     expect(css).toContain('z-index: 0');
     expect(css).toContain('pointer-events: none');
     expect(css).toContain('.document-container');
