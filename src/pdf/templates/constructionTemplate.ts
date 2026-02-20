@@ -185,6 +185,8 @@ function getConstructionCss(sealSizePx: number): string {
       object-fit: contain;
       opacity: 0.85;
       mix-blend-mode: multiply;
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
     }
 
     /* === 4-column table === */

@@ -165,6 +165,7 @@ function getClassicStyles(sealSizePx: number): string {
       padding: 3px;
       display: inline-block;
       line-height: 0;
+      background: transparent;
     }
 
     .classic-seal-image {
@@ -172,7 +173,10 @@ function getClassicStyles(sealSizePx: number): string {
       height: ${sealSizePx}px;
       object-fit: contain;
       border-radius: 50%;
+      opacity: 0.85;
       mix-blend-mode: multiply;
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
     }
 
     /* === Info Block (full-width grid table) === */

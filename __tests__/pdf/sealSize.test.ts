@@ -302,3 +302,213 @@ describe('Seal image mix-blend-mode in templates', () => {
     expect(html).toContain('mix-blend-mode: multiply');
   });
 });
+
+// === opacity: 0.85 consistency tests ===
+
+describe('Seal image opacity in templates', () => {
+  it('includes opacity: 0.85 in FORMAL_STANDARD template seal', () => {
+    const doc = createTestDocumentWithTotals({
+      type: 'estimate',
+      issuerSnapshot: createTestIssuerSnapshot({ sealImageBase64: SEAL_BASE64 }),
+    });
+    const { html } = generateHtmlTemplate({
+      document: doc,
+      sensitiveSnapshot: createTestSensitiveSnapshot(),
+      mode: 'pdf',
+      templateId: 'FORMAL_STANDARD',
+    });
+    expect(html).toMatch(/\.seal-image\s*\{[^}]*opacity:\s*0\.85/s);
+  });
+
+  it('includes opacity: 0.85 in Invoice SIMPLE template seal', () => {
+    const doc = createTestDocumentWithTotals({
+      type: 'invoice',
+      issuerSnapshot: createTestIssuerSnapshot({ sealImageBase64: SEAL_BASE64 }),
+    });
+    const { html } = generateHtmlTemplate({
+      document: doc,
+      sensitiveSnapshot: createTestSensitiveSnapshot(),
+      mode: 'pdf',
+      invoiceTemplateType: 'SIMPLE',
+    });
+    expect(html).toMatch(/\.seal-image\s*\{[^}]*opacity:\s*0\.85/s);
+  });
+
+  it('includes opacity: 0.85 in Invoice ACCOUNTING template seal', () => {
+    const doc = createTestDocumentWithTotals({
+      type: 'invoice',
+      issuerSnapshot: createTestIssuerSnapshot({ sealImageBase64: SEAL_BASE64 }),
+    });
+    const html = generateInvoiceAccountingTemplate(
+      doc,
+      createTestSensitiveSnapshot()
+    );
+    expect(html).toMatch(/\.seal-image\s*\{[^}]*opacity:\s*0\.85/s);
+  });
+
+  it('includes opacity: 0.85 in MODERN template seal', () => {
+    const doc = createTestDocumentWithTotals({
+      type: 'estimate',
+      issuerSnapshot: createTestIssuerSnapshot({ sealImageBase64: SEAL_BASE64 }),
+    });
+    const { html } = generateHtmlTemplate({
+      document: doc,
+      sensitiveSnapshot: createTestSensitiveSnapshot(),
+      mode: 'pdf',
+      templateId: 'MODERN',
+    });
+    expect(html).toMatch(/\.seal-image\s*\{[^}]*opacity:\s*0\.85/s);
+  });
+
+  it('includes opacity: 0.85 in CLASSIC template seal', () => {
+    const doc = createTestDocumentWithTotals({
+      type: 'estimate',
+      issuerSnapshot: createTestIssuerSnapshot({ sealImageBase64: SEAL_BASE64 }),
+    });
+    const { html } = generateHtmlTemplate({
+      document: doc,
+      sensitiveSnapshot: createTestSensitiveSnapshot(),
+      mode: 'pdf',
+      templateId: 'CLASSIC',
+    });
+    expect(html).toMatch(/\.classic-seal-image\s*\{[^}]*opacity:\s*0\.85/s);
+  });
+
+  it('includes opacity: 0.85 in CONSTRUCTION template seal', () => {
+    const doc = createTestDocumentWithTotals({
+      type: 'estimate',
+      issuerSnapshot: createTestIssuerSnapshot({ sealImageBase64: SEAL_BASE64 }),
+    });
+    const { html } = generateHtmlTemplate({
+      document: doc,
+      sensitiveSnapshot: createTestSensitiveSnapshot(),
+      mode: 'pdf',
+      templateId: 'CONSTRUCTION',
+    });
+    expect(html).toMatch(/\.seal-image\s*\{[^}]*opacity:\s*0\.85/s);
+  });
+});
+
+// === print-color-adjust tests ===
+
+describe('Seal image print-color-adjust in templates', () => {
+  it('includes print-color-adjust: exact in FORMAL_STANDARD template seal', () => {
+    const doc = createTestDocumentWithTotals({
+      type: 'estimate',
+      issuerSnapshot: createTestIssuerSnapshot({ sealImageBase64: SEAL_BASE64 }),
+    });
+    const { html } = generateHtmlTemplate({
+      document: doc,
+      sensitiveSnapshot: createTestSensitiveSnapshot(),
+      mode: 'pdf',
+      templateId: 'FORMAL_STANDARD',
+    });
+    expect(html).toMatch(/\.seal-image\s*\{[^}]*print-color-adjust:\s*exact/s);
+  });
+
+  it('includes print-color-adjust: exact in SIMPLE template seal', () => {
+    const doc = createTestDocumentWithTotals({
+      type: 'invoice',
+      issuerSnapshot: createTestIssuerSnapshot({ sealImageBase64: SEAL_BASE64 }),
+    });
+    const { html } = generateHtmlTemplate({
+      document: doc,
+      sensitiveSnapshot: createTestSensitiveSnapshot(),
+      mode: 'pdf',
+      invoiceTemplateType: 'SIMPLE',
+    });
+    expect(html).toMatch(/\.seal-image\s*\{[^}]*print-color-adjust:\s*exact/s);
+  });
+
+  it('includes print-color-adjust: exact in ACCOUNTING template seal', () => {
+    const doc = createTestDocumentWithTotals({
+      type: 'invoice',
+      issuerSnapshot: createTestIssuerSnapshot({ sealImageBase64: SEAL_BASE64 }),
+    });
+    const html = generateInvoiceAccountingTemplate(
+      doc,
+      createTestSensitiveSnapshot()
+    );
+    expect(html).toMatch(/\.seal-image\s*\{[^}]*print-color-adjust:\s*exact/s);
+  });
+
+  it('includes print-color-adjust: exact in MODERN template seal', () => {
+    const doc = createTestDocumentWithTotals({
+      type: 'estimate',
+      issuerSnapshot: createTestIssuerSnapshot({ sealImageBase64: SEAL_BASE64 }),
+    });
+    const { html } = generateHtmlTemplate({
+      document: doc,
+      sensitiveSnapshot: createTestSensitiveSnapshot(),
+      mode: 'pdf',
+      templateId: 'MODERN',
+    });
+    expect(html).toMatch(/\.seal-image\s*\{[^}]*print-color-adjust:\s*exact/s);
+  });
+
+  it('includes print-color-adjust: exact in CLASSIC template seal', () => {
+    const doc = createTestDocumentWithTotals({
+      type: 'estimate',
+      issuerSnapshot: createTestIssuerSnapshot({ sealImageBase64: SEAL_BASE64 }),
+    });
+    const { html } = generateHtmlTemplate({
+      document: doc,
+      sensitiveSnapshot: createTestSensitiveSnapshot(),
+      mode: 'pdf',
+      templateId: 'CLASSIC',
+    });
+    expect(html).toMatch(/\.classic-seal-image\s*\{[^}]*print-color-adjust:\s*exact/s);
+  });
+
+  it('includes print-color-adjust: exact in CONSTRUCTION template seal', () => {
+    const doc = createTestDocumentWithTotals({
+      type: 'estimate',
+      issuerSnapshot: createTestIssuerSnapshot({ sealImageBase64: SEAL_BASE64 }),
+    });
+    const { html } = generateHtmlTemplate({
+      document: doc,
+      sensitiveSnapshot: createTestSensitiveSnapshot(),
+      mode: 'pdf',
+      templateId: 'CONSTRUCTION',
+    });
+    expect(html).toMatch(/\.seal-image\s*\{[^}]*print-color-adjust:\s*exact/s);
+  });
+});
+
+// === Classic seal frame transparency test ===
+
+describe('Classic seal frame transparency', () => {
+  it('classic-seal-frame has background: transparent', () => {
+    const doc = createTestDocumentWithTotals({
+      type: 'estimate',
+      issuerSnapshot: createTestIssuerSnapshot({ sealImageBase64: SEAL_BASE64 }),
+    });
+    const { html } = generateHtmlTemplate({
+      document: doc,
+      sensitiveSnapshot: createTestSensitiveSnapshot(),
+      mode: 'pdf',
+      templateId: 'CLASSIC',
+    });
+    expect(html).toMatch(/\.classic-seal-frame\s*\{[^}]*background:\s*transparent/s);
+  });
+});
+
+// === Modern template CSS class test ===
+
+describe('Modern template seal CSS class', () => {
+  it('uses CSS class instead of inline styles for seal blending', () => {
+    const doc = createTestDocumentWithTotals({
+      type: 'estimate',
+      issuerSnapshot: createTestIssuerSnapshot({ sealImageBase64: SEAL_BASE64 }),
+    });
+    const { html } = generateHtmlTemplate({
+      document: doc,
+      sensitiveSnapshot: createTestSensitiveSnapshot(),
+      mode: 'pdf',
+      templateId: 'MODERN',
+    });
+    // img tag should use class="seal-image", not inline mix-blend-mode
+    expect(html).toMatch(/<img[^>]*class="seal-image"[^>]*>/);
+    expect(html).not.toMatch(/<img[^>]*style="[^"]*mix-blend-mode[^"]*"[^>]*>/);
+  });
+});

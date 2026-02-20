@@ -119,8 +119,7 @@ function renderClient(doc: DocumentWithTotals): string {
  */
 function renderIssuer(
   doc: DocumentWithTotals,
-  sensitiveSnapshot: SensitiveIssuerSnapshot | null,
-  sealSizePx: number
+  sensitiveSnapshot: SensitiveIssuerSnapshot | null
 ): string {
   const { issuerSnapshot } = doc;
   const labels = getDocumentLabels(doc.type);
@@ -170,7 +169,7 @@ function renderIssuer(
   }
 
   const sealHtml = hasSeal
-    ? `<div class="issuer-seal"><img src="${issuerSnapshot.sealImageBase64}" alt="印影" style="width:${sealSizePx}px;height:${sealSizePx}px;object-fit:contain;opacity:0.85;mix-blend-mode: multiply;" /></div>`
+    ? `<div class="issuer-seal"><img src="${issuerSnapshot.sealImageBase64}" alt="印影" class="seal-image" /></div>`
     : '';
 
   return `
@@ -467,6 +466,16 @@ function getModernCss(sealSizePx: number): string {
       flex-shrink: 0;
     }
 
+    .seal-image {
+      width: ${sealSizePx}px;
+      height: ${sealSizePx}px;
+      object-fit: contain;
+      opacity: 0.85;
+      mix-blend-mode: multiply;
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+
     /* === Line Items Table === */
     .modern-items-table {
       width: 100%;
@@ -635,7 +644,7 @@ export function generateModernTemplate(
   const titleHtml = `<h1 class="modern-title">${escapeHtml(labels.title)}</h1>`;
   const metaHtml = renderMeta(doc);
   const clientHtml = renderClient(doc);
-  const issuerHtml = renderIssuer(doc, sensitiveSnapshot, sealSizePx);
+  const issuerHtml = renderIssuer(doc, sensitiveSnapshot);
   const tableHtml = renderLineItemsTable(doc);
   const totalsHtml = renderTotalsCard(doc);
 

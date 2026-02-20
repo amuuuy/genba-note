@@ -483,6 +483,8 @@ function getTemplateStyles(accountingSealSizePx: number): string {
       object-fit: contain;
       opacity: 0.85;
       mix-blend-mode: multiply;
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
     }
 
     .issuer-contact {
