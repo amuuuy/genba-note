@@ -14,6 +14,7 @@ import type { PdfTemplateInput, PdfTemplateResult, ColorScheme, TemplateMode, Pr
 import { ESTIMATE_COLORS, INVOICE_COLORS, DEFAULT_SEAL_SIZE } from './types';
 import { getScreenThemeCss } from './themes';
 import { getTemplate, resolveTemplateId } from './templates/templateRegistry';
+import { injectSinglePageCssOnly } from './singlePageService';
 import './templates/registerAllTemplates';
 
 // Re-export formatting utilities from templateUtils for backwards compatibility
@@ -729,5 +730,7 @@ export function toggleOrientation(current: PreviewOrientation): PreviewOrientati
  */
 export function deriveDisplayHtml(html: string, orientation: PreviewOrientation): string {
   if (!html) return '';
-  return orientation === 'LANDSCAPE' ? injectLandscapeCss(html) : injectPortraitViewport(html);
+  let result = orientation === 'LANDSCAPE' ? injectLandscapeCss(html) : injectPortraitViewport(html);
+  result = injectSinglePageCssOnly(result, orientation === 'LANDSCAPE');
+  return result;
 }

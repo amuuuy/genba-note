@@ -62,7 +62,9 @@ describe('Preview Orientation (M18)', () => {
       const displayHtml = deriveDisplayHtml(html, 'PORTRAIT');
       expect(displayHtml).toContain('<meta name="viewport" content="width=800">');
       expect(displayHtml).not.toContain('width=device-width');
-      expect(displayHtml).not.toContain('@page');
+      // Single-page enforcement injects portrait @page rule
+      expect(displayHtml).toContain('size: A4 portrait');
+      expect(displayHtml).not.toContain('size: A4 landscape');
       expect(displayHtml).not.toBe(html);
     });
 

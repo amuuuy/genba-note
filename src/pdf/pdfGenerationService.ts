@@ -21,6 +21,7 @@ import { validateDocumentForPdf, formatValidationError } from './pdfValidationSe
 import { getSettings } from '@/storage/asyncStorageService';
 import { resolveBackgroundImageDataUrl } from '@/utils/imageUtils';
 import { injectSampleWatermark } from './watermarkService';
+import { injectSinglePageEnforcement } from './singlePageService';
 
 /**
  * Generate PDF from HTML (internal function)
@@ -212,6 +213,16 @@ export async function generateAndSharePdf(
   // 3.6. Inject landscape CSS if orientation is LANDSCAPE
   if (options?.orientation === 'LANDSCAPE') {
     html = injectLandscapeCss(html);
+  }
+
+  // 3.7. Inject single-page enforcement (must be after landscape CSS injection)
+  const singlePageResult = injectSinglePageEnforcement(html, options?.orientation === 'LANDSCAPE');
+  html = singlePageResult.html;
+  if (!singlePageResult.cssInjected || !singlePageResult.scriptInjected) {
+    console.warn('[PDF] Single-page enforcement injection incomplete:', {
+      cssInjected: singlePageResult.cssInjected,
+      scriptInjected: singlePageResult.scriptInjected,
+    });
   }
 
   // 4. Generate PDF (pass orientation for width/height)

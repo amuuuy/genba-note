@@ -59,6 +59,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { File, Paths } from 'expo-file-system';
 import { generateAndSharePdf } from '@/pdf/pdfGenerationService';
+import * as singlePageService from '@/pdf/singlePageService';
 import { setProStatusOverride, resetProStatusOverride } from '@/subscription/proAccessService';
 import { setReadOnlyMode } from '@/storage/asyncStorageService';
 import { createTestTemplateInput } from './helpers';
@@ -301,20 +302,24 @@ describe('pdfGenerationService', () => {
         expect(calledHtml).toContain('min-width: 1130px');
       });
 
-      it('does NOT inject @page CSS when orientation is PORTRAIT', async () => {
+      it('does NOT inject landscape @page CSS when orientation is PORTRAIT', async () => {
         const input = createTestTemplateInput();
         await generateAndSharePdf(input, { orientation: 'PORTRAIT' });
 
         const calledHtml = (Print.printToFileAsync as jest.Mock).mock.calls[0][0].html;
-        expect(calledHtml).not.toContain('@page');
+        expect(calledHtml).not.toContain('size: A4 landscape');
+        // Single-page enforcement portrait @page IS present
+        expect(calledHtml).toContain('size: A4 portrait');
       });
 
-      it('does NOT inject @page CSS when no options specified', async () => {
+      it('does NOT inject landscape @page CSS when no options specified', async () => {
         const input = createTestTemplateInput();
         await generateAndSharePdf(input);
 
         const calledHtml = (Print.printToFileAsync as jest.Mock).mock.calls[0][0].html;
-        expect(calledHtml).not.toContain('@page');
+        expect(calledHtml).not.toContain('size: A4 landscape');
+        // Single-page enforcement portrait @page IS present
+        expect(calledHtml).toContain('size: A4 portrait');
       });
     });
 
@@ -441,6 +446,71 @@ describe('pdfGenerationService', () => {
         } finally {
           paths.cache = originalCache;
         }
+      });
+    });
+
+    describe('single-page enforcement', () => {
+      beforeEach(() => {
+        setProStatusOverride(true);
+        (Print.printToFileAsync as jest.Mock).mockResolvedValue({
+          uri: 'file:///generated.pdf',
+        });
+        (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true);
+        (Sharing.shareAsync as jest.Mock).mockResolvedValue(undefined);
+      });
+
+      it('injects single-page @page CSS into portrait PDF HTML', async () => {
+        const input = createTestTemplateInput();
+        await generateAndSharePdf(input);
+
+        const calledHtml = (Print.printToFileAsync as jest.Mock).mock.calls[0][0].html;
+        expect(calledHtml).toContain('size: A4 portrait');
+        expect(calledHtml).toContain('overflow: hidden');
+        expect(calledHtml).toContain('<script>');
+      });
+
+      it('injects landscape @page CSS when orientation is LANDSCAPE', async () => {
+        const input = createTestTemplateInput();
+        await generateAndSharePdf(input, { orientation: 'LANDSCAPE' });
+
+        const calledHtml = (Print.printToFileAsync as jest.Mock).mock.calls[0][0].html;
+        expect(calledHtml).toContain('size: A4 landscape');
+        expect(calledHtml).toContain('<script>');
+      });
+
+      it('injects all three enhancements for free user in landscape', async () => {
+        setProStatusOverride(false);
+        const input = createTestTemplateInput();
+        await generateAndSharePdf(input, { orientation: 'LANDSCAPE' });
+
+        const calledHtml = (Print.printToFileAsync as jest.Mock).mock.calls[0][0].html;
+        // Watermark
+        expect(calledHtml).toContain('sample-watermark');
+        // Landscape
+        expect(calledHtml).toContain('min-width: 1130px');
+        // Single-page enforcement
+        expect(calledHtml).toContain('size: A4 landscape');
+        expect(calledHtml).toContain('<script>');
+      });
+
+      it('logs console.warn when injection is incomplete', async () => {
+        const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+        jest.spyOn(singlePageService, 'injectSinglePageEnforcement').mockReturnValue({
+          html: '<html><body></body></html>',
+          cssInjected: false,
+          scriptInjected: false,
+        });
+
+        const input = createTestTemplateInput();
+        await generateAndSharePdf(input);
+
+        expect(warnSpy).toHaveBeenCalledWith(
+          '[PDF] Single-page enforcement injection incomplete:',
+          { cssInjected: false, scriptInjected: false }
+        );
+
+        warnSpy.mockRestore();
+        jest.restoreAllMocks();
       });
     });
 
