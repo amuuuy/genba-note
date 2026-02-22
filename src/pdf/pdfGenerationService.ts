@@ -17,6 +17,7 @@ import { DEFAULT_SEAL_SIZE } from './types';
 import { generateHtmlTemplate, generateFilenameTitle, injectLandscapeCss } from './pdfTemplateService';
 import { sanitizeFilename } from '@/utils/filenameUtils';
 import { checkProStatus } from '@/subscription/proAccessService';
+import { resolveTemplateForUser } from '@/constants/templateOptions';
 import { validateDocumentForPdf, formatValidationError } from './pdfValidationService';
 import { getSettings } from '@/storage/asyncStorageService';
 import { resolveBackgroundImageDataUrl } from '@/utils/imageUtils';
@@ -182,10 +183,11 @@ export async function generateAndSharePdf(
   const settingsResult = await getSettings();
   const settings = settingsResult.success ? settingsResult.data : null;
 
-  // M21: Select template based on document type
-  const templateId = input.document.type === 'estimate'
+  // M21: Select template based on document type, enforcing Pro gating at service layer
+  const rawTemplateId = input.document.type === 'estimate'
     ? settings?.defaultEstimateTemplateId ?? 'FORMAL_STANDARD'
     : settings?.defaultInvoiceTemplateId ?? 'ACCOUNTING';
+  const templateId = resolveTemplateForUser(input.document.type, rawTemplateId, isPro);
   const sealSize = settings?.sealSize ?? DEFAULT_SEAL_SIZE;
   const backgroundDesign = settings?.backgroundDesign ?? 'NONE';
 

@@ -28,7 +28,6 @@ import {
 } from '@/storage/secureStorageService';
 import { generateUUID } from '@/utils/uuid';
 import { getTodayString } from '@/utils/dateUtils';
-import { incrementDocumentCreationCount } from '@/subscription/documentCreationCounter';
 import { enforceDocumentCreationLimit } from './documentService';
 
 // === Result Types ===
@@ -262,13 +261,7 @@ export async function convertEstimateToInvoice(
     );
   }
 
-  // 7. Increment creation counter (non-fatal if fails)
-  const counterResult = await incrementDocumentCreationCount();
-  if (!counterResult.success && __DEV__) {
-    console.warn('Failed to increment document creation counter:', counterResult.error);
-  }
-
-  // 8. Save sensitive issuer snapshot (non-fatal if fails)
+  // 7. Save sensitive issuer snapshot (non-fatal if fails)
   const snapshotResult = await saveSensitiveSnapshot(newInvoiceId);
   if (!snapshotResult.success) {
     // Log warning but don't fail the conversion

@@ -3,6 +3,7 @@
  *
  * Modal for temporarily switching document template and seal size in preview screen.
  * Selection is immediate (no confirm button) and does not persist to settings.
+ * Pro templates are shown with a PRO badge and disabled for free users.
  */
 
 import React from 'react';
@@ -14,7 +15,7 @@ import {
   Pressable,
   ScrollView,
 } from 'react-native';
-import { TEMPLATE_OPTIONS } from '@/constants/templateOptions';
+import { getSelectableTemplateOptions } from '@/constants/templateOptions';
 import { SEAL_SIZE_OPTIONS } from '@/constants/sealSizeOptions';
 import type { DocumentTemplateId, SealSize } from '@/types/settings';
 
@@ -25,6 +26,8 @@ export interface TemplatePickerModalProps {
   onClose: () => void;
   currentSealSize?: SealSize;
   onSealSizeSelect?: (sealSize: SealSize) => void;
+  /** Whether the user has Pro access (defaults to false) */
+  isPro?: boolean;
   testID?: string;
 }
 
@@ -35,8 +38,11 @@ export const TemplatePickerModal: React.FC<TemplatePickerModalProps> = ({
   onClose,
   currentSealSize,
   onSealSizeSelect,
+  isPro = false,
   testID,
 }) => {
+  const selectableOptions = getSelectableTemplateOptions(isPro);
+
   return (
     <Modal
       visible={visible}
@@ -49,7 +55,7 @@ export const TemplatePickerModal: React.FC<TemplatePickerModalProps> = ({
         <View style={styles.dialog} onStartShouldSetResponder={() => true}>
           <Text style={styles.title}>スタイルを選択</Text>
           <ScrollView style={styles.optionsList}>
-            {TEMPLATE_OPTIONS.map((option) => {
+            {selectableOptions.map((option) => {
               const isSelected = currentTemplateId === option.value;
               return (
                 <Pressable
@@ -57,16 +63,35 @@ export const TemplatePickerModal: React.FC<TemplatePickerModalProps> = ({
                   style={[
                     styles.optionRow,
                     isSelected && styles.optionRowSelected,
+                    option.disabled && styles.optionRowDisabled,
                   ]}
-                  onPress={() => onSelect(option.value)}
+                  onPress={() => !option.disabled && onSelect(option.value)}
+                  disabled={option.disabled}
                   testID={testID ? `${testID}-option-${option.value.toLowerCase()}` : undefined}
                 >
                   <View style={styles.radioOuter}>
                     {isSelected && <View style={styles.radioInner} />}
                   </View>
                   <View style={styles.optionContent}>
-                    <Text style={styles.optionLabel}>{option.label}</Text>
-                    <Text style={styles.optionDescription}>{option.description}</Text>
+                    <View style={styles.labelRow}>
+                      <Text style={[
+                        styles.optionLabel,
+                        option.disabled && styles.textDisabled,
+                      ]}>
+                        {option.label}
+                      </Text>
+                      {option.requiresPro && (
+                        <View style={styles.proBadge}>
+                          <Text style={styles.proBadgeText}>PRO</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={[
+                      styles.optionDescription,
+                      option.disabled && styles.textDisabled,
+                    ]}>
+                      {option.description}
+                    </Text>
                   </View>
                 </Pressable>
               );
@@ -167,6 +192,9 @@ const styles = StyleSheet.create({
     borderColor: '#007AFF',
     backgroundColor: '#F0F7FF',
   },
+  optionRowDisabled: {
+    opacity: 0.5,
+  },
   radioOuter: {
     width: 22,
     height: 22,
@@ -187,16 +215,35 @@ const styles = StyleSheet.create({
   optionContent: {
     flex: 1,
   },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
   optionLabel: {
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 4,
   },
   optionDescription: {
     fontSize: 13,
     color: '#666',
     lineHeight: 18,
+  },
+  textDisabled: {
+    color: '#999',
+  },
+  proBadge: {
+    backgroundColor: '#FF9500',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  proBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   sectionDivider: {
     height: 1,

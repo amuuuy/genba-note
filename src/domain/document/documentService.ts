@@ -26,6 +26,7 @@ import { executeTransition, canTransition } from './statusTransitionService';
 import { generateDocumentNumber } from './autoNumberingService';
 import {
   getDocumentById,
+  getAllDocuments,
   saveDocument,
   deleteDocument,
   filterDocuments,
@@ -37,10 +38,6 @@ import {
 } from '@/storage/secureStorageService';
 import { generateUUID } from '@/utils/uuid';
 import { getTodayString } from '@/utils/dateUtils';
-import {
-  getDocumentCreationCount,
-  incrementDocumentCreationCount,
-} from '@/subscription/documentCreationCounter';
 import { canCreateDocument as checkFreeTierLimit } from '@/subscription/freeTierLimitsService';
 
 // === Input Types ===
@@ -95,15 +92,18 @@ export interface CreateDocumentOptions {
  * Enforce free-tier document creation limit.
  * Returns null if allowed, or an error result if blocked.
  * Pro users bypass the check entirely.
- * Free-tier users with counter read failure are fail-closed (blocked).
+ * Free-tier users with document list read failure are fail-closed (blocked).
+ *
+ * Counts active (existing) documents, not cumulative creations.
+ * Deleting documents frees up quota for free users.
  */
 export async function enforceDocumentCreationLimit(
   isPro: boolean
 ): Promise<DomainResult<never, DocumentServiceError> | null> {
   if (isPro) return null;
 
-  const counterResult = await getDocumentCreationCount();
-  if (!counterResult.success) {
+  const docsResult = await getAllDocuments();
+  if (!docsResult.success) {
     return errorResult(
       createDocumentServiceError(
         'FREE_TIER_LIMIT_EXCEEDED',
@@ -111,7 +111,7 @@ export async function enforceDocumentCreationLimit(
       )
     );
   }
-  const check = checkFreeTierLimit(counterResult.count, false);
+  const check = checkFreeTierLimit(docsResult.data!.length, false);
   if (!check.allowed) {
     return errorResult(
       createDocumentServiceError(
@@ -308,12 +308,6 @@ export async function createDocument(
     // Document is saved but snapshot failed - log for debugging but don't fail the operation
     // The document can still be used, just without sensitive issuer info in exports
     if (__DEV__) console.warn('Failed to save sensitive snapshot for document:', documentId);
-  }
-
-  // Increment document creation counter (non-fatal if fails)
-  const counterIncrResult = await incrementDocumentCreationCount();
-  if (!counterIncrResult.success && __DEV__) {
-    console.warn('Failed to increment document creation counter');
   }
 
   return successResult(saveResult.data!);
@@ -637,12 +631,6 @@ export async function duplicateDocument(
   const snapshotResult = await saveSensitiveSnapshot(newDocumentId);
   if (!snapshotResult.success) {
     if (__DEV__) console.warn('Failed to save sensitive snapshot for document:', newDocumentId);
-  }
-
-  // Increment document creation counter (non-fatal if fails)
-  const dupCounterResult = await incrementDocumentCreationCount();
-  if (!dupCounterResult.success && __DEV__) {
-    console.warn('Failed to increment document creation counter');
   }
 
   return successResult(saveResult.data!);

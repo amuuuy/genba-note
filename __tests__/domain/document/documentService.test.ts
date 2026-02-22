@@ -22,8 +22,6 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 jest.mock('@/storage/asyncStorageService');
 jest.mock('@/storage/secureStorageService');
 jest.mock('@/domain/document/autoNumberingService');
-jest.mock('@/subscription/documentCreationCounter');
-
 import {
   createDocument,
   getDocument,
@@ -36,8 +34,8 @@ import {
 import * as asyncStorageService from '@/storage/asyncStorageService';
 import * as secureStorageService from '@/storage/secureStorageService';
 import * as autoNumberingService from '@/domain/document/autoNumberingService';
-import * as documentCreationCounter from '@/subscription/documentCreationCounter';
 import { DEFAULT_APP_SETTINGS } from '@/types/settings';
+import { FREE_DOCUMENT_LIMIT } from '@/subscription/freeTierLimitsService';
 import {
   createTestDocument,
   createTestInvoice,
@@ -47,7 +45,6 @@ import {
 const mockedAsyncStorage = jest.mocked(asyncStorageService);
 const mockedSecureStorage = jest.mocked(secureStorageService);
 const mockedNumbering = jest.mocked(autoNumberingService);
-const mockedCounter = jest.mocked(documentCreationCounter);
 
 describe('documentService', () => {
   const TODAY = '2026-01-30';
@@ -56,9 +53,8 @@ describe('documentService', () => {
     jest.clearAllMocks();
     // Reset read-only mode
     mockedAsyncStorage.getReadOnlyMode.mockReturnValue(false);
-    // Default counter mocks (allow creation)
-    mockedCounter.getDocumentCreationCount.mockResolvedValue({ success: true, count: 0 });
-    mockedCounter.incrementDocumentCreationCount.mockResolvedValue({ success: true, count: 1 });
+    // Default: no existing documents (allows creation for free users)
+    mockedAsyncStorage.getAllDocuments.mockResolvedValue({ success: true, data: [] });
   });
 
   describe('createDocument', () => {
@@ -352,69 +348,62 @@ describe('documentService', () => {
       mockedSecureStorage.saveIssuerSnapshot.mockResolvedValue({ success: true });
     });
 
-    it('should reject when free-tier limit reached (isPro=false)', async () => {
-      mockedCounter.getDocumentCreationCount.mockResolvedValue({ success: true, count: 5 });
+    it('should reject when active document count reaches limit (isPro=false)', async () => {
+      mockedAsyncStorage.getAllDocuments.mockResolvedValue({
+        success: true,
+        data: Array(FREE_DOCUMENT_LIMIT).fill(null).map(() => createTestDocument()),
+      });
       const result = await createDocument(validInput, { today: TODAY, isPro: false });
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('FREE_TIER_LIMIT_EXCEEDED');
       expect(mockedNumbering.generateDocumentNumber).not.toHaveBeenCalled();
     });
 
-    it('should reject when counter read fails for free user (fail-closed)', async () => {
-      mockedCounter.getDocumentCreationCount.mockResolvedValue({ success: false, count: 0, error: 'storage error' });
+    it('should reject when document list read fails for free user (fail-closed)', async () => {
+      mockedAsyncStorage.getAllDocuments.mockResolvedValue({
+        success: false,
+        error: { code: 'READ_ERROR' as const, message: 'storage error' },
+      });
       const result = await createDocument(validInput, { today: TODAY, isPro: false });
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('FREE_TIER_LIMIT_EXCEEDED');
     });
 
-    it('should allow when counter read fails for Pro user (fail-open)', async () => {
-      mockedCounter.getDocumentCreationCount.mockResolvedValue({ success: false, count: 0, error: 'storage error' });
+    it('should allow when document list read fails for Pro user (fail-open)', async () => {
+      mockedAsyncStorage.getAllDocuments.mockResolvedValue({
+        success: false,
+        error: { code: 'READ_ERROR' as const, message: 'storage error' },
+      });
       const result = await createDocument(validInput, { today: TODAY, isPro: true });
       expect(result.success).toBe(true);
     });
 
     it('should allow when under limit (isPro=false)', async () => {
-      mockedCounter.getDocumentCreationCount.mockResolvedValue({ success: true, count: 4 });
+      mockedAsyncStorage.getAllDocuments.mockResolvedValue({
+        success: true,
+        data: Array(FREE_DOCUMENT_LIMIT - 1).fill(null).map(() => createTestDocument()),
+      });
       const result = await createDocument(validInput, { today: TODAY, isPro: false });
       expect(result.success).toBe(true);
     });
 
     it('should allow for Pro user regardless of count', async () => {
-      mockedCounter.getDocumentCreationCount.mockResolvedValue({ success: true, count: 100 });
+      mockedAsyncStorage.getAllDocuments.mockResolvedValue({
+        success: true,
+        data: Array(100).fill(null).map(() => createTestDocument()),
+      });
       const result = await createDocument(validInput, { today: TODAY, isPro: true });
       expect(result.success).toBe(true);
     });
 
     it('should treat undefined isPro as free-tier (fail-closed default)', async () => {
-      mockedCounter.getDocumentCreationCount.mockResolvedValue({ success: true, count: 5 });
+      mockedAsyncStorage.getAllDocuments.mockResolvedValue({
+        success: true,
+        data: Array(FREE_DOCUMENT_LIMIT).fill(null).map(() => createTestDocument()),
+      });
       const result = await createDocument(validInput, { today: TODAY });
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('FREE_TIER_LIMIT_EXCEEDED');
-    });
-
-    it('should increment counter after successful creation', async () => {
-      mockedCounter.getDocumentCreationCount.mockResolvedValue({ success: true, count: 2 });
-      const result = await createDocument(validInput, { today: TODAY, isPro: false });
-      expect(result.success).toBe(true);
-      expect(mockedCounter.incrementDocumentCreationCount).toHaveBeenCalledTimes(1);
-    });
-
-    it('should not increment counter when save fails', async () => {
-      mockedCounter.getDocumentCreationCount.mockResolvedValue({ success: true, count: 2 });
-      mockedAsyncStorage.saveDocument.mockResolvedValue({
-        success: false,
-        error: { code: 'WRITE_ERROR' as const, message: 'fail' },
-      });
-      const result = await createDocument(validInput, { today: TODAY, isPro: false });
-      expect(result.success).toBe(false);
-      expect(mockedCounter.incrementDocumentCreationCount).not.toHaveBeenCalled();
-    });
-
-    it('should succeed even if counter increment fails (non-fatal)', async () => {
-      mockedCounter.getDocumentCreationCount.mockResolvedValue({ success: true, count: 2 });
-      mockedCounter.incrementDocumentCreationCount.mockResolvedValue({ success: false, count: 2, error: 'write error' });
-      const result = await createDocument(validInput, { today: TODAY, isPro: false });
-      expect(result.success).toBe(true);
     });
   });
 
@@ -870,47 +859,41 @@ describe('documentService', () => {
       mockedSecureStorage.saveIssuerSnapshot.mockResolvedValue({ success: true });
     });
 
-    it('should reject when free-tier limit reached', async () => {
-      mockedCounter.getDocumentCreationCount.mockResolvedValue({ success: true, count: 5 });
+    it('should reject when active document count reaches limit', async () => {
+      mockedAsyncStorage.getAllDocuments.mockResolvedValue({
+        success: true,
+        data: Array(FREE_DOCUMENT_LIMIT).fill(null).map(() => createTestDocument()),
+      });
       const result = await duplicateDocument('original-id', { today: TODAY, isPro: false });
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('FREE_TIER_LIMIT_EXCEEDED');
       expect(mockedAsyncStorage.getDocumentById).not.toHaveBeenCalled();
     });
 
-    it('should reject when counter read fails for free user (fail-closed)', async () => {
-      mockedCounter.getDocumentCreationCount.mockResolvedValue({ success: false, count: 0, error: 'err' });
+    it('should reject when document list read fails for free user (fail-closed)', async () => {
+      mockedAsyncStorage.getAllDocuments.mockResolvedValue({
+        success: false,
+        error: { code: 'READ_ERROR' as const, message: 'err' },
+      });
       const result = await duplicateDocument('original-id', { today: TODAY, isPro: false });
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('FREE_TIER_LIMIT_EXCEEDED');
     });
 
-    it('should allow when counter read fails for Pro user (fail-open)', async () => {
-      mockedCounter.getDocumentCreationCount.mockResolvedValue({ success: false, count: 0, error: 'err' });
+    it('should allow when document list read fails for Pro user (fail-open)', async () => {
+      mockedAsyncStorage.getAllDocuments.mockResolvedValue({
+        success: false,
+        error: { code: 'READ_ERROR' as const, message: 'err' },
+      });
       const result = await duplicateDocument('original-id', { today: TODAY, isPro: true });
       expect(result.success).toBe(true);
     });
 
-    it('should increment counter after successful duplication', async () => {
-      mockedCounter.getDocumentCreationCount.mockResolvedValue({ success: true, count: 2 });
-      const result = await duplicateDocument('original-id', { today: TODAY, isPro: false });
-      expect(result.success).toBe(true);
-      expect(mockedCounter.incrementDocumentCreationCount).toHaveBeenCalledTimes(1);
-    });
-
-    it('should not increment counter when save fails', async () => {
-      mockedCounter.getDocumentCreationCount.mockResolvedValue({ success: true, count: 2 });
-      mockedAsyncStorage.saveDocument.mockResolvedValue({
-        success: false,
-        error: { code: 'WRITE_ERROR' as const, message: 'fail' },
-      });
-      const result = await duplicateDocument('original-id', { today: TODAY, isPro: false });
-      expect(result.success).toBe(false);
-      expect(mockedCounter.incrementDocumentCreationCount).not.toHaveBeenCalled();
-    });
-
     it('should treat undefined isPro as free-tier', async () => {
-      mockedCounter.getDocumentCreationCount.mockResolvedValue({ success: true, count: 5 });
+      mockedAsyncStorage.getAllDocuments.mockResolvedValue({
+        success: true,
+        data: Array(FREE_DOCUMENT_LIMIT).fill(null).map(() => createTestDocument()),
+      });
       const result = await duplicateDocument('original-id', { today: TODAY });
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('FREE_TIER_LIMIT_EXCEEDED');

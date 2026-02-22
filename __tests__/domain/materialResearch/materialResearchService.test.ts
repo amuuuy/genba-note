@@ -7,6 +7,15 @@
 
 import { searchMaterials } from '@/domain/materialResearch/materialResearchService';
 import { createTestRakutenResponse, createTestRakutenItem } from './helpers';
+import { getAccessToken, initializeAuth } from '@/domain/auth/supabaseAuthService';
+
+// Mock auth service
+jest.mock('@/domain/auth/supabaseAuthService', () => ({
+  getAccessToken: jest.fn(),
+  initializeAuth: jest.fn(),
+}));
+const mockGetAccessToken = getAccessToken as jest.MockedFunction<typeof getAccessToken>;
+const mockInitializeAuth = initializeAuth as jest.MockedFunction<typeof initializeAuth>;
 
 // Mock global fetch
 const mockFetch = jest.fn();
@@ -14,6 +23,11 @@ global.fetch = mockFetch;
 
 beforeEach(() => {
   mockFetch.mockReset();
+  mockGetAccessToken.mockReset();
+  mockInitializeAuth.mockReset();
+  // Default: auth succeeds with a valid token
+  mockGetAccessToken.mockResolvedValue('default-test-jwt');
+  mockInitializeAuth.mockResolvedValue({ success: true });
 });
 
 describe('searchMaterials', () => {
@@ -104,10 +118,11 @@ describe('searchMaterials', () => {
     }
   });
 
-  it('returns RATE_LIMIT error on 429 response', async () => {
+  it('returns RATE_LIMIT error on 429 with rate limit body', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 429,
+      json: async () => ({ error: 'Rate limit exceeded. Try again later.' }),
     });
 
     const result = await searchMaterials({ keyword: '塗料' });
@@ -115,9 +130,36 @@ describe('searchMaterials', () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.code).toBe('RATE_LIMIT');
-      expect(result.error.message).toBe(
-        '検索回数の制限に達しました。しばらくお待ちください。'
-      );
+    }
+  });
+
+  it('returns DAILY_LIMIT error on 429 with daily_limit_exceeded body', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 429,
+      json: async () => ({ error: 'daily_limit_exceeded' }),
+    });
+
+    const result = await searchMaterials({ keyword: '塗料' });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.code).toBe('DAILY_LIMIT');
+    }
+  });
+
+  it('returns AUTH_ERROR on 401 response', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      json: async () => ({ error: 'Unauthorized' }),
+    });
+
+    const result = await searchMaterials({ keyword: '塗料' });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.code).toBe('AUTH_ERROR');
     }
   });
 
@@ -150,5 +192,51 @@ describe('searchMaterials', () => {
         '検索に失敗しました。通信状況を確認してください。'
       );
     }
+  });
+
+  it('uses user JWT from getAccessToken in Authorization header', async () => {
+    mockGetAccessToken.mockResolvedValueOnce('user-jwt-from-auth');
+    const apiResponse = createTestRakutenResponse();
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => apiResponse,
+    });
+
+    await searchMaterials({ keyword: 'テスト' });
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const headers = mockFetch.mock.calls[0][1].headers;
+    expect(headers['Authorization']).toBe('Bearer user-jwt-from-auth');
+  });
+
+  it('retries auth when getAccessToken returns null initially', async () => {
+    mockGetAccessToken
+      .mockResolvedValueOnce(null)         // first call returns null
+      .mockResolvedValueOnce('retry-jwt'); // after initializeAuth, succeeds
+    const apiResponse = createTestRakutenResponse();
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => apiResponse,
+    });
+
+    await searchMaterials({ keyword: 'テスト' });
+
+    expect(mockInitializeAuth).toHaveBeenCalledTimes(1);
+    expect(mockGetAccessToken).toHaveBeenCalledTimes(2);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const headers = mockFetch.mock.calls[0][1].headers;
+    expect(headers['Authorization']).toBe('Bearer retry-jwt');
+  });
+
+  it('returns AUTH_ERROR when getAccessToken returns null after retry', async () => {
+    mockGetAccessToken.mockResolvedValue(null);
+
+    const result = await searchMaterials({ keyword: 'テスト' });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.code).toBe('AUTH_ERROR');
+    }
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 });

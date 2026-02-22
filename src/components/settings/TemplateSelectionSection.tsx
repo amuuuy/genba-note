@@ -2,13 +2,14 @@
  * TemplateSelectionSection Component
  *
  * Form section for per-document-type PDF template selection (M21).
- * Two radio groups: estimate template (5 options) + invoice template (5 options).
+ * Two radio groups: estimate template (6 options) + invoice template (6 options).
+ * Pro templates are shown with a PRO badge and disabled for free users.
  */
 
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { FormSection } from '@/components/common/FormSection';
-import { TEMPLATE_OPTIONS } from '@/constants/templateOptions';
+import { getSelectableTemplateOptions } from '@/constants/templateOptions';
 import type { DocumentTemplateId } from '@/types/settings';
 
 export interface TemplateSelectionSectionProps {
@@ -20,50 +21,64 @@ export interface TemplateSelectionSectionProps {
   onEstimateChange: (value: DocumentTemplateId) => void;
   /** Callback when invoice template changes */
   onInvoiceChange: (value: DocumentTemplateId) => void;
-  /** Whether selection is disabled */
+  /** Whether selection is disabled (e.g. during save) */
   disabled?: boolean;
+  /** Whether the user has Pro access (defaults to false) */
+  isPro?: boolean;
 }
 
 function TemplateRadioGroup({
   value,
   onChange,
   disabled,
+  isPro,
   testIDPrefix,
 }: {
   value: DocumentTemplateId;
   onChange: (value: DocumentTemplateId) => void;
   disabled: boolean;
+  isPro: boolean;
   testIDPrefix: string;
 }) {
+  const selectableOptions = getSelectableTemplateOptions(isPro);
+
   return (
     <>
-      {TEMPLATE_OPTIONS.map((option) => {
+      {selectableOptions.map((option) => {
         const isSelected = value === option.value;
+        const isOptionDisabled = disabled || option.disabled;
         return (
           <Pressable
             key={option.value}
             style={[
               styles.optionRow,
               isSelected && styles.optionRowSelected,
-              disabled && styles.optionRowDisabled,
+              isOptionDisabled && styles.optionRowDisabled,
             ]}
-            onPress={() => !disabled && onChange(option.value)}
+            onPress={() => !isOptionDisabled && onChange(option.value)}
             testID={`${testIDPrefix}-${option.value.toLowerCase()}`}
-            disabled={disabled}
+            disabled={isOptionDisabled}
           >
             <View style={styles.radioOuter}>
               {isSelected && <View style={styles.radioInner} />}
             </View>
             <View style={styles.optionContent}>
-              <Text
-                style={[styles.optionLabel, disabled && styles.optionLabelDisabled]}
-              >
-                {option.label}
-              </Text>
+              <View style={styles.labelRow}>
+                <Text
+                  style={[styles.optionLabel, isOptionDisabled && styles.optionLabelDisabled]}
+                >
+                  {option.label}
+                </Text>
+                {option.requiresPro && (
+                  <View style={styles.proBadge}>
+                    <Text style={styles.proBadgeText}>PRO</Text>
+                  </View>
+                )}
+              </View>
               <Text
                 style={[
                   styles.optionDescription,
-                  disabled && styles.optionDescriptionDisabled,
+                  isOptionDisabled && styles.optionDescriptionDisabled,
                 ]}
               >
                 {option.description}
@@ -85,6 +100,7 @@ export const TemplateSelectionSection: React.FC<TemplateSelectionSectionProps> =
   onEstimateChange,
   onInvoiceChange,
   disabled = false,
+  isPro = false,
 }) => {
   return (
     <>
@@ -93,6 +109,7 @@ export const TemplateSelectionSection: React.FC<TemplateSelectionSectionProps> =
           value={estimateTemplateId}
           onChange={onEstimateChange}
           disabled={disabled}
+          isPro={isPro}
           testIDPrefix="estimate-template"
         />
       </FormSection>
@@ -101,6 +118,7 @@ export const TemplateSelectionSection: React.FC<TemplateSelectionSectionProps> =
           value={invoiceTemplateId}
           onChange={onInvoiceChange}
           disabled={disabled}
+          isPro={isPro}
           testIDPrefix="invoice-template"
         />
       </FormSection>
@@ -149,11 +167,16 @@ const styles = StyleSheet.create({
   optionContent: {
     flex: 1,
   },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
   optionLabel: {
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 4,
   },
   optionLabelDisabled: {
     color: '#8E8E93',
@@ -165,5 +188,16 @@ const styles = StyleSheet.create({
   },
   optionDescriptionDisabled: {
     color: '#AEAEB2',
+  },
+  proBadge: {
+    backgroundColor: '#FF9500',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  proBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

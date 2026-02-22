@@ -2,6 +2,7 @@
  * Root Layout
  *
  * Main app layout that:
+ * - Initializes Sentry crash reporting at module level
  * - Wraps app with ReadOnlyModeProvider for migration error handling
  * - Shows ReadOnlyBanner when in read-only mode
  * - Defines navigation stack
@@ -16,7 +17,19 @@ import {
 } from '@/contexts/ReadOnlyModeContext';
 import { ReadOnlyBanner, ErrorBoundary } from '@/components/common';
 import { configureRevenueCat } from '@/subscription';
+import { initializeAuth } from '@/domain/auth';
 import { cleanupOrphanedPdfCache } from '@/pdf/pdfGenerationService';
+import {
+  initializeSentry,
+  captureException,
+  wrapRootComponent,
+} from '@/monitoring';
+
+// Initialize Sentry at module level (before any React rendering)
+const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
+if (sentryDsn) {
+  initializeSentry(sentryDsn);
+}
 
 /**
  * Inner layout component that uses ReadOnlyMode context
@@ -31,6 +44,16 @@ function RootLayoutContent() {
   useEffect(() => {
     cleanupOrphanedPdfCache();
   }, []);
+
+  // Initialize Supabase Anonymous Auth (non-blocking — failure only affects search)
+  useEffect(() => {
+    if (!isInitialized) return;
+    initializeAuth().then((result) => {
+      if (!result.success && __DEV__) {
+        console.error('Auth init failed:', result.error);
+      }
+    });
+  }, [isInitialized]);
 
   // Initialize RevenueCat SDK once after migrations complete.
   // Must complete before Stack mounts to prevent child useEffect race conditions.
@@ -68,7 +91,7 @@ function RootLayoutContent() {
   }
 
   // Log migration error for debugging (not shown to user)
-  if (migrationError) {
+  if (__DEV__ && migrationError) {
     console.error('[Migration Error]', migrationError.code, migrationError.message);
   }
 
@@ -116,17 +139,26 @@ function RootLayoutContent() {
 }
 
 /**
+ * Handle errors caught by ErrorBoundary — forward to Sentry
+ */
+function handleErrorBoundaryError(error: Error, componentStack: string) {
+  captureException(error, { componentStack });
+}
+
+/**
  * Root layout with ReadOnlyModeProvider
  */
-export default function RootLayout() {
+function RootLayout() {
   return (
-    <ErrorBoundary>
+    <ErrorBoundary onError={handleErrorBoundaryError}>
       <ReadOnlyModeProvider>
         <RootLayoutContent />
       </ReadOnlyModeProvider>
     </ErrorBoundary>
   );
 }
+
+export default wrapRootComponent(RootLayout);
 
 const styles = StyleSheet.create({
   container: {

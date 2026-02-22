@@ -19,6 +19,7 @@ import {
 import { Link } from 'expo-router';
 import { useSettingsEdit } from '@/hooks/useSettingsEdit';
 import { useReadOnlyMode } from '@/hooks/useReadOnlyMode';
+import { useProStatus } from '@/hooks/useProStatus';
 import {
   IssuerInfoSection,
   BankAccountSection,
@@ -48,6 +49,7 @@ export default function SettingsScreen() {
 
   // Read-only mode state
   const { isReadOnlyMode } = useReadOnlyMode();
+  const { isPro } = useProStatus();
 
   // Form is disabled when saving or in read-only mode
   const isFormDisabled = state.isSaving || isReadOnlyMode;
@@ -176,6 +178,7 @@ export default function SettingsScreen() {
           onEstimateChange={updateDefaultEstimateTemplateId}
           onInvoiceChange={updateDefaultInvoiceTemplateId}
           disabled={isFormDisabled}
+          isPro={isPro}
         />
 
         {/* Save Button */}

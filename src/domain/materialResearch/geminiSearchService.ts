@@ -13,12 +13,11 @@ import type {
 } from '@/types/materialResearch';
 import { mapGeminiResponse } from './geminiMappingService';
 import type { GeminiEdgeFunctionResponse } from './geminiMappingService';
+import { getAccessToken, initializeAuth } from '@/domain/auth/supabaseAuthService';
 
 const SUPABASE_FUNCTION_URL = process.env.EXPO_PUBLIC_SUPABASE_URL
   ? `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/gemini-search`
   : '';
-
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
 /**
  * Search materials via Supabase Edge Function (Gemini API proxy)
@@ -41,12 +40,24 @@ export async function searchMaterialsWithAi(
   }
 
   try {
+    let token = await getAccessToken();
+    if (!token) {
+      await initializeAuth();
+      token = await getAccessToken();
+    }
+    if (!token) {
+      return {
+        success: false,
+        error: {
+          code: 'AUTH_ERROR',
+          message: '認証に失敗しました。アプリを再起動してください。',
+        },
+      };
+    }
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
     };
-    if (SUPABASE_ANON_KEY) {
-      headers['Authorization'] = `Bearer ${SUPABASE_ANON_KEY}`;
-    }
 
     const response = await fetch(SUPABASE_FUNCTION_URL, {
       method: 'POST',
@@ -55,7 +66,29 @@ export async function searchMaterialsWithAi(
     });
 
     if (!response.ok) {
+      if (response.status === 401) {
+        return {
+          success: false,
+          error: {
+            code: 'AUTH_ERROR',
+            message: '認証に失敗しました。アプリを再起動してください。',
+          },
+        };
+      }
       if (response.status === 429) {
+        const errorBody = await response.json().catch(() => null);
+        const errorMsg = errorBody && typeof errorBody === 'object' && 'error' in errorBody
+          ? (errorBody as { error: string }).error
+          : '';
+        if (errorMsg === 'daily_limit_exceeded') {
+          return {
+            success: false,
+            error: {
+              code: 'DAILY_LIMIT',
+              message: '本日のAI検索回数の上限に達しました。',
+            },
+          };
+        }
         return {
           success: false,
           error: {

@@ -23,17 +23,13 @@ import Purchases, {
 } from 'react-native-purchases';
 import { restorePurchases } from '@/subscription/subscriptionService';
 import { getSubscriptionErrorMessage } from '@/constants/errorMessages';
-import { safeOpenUrl } from '@/utils/safeOpenUrl';
 import {
   FREE_DOCUMENT_LIMIT,
   FREE_CUSTOMER_LIMIT,
   FREE_UNIT_PRICE_LIMIT,
   FREE_PHOTOS_PER_CUSTOMER_LIMIT,
 } from '@/subscription/freeTierLimitsService';
-
-// TODO: Replace with actual URLs before App Store submission
-const TERMS_OF_SERVICE_URL = 'https://genba-note.app/terms';
-const PRIVACY_POLICY_URL = 'https://genba-note.app/privacy';
+import { openTermsOfService, openPrivacyPolicy } from '@/utils/legalLinkHandlers';
 
 type OperationType = 'purchase' | 'restore' | null;
 type PlanType = 'monthly' | 'annual';
@@ -44,6 +40,7 @@ const PRO_FEATURES = [
   { icon: '✓', text: '顧客登録 無制限', free: `無料: ${FREE_CUSTOMER_LIMIT}件まで` },
   { icon: '✓', text: '単価マスタ 無制限', free: `無料: ${FREE_UNIT_PRICE_LIMIT}件まで` },
   { icon: '✓', text: '作業写真 無制限', free: `無料: ${FREE_PHOTOS_PER_CUSTOMER_LIMIT}枚/顧客` },
+  { icon: '✓', text: '全テンプレート利用可能', free: '無料: 3テンプレート' },
   { icon: '✓', text: 'PDF出力（透かしなし）', free: '無料: SAMPLE透かし付き' },
   { icon: '✓', text: 'CSVエクスポート', free: '無料: 利用不可' },
   { icon: '✓', text: '収支管理（入力・分析）', free: '無料: 閲覧のみ' },
@@ -184,13 +181,9 @@ export default function PaywallScreen() {
     setError(null);
   }, []);
 
-  const handleOpenTerms = useCallback(() => {
-    safeOpenUrl(TERMS_OF_SERVICE_URL);
-  }, []);
+  const handleOpenTerms = useCallback(openTermsOfService, []);
 
-  const handleOpenPrivacy = useCallback(() => {
-    safeOpenUrl(PRIVACY_POLICY_URL);
-  }, []);
+  const handleOpenPrivacy = useCallback(openPrivacyPolicy, []);
 
   const isPurchaseLoading = isLoading && loadingOperation === 'purchase';
   const isRestoreLoading = isLoading && loadingOperation === 'restore';

@@ -120,7 +120,8 @@ export type ProGateReason =
   | 'uptime_rollback'
   | 'grace_period_exceeded'
   | 'clock_manipulation'
-  // Development/testing placeholders (kept for backwards compatibility)
+  // Test-only: used by proStatusOverride in proAccessService.ts for development/testing.
+  // These values are NOT used in production code paths.
   | 'placeholder_always_false'
   | 'placeholder_always_true';
 

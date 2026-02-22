@@ -30,7 +30,7 @@ import {
 import { ConfirmDialog } from '../../src/components/common';
 import { KanbanBoard } from '../../src/components/kanban/KanbanBoard';
 import { canCreateDocument } from '../../src/subscription/freeTierLimitsService';
-import { getDocumentCreationCount } from '../../src/subscription/documentCreationCounter';
+import { getAllDocuments } from '../../src/storage/asyncStorageService';
 
 /**
  * Delete confirmation state
@@ -65,8 +65,8 @@ export default function DocumentListScreen() {
   // Read-only mode state
   const { isReadOnlyMode } = useReadOnlyMode();
 
-  // Pro status
-  const { isPro } = useProStatus();
+  // Pro status (isLoading used to avoid false-negative during initial check)
+  const { isPro, isLoading: isProLoading } = useProStatus();
 
   // Delete confirmation dialog state
   const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmState | null>(
@@ -96,29 +96,33 @@ export default function DocumentListScreen() {
     setDeleteConfirm(null);
   }, []);
 
-  // Check free tier document limit before creating
+  // Check free tier document limit before creating (uses total active document count).
+  // Pro users and users with pending Pro check skip the UI count check entirely —
+  // the domain layer (enforceDocumentCreationLimit) is the authoritative guard.
   const checkDocumentLimitAndNavigate = useCallback(
     async (type: 'estimate' | 'invoice') => {
-      const counterResult = await getDocumentCreationCount();
-      if (!counterResult.success) {
-        Alert.alert('エラー', 'データの読み込みに失敗しました。アプリを再起動してください。');
-        return;
-      }
-      const check = canCreateDocument(counterResult.count, isPro);
-      if (!check.allowed) {
-        Alert.alert(
-          '書類作成の上限に達しました',
-          `無料プランでは合計${check.limit}件まで作成できます。\nProプランにアップグレードすると無制限に作成できます。`,
-          [
-            { text: 'キャンセル', style: 'cancel' },
-            { text: 'Proプランを見る', onPress: () => router.push('/paywall') },
-          ]
-        );
-        return;
+      if (!isPro && !isProLoading) {
+        const docsResult = await getAllDocuments();
+        if (!docsResult.success) {
+          Alert.alert('エラー', 'データの読み込みに失敗しました。アプリを再起動してください。');
+          return;
+        }
+        const check = canCreateDocument(docsResult.data!.length, isPro);
+        if (!check.allowed) {
+          Alert.alert(
+            '書類作成の上限に達しました',
+            `無料プランでは${check.limit}件まで保持できます。\n不要な書類を削除するか、Proプランにアップグレードしてください。`,
+            [
+              { text: 'キャンセル', style: 'cancel' },
+              { text: 'Proプランを見る', onPress: () => router.push('/paywall') },
+            ]
+          );
+          return;
+        }
       }
       router.push(`/document/new?type=${type}`);
     },
-    [isPro]
+    [isPro, isProLoading]
   );
 
   // Handle create estimate

@@ -104,7 +104,7 @@ export interface SearchMaterialsResult {
  * Error from material research operations
  */
 export interface MaterialResearchError {
-  code: 'RATE_LIMIT' | 'NETWORK_ERROR' | 'API_ERROR';
+  code: 'RATE_LIMIT' | 'DAILY_LIMIT' | 'AUTH_ERROR' | 'NETWORK_ERROR' | 'API_ERROR';
   message: string;
 }
 
@@ -159,7 +159,7 @@ export interface AiSearchParams {
 
 /** Error from AI search operations */
 export interface AiSearchError {
-  code: 'RATE_LIMIT' | 'NETWORK_ERROR' | 'API_ERROR' | 'PARSE_ERROR';
+  code: 'RATE_LIMIT' | 'DAILY_LIMIT' | 'AUTH_ERROR' | 'NETWORK_ERROR' | 'API_ERROR' | 'PARSE_ERROR';
   message: string;
 }
 

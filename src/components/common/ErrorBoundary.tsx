@@ -10,6 +10,8 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 
 export interface ErrorBoundaryProps {
   children: ReactNode;
+  /** Optional callback invoked when an error is caught (e.g. for crash reporting) */
+  onError?: (error: Error, componentStack: string) => void;
 }
 
 interface ErrorBoundaryState {
@@ -27,6 +29,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+    this.props.onError?.(error, errorInfo.componentStack ?? '');
     if (__DEV__) {
       console.error('[ErrorBoundary]', error, errorInfo.componentStack);
     }

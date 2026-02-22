@@ -10,11 +10,15 @@ import {
   FREE_CUSTOMER_LIMIT,
   FREE_UNIT_PRICE_LIMIT,
   FREE_PHOTOS_PER_CUSTOMER_LIMIT,
+  FREE_AI_SEARCH_DAILY_LIMIT,
+  FREE_RAKUTEN_SEARCH_DAILY_LIMIT,
   canCreateDocument,
   canCreateCustomer,
   canCreateUnitPrice,
   canAddPhoto,
   canCreateFinanceEntry,
+  canSearchAi,
+  canSearchRakuten,
   type FreeTierCheckResult,
 } from '@/subscription/freeTierLimitsService';
 
@@ -22,8 +26,10 @@ import {
 
 describe('Free tier limit constants', () => {
   it('should define correct limits', () => {
-    expect(FREE_DOCUMENT_LIMIT).toBe(5);
-    expect(FREE_CUSTOMER_LIMIT).toBe(3);
+    expect(FREE_AI_SEARCH_DAILY_LIMIT).toBe(3);
+    expect(FREE_RAKUTEN_SEARCH_DAILY_LIMIT).toBe(5);
+    expect(FREE_DOCUMENT_LIMIT).toBe(10);
+    expect(FREE_CUSTOMER_LIMIT).toBe(5);
     expect(FREE_UNIT_PRICE_LIMIT).toBe(10);
     expect(FREE_PHOTOS_PER_CUSTOMER_LIMIT).toBe(3);
   });
@@ -55,21 +61,21 @@ describe('canCreateDocument', () => {
     });
 
     it('should allow creation when count is below limit', () => {
-      const result = canCreateDocument(4, false);
+      const result = canCreateDocument(9, false);
       expect(result.allowed).toBe(true);
-      expect(result.current).toBe(4);
-      expect(result.limit).toBe(5);
+      expect(result.current).toBe(9);
+      expect(result.limit).toBe(10);
     });
 
     it('should deny creation when count equals limit', () => {
-      const result = canCreateDocument(5, false);
+      const result = canCreateDocument(10, false);
       expect(result.allowed).toBe(false);
-      expect(result.current).toBe(5);
-      expect(result.limit).toBe(5);
+      expect(result.current).toBe(10);
+      expect(result.limit).toBe(10);
     });
 
     it('should deny creation when count exceeds limit', () => {
-      const result = canCreateDocument(10, false);
+      const result = canCreateDocument(FREE_DOCUMENT_LIMIT + 1, false);
       expect(result.allowed).toBe(false);
     });
 
@@ -99,15 +105,24 @@ describe('canCreateCustomer', () => {
       });
     });
 
+    it('should allow when below new limit', () => {
+      const result = canCreateCustomer(4, false);
+      expect(result).toEqual({
+        allowed: true,
+        current: 4,
+        limit: FREE_CUSTOMER_LIMIT,
+      });
+    });
+
     it('should deny when at limit', () => {
-      const result = canCreateCustomer(3, false);
+      const result = canCreateCustomer(5, false);
       expect(result.allowed).toBe(false);
-      expect(result.current).toBe(3);
-      expect(result.limit).toBe(3);
+      expect(result.current).toBe(5);
+      expect(result.limit).toBe(5);
     });
 
     it('should deny when above limit', () => {
-      expect(canCreateCustomer(5, false).allowed).toBe(false);
+      expect(canCreateCustomer(7, false).allowed).toBe(false);
     });
   });
 });
@@ -190,6 +205,48 @@ describe('canCreateFinanceEntry', () => {
       const result = canCreateFinanceEntry(false);
       expect(result.allowed).toBe(false);
     });
+  });
+});
+
+// === canSearchAi Tests ===
+
+describe('canSearchAi', () => {
+  it('allows free user when below daily limit', () => {
+    const result = canSearchAi(2, false);
+    expect(result.allowed).toBe(true);
+    expect(result.current).toBe(2);
+    expect(result.limit).toBe(FREE_AI_SEARCH_DAILY_LIMIT);
+  });
+
+  it('denies free user when at daily limit', () => {
+    const result = canSearchAi(3, false);
+    expect(result.allowed).toBe(false);
+  });
+
+  it('allows Pro user regardless of count', () => {
+    const result = canSearchAi(999, true);
+    expect(result.allowed).toBe(true);
+  });
+});
+
+// === canSearchRakuten Tests ===
+
+describe('canSearchRakuten', () => {
+  it('allows free user when below daily limit', () => {
+    const result = canSearchRakuten(4, false);
+    expect(result.allowed).toBe(true);
+    expect(result.current).toBe(4);
+    expect(result.limit).toBe(FREE_RAKUTEN_SEARCH_DAILY_LIMIT);
+  });
+
+  it('denies free user when at daily limit', () => {
+    const result = canSearchRakuten(5, false);
+    expect(result.allowed).toBe(false);
+  });
+
+  it('allows Pro user regardless of count', () => {
+    const result = canSearchRakuten(999, true);
+    expect(result.allowed).toBe(true);
   });
 });
 

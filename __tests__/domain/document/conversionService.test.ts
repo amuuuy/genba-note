@@ -36,14 +36,12 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 jest.mock('@/storage/asyncStorageService');
 jest.mock('@/storage/secureStorageService');
 jest.mock('@/domain/document/autoNumberingService');
-jest.mock('@/subscription/documentCreationCounter');
-
 import { convertEstimateToInvoice } from '@/domain/document/conversionService';
 import * as asyncStorageService from '@/storage/asyncStorageService';
 import * as secureStorageService from '@/storage/secureStorageService';
 import * as autoNumberingService from '@/domain/document/autoNumberingService';
-import * as documentCreationCounter from '@/subscription/documentCreationCounter';
 import { DEFAULT_APP_SETTINGS } from '@/types/settings';
+import { FREE_DOCUMENT_LIMIT } from '@/subscription/freeTierLimitsService';
 import {
   createTestDocument,
   createTestInvoice,
@@ -54,7 +52,6 @@ import {
 const mockedAsyncStorage = jest.mocked(asyncStorageService);
 const mockedSecureStorage = jest.mocked(secureStorageService);
 const mockedNumbering = jest.mocked(autoNumberingService);
-const mockedCounter = jest.mocked(documentCreationCounter);
 
 describe('conversionService', () => {
   const TODAY = '2026-01-30';
@@ -62,9 +59,8 @@ describe('conversionService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockedAsyncStorage.getReadOnlyMode.mockReturnValue(false);
-    // Default counter mocks (allow creation)
-    mockedCounter.getDocumentCreationCount.mockResolvedValue({ success: true, count: 0 });
-    mockedCounter.incrementDocumentCreationCount.mockResolvedValue({ success: true, count: 1 });
+    // Default: no existing documents (allows creation for free users)
+    mockedAsyncStorage.getAllDocuments.mockResolvedValue({ success: true, data: [] });
   });
 
   describe('convertEstimateToInvoice', () => {
@@ -718,85 +714,53 @@ describe('conversionService', () => {
         mockedSecureStorage.saveIssuerSnapshot.mockResolvedValue({ success: true });
       });
 
-      it('should reject when free-tier limit reached (isPro=false)', async () => {
-        mockedCounter.getDocumentCreationCount.mockResolvedValue({ success: true, count: 5 });
+      it('should reject when active document count reaches limit (isPro=false)', async () => {
+        mockedAsyncStorage.getAllDocuments.mockResolvedValue({
+          success: true,
+          data: Array(FREE_DOCUMENT_LIMIT).fill(null).map(() => createTestDocument()),
+        });
         const result = await convertEstimateToInvoice('est-for-limit', { today: TODAY, isPro: false });
         expect(result.success).toBe(false);
         expect(result.error?.code).toBe('FREE_TIER_LIMIT_EXCEEDED');
         expect(mockedAsyncStorage.getDocumentById).not.toHaveBeenCalled();
       });
 
-      it('should reject when counter read fails for free user (fail-closed)', async () => {
-        mockedCounter.getDocumentCreationCount.mockResolvedValue({ success: false, count: 0, error: 'err' });
+      it('should reject when document list read fails for free user (fail-closed)', async () => {
+        mockedAsyncStorage.getAllDocuments.mockResolvedValue({
+          success: false,
+          error: { code: 'READ_ERROR' as const, message: 'err' },
+        });
         const result = await convertEstimateToInvoice('est-for-limit', { today: TODAY, isPro: false });
         expect(result.success).toBe(false);
         expect(result.error?.code).toBe('FREE_TIER_LIMIT_EXCEEDED');
       });
 
-      it('should allow when counter read fails for Pro user (fail-open)', async () => {
-        mockedCounter.getDocumentCreationCount.mockResolvedValue({ success: false, count: 0, error: 'err' });
+      it('should allow when document list read fails for Pro user (fail-open)', async () => {
+        mockedAsyncStorage.getAllDocuments.mockResolvedValue({
+          success: false,
+          error: { code: 'READ_ERROR' as const, message: 'err' },
+        });
         const result = await convertEstimateToInvoice('est-for-limit', { today: TODAY, isPro: true });
         expect(result.success).toBe(true);
       });
 
       it('should allow for Pro user regardless of count', async () => {
-        mockedCounter.getDocumentCreationCount.mockResolvedValue({ success: true, count: 100 });
+        mockedAsyncStorage.getAllDocuments.mockResolvedValue({
+          success: true,
+          data: Array(100).fill(null).map(() => createTestDocument()),
+        });
         const result = await convertEstimateToInvoice('est-for-limit', { today: TODAY, isPro: true });
         expect(result.success).toBe(true);
       });
 
       it('should treat undefined isPro as free-tier (fail-closed default)', async () => {
-        mockedCounter.getDocumentCreationCount.mockResolvedValue({ success: true, count: 5 });
+        mockedAsyncStorage.getAllDocuments.mockResolvedValue({
+          success: true,
+          data: Array(FREE_DOCUMENT_LIMIT).fill(null).map(() => createTestDocument()),
+        });
         const result = await convertEstimateToInvoice('est-for-limit', { today: TODAY });
         expect(result.success).toBe(false);
         expect(result.error?.code).toBe('FREE_TIER_LIMIT_EXCEEDED');
-      });
-    });
-
-    // === Counter Increment Tests ===
-
-    describe('counter increment', () => {
-      const estimate = createTestDocument({ id: 'est-counter', type: 'estimate' });
-
-      beforeEach(() => {
-        mockedAsyncStorage.getDocumentById.mockResolvedValue({ success: true, data: estimate });
-        mockedNumbering.generateDocumentNumber.mockResolvedValue({ success: true, data: 'INV-001' });
-        mockedAsyncStorage.getSettings.mockResolvedValue({ success: true, data: DEFAULT_APP_SETTINGS });
-        mockedSecureStorage.getSensitiveIssuerInfo.mockResolvedValue({ success: true, data: null });
-        mockedAsyncStorage.saveDocument.mockImplementation(async (doc) => ({ success: true, data: doc }));
-        mockedSecureStorage.saveIssuerSnapshot.mockResolvedValue({ success: true });
-      });
-
-      it('should increment counter after successful conversion', async () => {
-        const result = await convertEstimateToInvoice('est-counter', { today: TODAY, isPro: true });
-
-        expect(result.success).toBe(true);
-        expect(mockedCounter.incrementDocumentCreationCount).toHaveBeenCalledTimes(1);
-      });
-
-      it('should NOT increment counter when saveDocument fails', async () => {
-        mockedAsyncStorage.saveDocument.mockResolvedValue({
-          success: false,
-          error: { code: 'WRITE_ERROR', message: 'Storage full' },
-        });
-
-        const result = await convertEstimateToInvoice('est-counter', { today: TODAY, isPro: true });
-
-        expect(result.success).toBe(false);
-        expect(mockedCounter.incrementDocumentCreationCount).not.toHaveBeenCalled();
-      });
-
-      it('should succeed even if counter increment fails (non-fatal)', async () => {
-        mockedCounter.incrementDocumentCreationCount.mockResolvedValue({
-          success: false,
-          count: 0,
-          error: 'increment failed',
-        });
-
-        const result = await convertEstimateToInvoice('est-counter', { today: TODAY, isPro: true });
-
-        expect(result.success).toBe(true);
-        expect(result.data?.invoice).toBeDefined();
       });
     });
   });

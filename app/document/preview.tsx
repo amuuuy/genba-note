@@ -38,6 +38,8 @@ import { TemplatePickerModal } from '@/components/document/TemplatePickerModal';
 import { getPdfErrorMessage } from '@/constants/errorMessages';
 import { validatePreviewDocument } from '@/utils/previewDataValidator';
 import { injectCsp, FIT_TO_SCREEN_SCRIPT } from '@/utils/previewHtmlSecurity';
+import { useProStatus } from '@/hooks/useProStatus';
+import { resolveTemplateForUser } from '@/constants/templateOptions';
 import type { Document, DocumentWithTotals, SensitiveIssuerSnapshot } from '@/types/document';
 import type { DocumentTemplateId, PreviewOrientation, SealSize, BackgroundDesign } from '@/types/settings';
 
@@ -52,6 +54,7 @@ export default function DocumentPreviewScreen() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const { isPro, isLoading: isProLoading } = useProStatus();
   const [orientation, setOrientation] = useState<PreviewOrientation>('PORTRAIT');
   const [filenameModalVisible, setFilenameModalVisible] = useState(false);
   const [currentTemplateId, setCurrentTemplateId] = useState<DocumentTemplateId>('FORMAL_STANDARD');
@@ -71,8 +74,15 @@ export default function DocumentPreviewScreen() {
     return generateFilenameTitle(documentWithTotals.documentNo, documentWithTotals.type);
   }, [documentWithTotals]);
 
-  // Load document and generate HTML preview
+  // Load document and generate HTML preview.
+  // Waits for Pro status to resolve before starting, to avoid race conditions
+  // where initial isPro=false would resolve Pro templates to free defaults.
   useEffect(() => {
+    // Don't start loading until Pro status is resolved
+    if (isProLoading) return;
+
+    let stale = false;
+
     async function loadPreview() {
       try {
         let document: Document;
@@ -83,20 +93,25 @@ export default function DocumentPreviewScreen() {
           try {
             parsed = JSON.parse(previewData);
           } catch {
-            setErrorMessage('プレビューデータの解析に失敗しました');
-            setState('error');
+            if (!stale) {
+              setErrorMessage('プレビューデータの解析に失敗しました');
+              setState('error');
+            }
             return;
           }
           const validated = validatePreviewDocument(parsed);
           if (!validated) {
-            setErrorMessage('プレビューデータが無効です');
-            setState('error');
+            if (!stale) {
+              setErrorMessage('プレビューデータが無効です');
+              setState('error');
+            }
             return;
           }
           document = validated;
         } else if (id) {
           // Normal mode: load from storage
           const docResult = await getDocument(id);
+          if (stale) return;
           if (!docResult.success || !docResult.data) {
             setErrorMessage('書類が見つかりません');
             setState('error');
@@ -104,8 +119,10 @@ export default function DocumentPreviewScreen() {
           }
           document = docResult.data;
         } else {
-          setErrorMessage('書類IDまたはプレビューデータが見つかりません');
-          setState('error');
+          if (!stale) {
+            setErrorMessage('書類IDまたはプレビューデータが見つかりません');
+            setState('error');
+          }
           return;
         }
 
@@ -116,6 +133,7 @@ export default function DocumentPreviewScreen() {
         // For preview mode, use document id if available, otherwise use empty string
         const documentId = document.id || '';
         const issuerInfo = await resolveIssuerInfo(documentId, enriched.issuerSnapshot);
+        if (stale) return;
 
         // 4. Create document with resolved issuer info
         const documentForTemplate = {
@@ -125,10 +143,12 @@ export default function DocumentPreviewScreen() {
 
         // 5. Load settings for template selection (M21)
         const settingsResult = await getSettings();
+        if (stale) return;
         const settings = settingsResult.success ? settingsResult.data : null;
-        const templateId = documentForTemplate.type === 'estimate'
+        const rawTemplateId = documentForTemplate.type === 'estimate'
           ? settings?.defaultEstimateTemplateId ?? 'FORMAL_STANDARD'
           : settings?.defaultInvoiceTemplateId ?? 'ACCOUNTING';
+        const templateId = resolveTemplateForUser(documentForTemplate.type, rawTemplateId, isPro);
 
         // 5.5. Pre-load background image if IMAGE design is selected
         const backgroundDesign = settings?.backgroundDesign;
@@ -136,6 +156,7 @@ export default function DocumentPreviewScreen() {
           backgroundDesign,
           settings?.backgroundImageUri ?? null
         );
+        if (stale) return;
 
         // 6. Batch all state updates together (no await between them).
         // React 18 auto-batches synchronous setState calls, so the HTML
@@ -149,13 +170,17 @@ export default function DocumentPreviewScreen() {
           backgroundImageDataUrl,
         });
       } catch (error) {
-        setErrorMessage('プレビューの読み込みに失敗しました');
-        setState('error');
+        if (!stale) {
+          setErrorMessage('プレビューの読み込みに失敗しました');
+          setState('error');
+        }
       }
     }
 
     loadPreview();
-  }, [id, previewData]);
+
+    return () => { stale = true; };
+  }, [id, previewData, isPro, isProLoading]);
 
   // Compute HTML for WebView display, applying landscape CSS when needed.
   // Defence-in-depth: inject CSP to block inline scripts/event handlers in HTML.
@@ -389,6 +414,7 @@ export default function DocumentPreviewScreen() {
         onClose={() => setTemplatePickerVisible(false)}
         currentSealSize={templateDeps.sealSize}
         onSealSizeSelect={handleSealSizeSelect}
+        isPro={isPro}
         testID="template-picker-modal"
       />
     </View>

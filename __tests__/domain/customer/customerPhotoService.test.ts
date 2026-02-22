@@ -613,5 +613,36 @@ describe('customerPhotoService', () => {
         'file:///permanent/path/photo.jpg'
       );
     });
+
+    it('should console.warn when deleteStoredImage fails during cleanup in __DEV__', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      mockedAsyncStorage.getItem.mockResolvedValue(JSON.stringify([]));
+      mockedImageUtils.getFileSize.mockResolvedValue({ success: true, size: 1_000_000 });
+      mockedImageUtils.copyCustomerPhotoToPermanentStorage.mockResolvedValue(
+        'file:///permanent/path/photo.jpg'
+      );
+      // deleteStoredImage rejects during cleanup
+      mockedImageUtils.deleteStoredImage.mockRejectedValue(new Error('Delete failed'));
+      // setItem throws to trigger the catch block
+      mockedAsyncStorage.setItem.mockRejectedValue(new Error('Storage full'));
+
+      const result = await addPhoto({
+        customerId: 'customer-1',
+        workLogEntryId: 'entry-1',
+        type: 'before',
+        sourceUri: 'file:///temp/photo.jpg',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('STORAGE_ERROR');
+      expect(warnSpy).toHaveBeenCalledWith(
+        'Failed to delete copied photo during cleanup:',
+        'file:///permanent/path/photo.jpg',
+        expect.any(Error)
+      );
+
+      warnSpy.mockRestore();
+    });
   });
 });

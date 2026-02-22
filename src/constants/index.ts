@@ -13,3 +13,5 @@ export {
   getSubscriptionErrorMessage,
   getPdfErrorMessage,
 } from './errorMessages';
+
+export { TERMS_OF_SERVICE_URL, PRIVACY_POLICY_URL } from './legalUrls';

@@ -1,7 +1,7 @@
 /**
  * Register All Templates
  *
- * Side-effect import that populates the template registry with all 5 templates.
+ * Side-effect import that populates the template registry with all 6 templates.
  * Import this module once at app startup or in tests to ensure all templates
  * are available via getTemplate().
  */

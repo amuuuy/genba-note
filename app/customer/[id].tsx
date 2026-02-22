@@ -264,7 +264,7 @@ export default function CustomerEditScreen() {
       // 1. Delete metadata for successfully added photos (keep files for retry)
       for (const photoId of addedPhotoIds) {
         const deleteResult = await deletePhotoMetadataOnly(photoId);
-        if (!deleteResult.success) {
+        if (!deleteResult.success && __DEV__) {
           console.warn('Failed to delete photo metadata during rollback:', photoId);
         }
       }

@@ -275,7 +275,9 @@ export async function addPhoto(
   } catch (error) {
     // Clean up copied file if it exists (exception may occur after file copy)
     if (permanentUri) {
-      await deleteStoredImage(permanentUri).catch(() => {});
+      await deleteStoredImage(permanentUri).catch((e) => {
+        if (__DEV__) console.warn('Failed to delete copied photo during cleanup:', permanentUri, e);
+      });
     }
     return errorResult(
       createCustomerServiceError(
