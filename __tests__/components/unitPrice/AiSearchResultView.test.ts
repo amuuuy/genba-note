@@ -223,13 +223,5 @@ describe('AiSearchResultView', () => {
       const result = createTestAiSearchResponse({ sources: [] });
       expect(result.sources).toHaveLength(0);
     });
-
-    it('model badge shows the model from result', () => {
-      const flashResult = createTestAiSearchResponse({ model: 'FLASH' });
-      expect(flashResult.model).toBe('FLASH');
-
-      const proResult = createTestAiSearchResponse({ model: 'PRO' });
-      expect(proResult.model).toBe('PRO');
-    });
   });
 });

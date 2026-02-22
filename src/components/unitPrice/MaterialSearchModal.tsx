@@ -41,7 +41,6 @@ import { useMultiSelect } from '@/hooks/useMultiSelect';
 import { generateUUID } from '@/utils/uuid';
 import { MaterialSearchResultItem } from './MaterialSearchResultItem';
 import { AiSearchResultView } from './AiSearchResultView';
-import { AiModelSelector } from './AiModelSelector';
 import { UnitPriceEditorModal } from './UnitPriceEditorModal';
 import { LineItemEditorModal } from '../document/edit/LineItemEditorModal';
 
@@ -475,18 +474,6 @@ export const MaterialSearchModal: React.FC<MaterialSearchModalProps> = ({
           </Pressable>
         </View>
 
-        {/* AI Model selector (only shown on AI tab) */}
-        {activeTab === 'ai' && (
-          <View style={styles.modelSelectorContainer}>
-            <AiModelSelector
-              model={ai.model}
-              onChange={ai.setModel}
-              disabled={ai.isLoading}
-              testID="ai-model-selector"
-            />
-          </View>
-        )}
-
         {/* Disclaimer banner */}
         <View style={styles.disclaimerBanner}>
           <Ionicons name="information-circle" size={16} color="#856404" />
@@ -695,11 +682,6 @@ const styles = StyleSheet.create({
   },
   tabTextActiveAi: {
     color: '#8B5CF6',
-  },
-  modelSelectorContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#fff',
   },
   disclaimerBanner: {
     flexDirection: 'row',

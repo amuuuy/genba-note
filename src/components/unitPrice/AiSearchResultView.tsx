@@ -134,9 +134,6 @@ export const AiSearchResultView: React.FC<AiSearchResultViewProps> = ({
           <View style={styles.summaryHeader}>
             <Ionicons name="sparkles" size={16} color="#8B5CF6" />
             <Text style={styles.summaryHeaderText}>AI分析</Text>
-            <View style={styles.modelBadge}>
-              <Text style={styles.modelBadgeText}>{result.model}</Text>
-            </View>
           </View>
           <Text style={styles.summaryText}>{result.summary}</Text>
           {result.recommendedPriceRange && (
@@ -272,17 +269,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#8B5CF6',
     flex: 1,
-  },
-  modelBadge: {
-    backgroundColor: '#8B5CF6',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  modelBadgeText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#fff',
   },
   summaryText: {
     fontSize: 14,

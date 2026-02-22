@@ -6,10 +6,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import type {
-  AiSearchResponse,
-  AiSearchModel,
-} from '@/types/materialResearch';
+import type { AiSearchResponse } from '@/types/materialResearch';
 import { searchMaterialsWithAi } from '@/domain/materialResearch/geminiSearchService';
 
 export interface UseAiPriceSearchReturn {
@@ -23,27 +20,20 @@ export interface UseAiPriceSearchReturn {
   isLoading: boolean;
   /** Error message (Japanese, null if no error) */
   error: string | null;
-  /** Current AI model selection */
-  model: AiSearchModel;
-  /** Change AI model */
-  setModel: (model: AiSearchModel) => void;
   /** Execute search. Pass query to avoid stale-closure issues. */
   search: (queryOverride?: string) => Promise<void>;
-  /** Clear search state (query, result, error). Model selection is preserved. */
+  /** Clear search state (query, result, error). */
   clear: () => void;
 }
 
 /**
  * Hook for AI-powered material price search
  */
-export function useAiPriceSearch(
-  defaultModel: AiSearchModel = 'FLASH'
-): UseAiPriceSearchReturn {
+export function useAiPriceSearch(): UseAiPriceSearchReturn {
   const [query, setQuery] = useState('');
   const [result, setResult] = useState<AiSearchResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [model, setModel] = useState<AiSearchModel>(defaultModel);
 
   const search = useCallback(async (queryOverride?: string) => {
     const searchQuery = queryOverride ?? query;
@@ -54,7 +44,7 @@ export function useAiPriceSearch(
     setError(null);
     setResult(null);
 
-    const response = await searchMaterialsWithAi({ query: searchQuery, model });
+    const response = await searchMaterialsWithAi({ query: searchQuery });
 
     if (response.success) {
       setResult(response.data);
@@ -63,7 +53,7 @@ export function useAiPriceSearch(
     }
 
     setIsLoading(false);
-  }, [query, model]);
+  }, [query]);
 
   const clear = useCallback(() => {
     setQuery('');
@@ -78,8 +68,6 @@ export function useAiPriceSearch(
     result,
     isLoading,
     error,
-    model,
-    setModel,
     search,
     clear,
   };

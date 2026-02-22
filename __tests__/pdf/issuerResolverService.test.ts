@@ -188,7 +188,6 @@ describe('issuerResolverService', () => {
             backgroundImageUri: null,
             defaultEstimateTemplateId: 'FORMAL_STANDARD',
             defaultInvoiceTemplateId: 'ACCOUNTING',
-            aiSearchModel: 'FLASH',
             schemaVersion: 1,
           },
         });
@@ -275,7 +274,6 @@ describe('issuerResolverService', () => {
         backgroundImageUri: null,
         defaultEstimateTemplateId: 'FORMAL_STANDARD' as const,
         defaultInvoiceTemplateId: 'ACCOUNTING' as const,
-        aiSearchModel: 'FLASH' as const,
         schemaVersion: 1,
       };
 
@@ -384,8 +382,7 @@ describe('issuerResolverService', () => {
             backgroundImageUri: null,
             defaultEstimateTemplateId: 'FORMAL_STANDARD' as const,
             defaultInvoiceTemplateId: 'ACCOUNTING' as const,
-            aiSearchModel: 'FLASH' as const,
-            schemaVersion: 1,
+                schemaVersion: 1,
           },
         });
       });
@@ -443,7 +440,6 @@ describe('issuerResolverService', () => {
         backgroundImageUri: null,
         defaultEstimateTemplateId: 'FORMAL_STANDARD' as const,
         defaultInvoiceTemplateId: 'ACCOUNTING' as const,
-        aiSearchModel: 'FLASH' as const,
         schemaVersion: 1,
       };
 
@@ -589,7 +585,6 @@ describe('issuerResolverService', () => {
             backgroundImageUri: null,
             defaultEstimateTemplateId: 'FORMAL_STANDARD',
             defaultInvoiceTemplateId: 'ACCOUNTING',
-            aiSearchModel: 'FLASH',
             schemaVersion: 1,
           },
         });
@@ -662,7 +657,6 @@ describe('issuerResolverService', () => {
         backgroundImageUri: null,
         defaultEstimateTemplateId: 'FORMAL_STANDARD' as const,
         defaultInvoiceTemplateId: 'ACCOUNTING' as const,
-        aiSearchModel: 'FLASH' as const,
         schemaVersion: 1,
       };
 
@@ -777,7 +771,6 @@ describe('issuerResolverService', () => {
             backgroundImageUri: null,
             defaultEstimateTemplateId: 'FORMAL_STANDARD',
             defaultInvoiceTemplateId: 'ACCOUNTING',
-            aiSearchModel: 'FLASH',
             schemaVersion: 1,
           },
         });
@@ -833,7 +826,6 @@ describe('issuerResolverService', () => {
             backgroundImageUri: null,
             defaultEstimateTemplateId: 'FORMAL_STANDARD',
             defaultInvoiceTemplateId: 'ACCOUNTING',
-            aiSearchModel: 'FLASH',
             schemaVersion: 1,
           },
         });

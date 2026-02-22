@@ -117,13 +117,6 @@ export type MaterialResearchDomainResult<T> =
 
 // === AI Search Types (Gemini + Google Search Grounding) ===
 
-/** AI model choice for Gemini-powered search */
-export const AI_SEARCH_MODELS = ['FLASH', 'PRO'] as const;
-export type AiSearchModel = (typeof AI_SEARCH_MODELS)[number];
-
-/** Default AI search model */
-export const DEFAULT_AI_SEARCH_MODEL: AiSearchModel = 'FLASH';
-
 /** A single price comparison item from AI search */
 export interface AiPriceItem {
   /** Product/material name */
@@ -156,16 +149,12 @@ export interface AiSearchResponse {
   recommendedPriceRange: { min: number; max: number } | null;
   /** Grounding sources from Google Search */
   sources: GroundingSource[];
-  /** Which model was used */
-  model: AiSearchModel;
 }
 
 /** Parameters for AI material search */
 export interface AiSearchParams {
   /** Search query (required) */
   query: string;
-  /** AI model to use (default: FLASH) */
-  model?: AiSearchModel;
 }
 
 /** Error from AI search operations */

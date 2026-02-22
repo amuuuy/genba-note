@@ -134,7 +134,6 @@ export function createTestAiSearchResponse(
       { uri: 'https://www.monotaro.com/p/1234/', title: 'コンパネ - モノタロウ' },
       { uri: 'https://www.amazon.co.jp/dp/B000TEST/', title: 'コンパネ - Amazon' },
     ],
-    model: 'FLASH',
     ...overrides,
   };
 }
@@ -176,7 +175,6 @@ export function createTestGeminiEdgeFunctionResponse(
     sources: [
       { uri: 'https://www.monotaro.com/p/1234/', title: 'コンパネ - モノタロウ' },
     ],
-    model: 'FLASH',
     webSearchQueries: ['コンパネ 12mm 3x6 価格'],
     ...overrides,
   };

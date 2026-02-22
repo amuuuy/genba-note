@@ -8,7 +8,6 @@
 import type {
   AiPriceItem,
   AiSearchResponse,
-  AiSearchModel,
   GroundingSource,
   MaterialSearchResult,
 } from '@/types/materialResearch';
@@ -19,7 +18,6 @@ import { generateUUID } from '@/utils/uuid';
 export interface GeminiEdgeFunctionResponse {
   text: string;
   sources: GroundingSource[];
-  model: AiSearchModel;
   webSearchQueries: string[];
 }
 
@@ -110,7 +108,6 @@ export function mapGeminiResponse(
     items: parsed?.items ?? [],
     recommendedPriceRange: parsed?.recommendedPriceRange ?? null,
     sources,
-    model: raw.model ?? 'FLASH',
   };
 }
 

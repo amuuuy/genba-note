@@ -24,7 +24,6 @@ describe('searchMaterialsWithAi', () => {
     if (result.success) {
       expect(result.data.items).toEqual([]);
       expect(result.data.summary).toBe('');
-      expect(result.data.model).toBe('FLASH');
     }
     expect(mockFetch).not.toHaveBeenCalled();
   });
@@ -56,20 +55,6 @@ describe('searchMaterialsWithAi', () => {
 
     const body = JSON.parse(options.body);
     expect(body.query).toBe('コンパネ 12mm');
-    expect(body.model).toBe('FLASH');
-  });
-
-  it('passes PRO model parameter to Edge Function', async () => {
-    const apiResponse = createTestGeminiEdgeFunctionResponse({ model: 'PRO' });
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => apiResponse,
-    });
-
-    await searchMaterialsWithAi({ query: 'コンパネ', model: 'PRO' });
-
-    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-    expect(body.model).toBe('PRO');
   });
 
   it('returns parsed AI search response on success', async () => {
@@ -86,7 +71,6 @@ describe('searchMaterialsWithAi', () => {
       expect(result.data.items.length).toBeGreaterThan(0);
       expect(result.data.items[0].name).toBe('コンパネ 12mm 3x6');
       expect(result.data.sources).toEqual(apiResponse.sources);
-      expect(result.data.model).toBe('FLASH');
     }
   });
 

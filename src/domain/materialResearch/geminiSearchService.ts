@@ -26,7 +26,7 @@ const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 export async function searchMaterialsWithAi(
   params: AiSearchParams
 ): Promise<AiSearchDomainResult<AiSearchResponse>> {
-  const { query, model = 'FLASH' } = params;
+  const { query } = params;
 
   if (!query.trim()) {
     return {
@@ -36,7 +36,6 @@ export async function searchMaterialsWithAi(
         items: [],
         recommendedPriceRange: null,
         sources: [],
-        model,
       },
     };
   }
@@ -52,7 +51,7 @@ export async function searchMaterialsWithAi(
     const response = await fetch(SUPABASE_FUNCTION_URL, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ query: query.trim(), model }),
+      body: JSON.stringify({ query: query.trim() }),
     });
 
     if (!response.ok) {

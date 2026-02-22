@@ -206,7 +206,6 @@ describe('geminiMappingService', () => {
       expect(result.items).toHaveLength(2);
       expect(result.items[0].name).toBe('コンパネ 12mm 3x6');
       expect(result.sources).toEqual(raw.sources);
-      expect(result.model).toBe('FLASH');
       expect(result.recommendedPriceRange).toEqual({ min: 1500, max: 2500 });
     });
 
@@ -241,7 +240,6 @@ describe('geminiMappingService', () => {
       const raw = {
         text: undefined as unknown as string,
         sources: [],
-        model: 'FLASH' as const,
         webSearchQueries: [],
       };
       const result = mapGeminiResponse(raw);

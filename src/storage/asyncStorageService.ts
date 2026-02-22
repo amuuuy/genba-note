@@ -13,7 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Document, DocumentFilter, DocumentSort } from '@/types/document';
 import { UnitPrice, UnitPriceFilter } from '@/types/unitPrice';
 import { AppSettings, DEFAULT_APP_SETTINGS } from '@/types/settings';
-import { SEAL_SIZES, BACKGROUND_DESIGNS, DOCUMENT_TEMPLATE_IDS, AI_SEARCH_MODELS } from '@/types/settings';
+import { SEAL_SIZES, BACKGROUND_DESIGNS, DOCUMENT_TEMPLATE_IDS } from '@/types/settings';
 import { STORAGE_KEYS } from '@/utils/constants';
 import { deleteIssuerSnapshot } from './secureStorageService';
 import {
@@ -519,7 +519,6 @@ export async function searchUnitPrices(
 const VALID_SEAL_SIZES: ReadonlySet<string> = new Set(SEAL_SIZES);
 const VALID_BACKGROUND_DESIGNS: ReadonlySet<string> = new Set(BACKGROUND_DESIGNS);
 const VALID_TEMPLATE_IDS: ReadonlySet<string> = new Set(DOCUMENT_TEMPLATE_IDS);
-const VALID_AI_SEARCH_MODELS: ReadonlySet<string> = new Set(AI_SEARCH_MODELS);
 
 /**
  * Deep merge settings with defaults to ensure all fields exist.
@@ -557,8 +556,6 @@ function mergeSettingsWithDefaults(stored: Partial<AppSettings>): AppSettings {
     defaultInvoiceTemplateId: (stored.defaultInvoiceTemplateId && VALID_TEMPLATE_IDS.has(stored.defaultInvoiceTemplateId))
       ? stored.defaultInvoiceTemplateId
       : (stored.invoiceTemplateType === 'SIMPLE' ? 'SIMPLE' : 'ACCOUNTING'),
-    aiSearchModel: (stored.aiSearchModel && VALID_AI_SEARCH_MODELS.has(stored.aiSearchModel))
-      ? stored.aiSearchModel : DEFAULT_APP_SETTINGS.aiSearchModel,
     schemaVersion: stored.schemaVersion ?? DEFAULT_APP_SETTINGS.schemaVersion,
   };
 }
