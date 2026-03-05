@@ -69,8 +69,13 @@ export async function executeAiSearch(deps: {
   let incremented = false;
 
   if (success && shouldCheck) {
-    await deps.incrementAi().catch(() => {});
-    incremented = true;
+    try {
+      await deps.incrementAi();
+      incremented = true;
+    } catch {
+      // Increment failed — incremented stays false.
+      // Search result is still returned; server-side limit remains the hard guard.
+    }
   }
 
   return { outcome: 'searched', searchSuccess: success, incremented };
@@ -168,8 +173,13 @@ export async function executeRakutenSearch(deps: {
   let incremented = false;
 
   if (success && shouldCheck) {
-    await deps.incrementRakuten().catch(() => {});
-    incremented = true;
+    try {
+      await deps.incrementRakuten();
+      incremented = true;
+    } catch {
+      // Increment failed — incremented stays false.
+      // Search result is still returned; server-side limit remains the hard guard.
+    }
   }
 
   return { outcome: 'searched', searchSuccess: success, incremented };

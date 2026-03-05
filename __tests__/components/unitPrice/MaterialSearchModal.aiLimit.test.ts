@@ -148,6 +148,19 @@ describe('executeAiSearch', () => {
     });
   });
 
+  describe('increment failure → incremented stays false', () => {
+    it('returns incremented: false when incrementAi rejects', async () => {
+      const deps = makeDeps({
+        incrementAi: jest.fn().mockRejectedValue(new Error('storage error')),
+      });
+      const result = await executeAiSearch(deps);
+
+      expect(deps.search).toHaveBeenCalledTimes(1);
+      expect(deps.incrementAi).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({ outcome: 'searched', searchSuccess: true, incremented: false });
+    });
+  });
+
   describe('date rollover via reload', () => {
     it('uses fresh count from reload, not stale state', async () => {
       const deps = makeDeps({
