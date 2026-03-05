@@ -42,13 +42,13 @@ import { useAiPriceSearch } from '@/hooks/useAiPriceSearch';
 import { useMultiSelect } from '@/hooks/useMultiSelect';
 import { useProStatus } from '@/hooks/useProStatus';
 import { useDailySearchUsage } from '@/hooks/useDailySearchUsage';
-import { FREE_AI_SEARCH_DAILY_LIMIT } from '@/subscription/freeTierLimitsService';
+import { FREE_AI_SEARCH_DAILY_LIMIT, FREE_RAKUTEN_SEARCH_DAILY_LIMIT } from '@/subscription/freeTierLimitsService';
 import { generateUUID } from '@/utils/uuid';
 import { MaterialSearchResultItem } from './MaterialSearchResultItem';
 import { AiSearchResultView } from './AiSearchResultView';
 import { UnitPriceEditorModal } from './UnitPriceEditorModal';
 import { LineItemEditorModal } from '../document/edit/LineItemEditorModal';
-import { createGuardedAiSearch } from './materialSearchLimitUtils';
+import { createGuardedAiSearch, createGuardedRakutenSearch } from './materialSearchLimitUtils';
 
 export type MaterialSearchMode = 'unitPrice' | 'lineItem';
 
@@ -104,6 +104,7 @@ export const MaterialSearchModal: React.FC<MaterialSearchModalProps> = ({
   const [hasAiSearched, setHasAiSearched] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const guardedAiSearchRef = useRef(createGuardedAiSearch());
+  const guardedRakutenSearchRef = useRef(createGuardedRakutenSearch());
 
   // Rakuten search hook
   const rakuten = useMaterialSearch();
@@ -117,6 +118,7 @@ export const MaterialSearchModal: React.FC<MaterialSearchModalProps> = ({
   // Show remaining only when both Pro status and daily usage are loaded
   const limitsReady = !isProLoading && dailyUsage.isLoaded;
   const aiRemaining = isPro ? Infinity : Math.max(0, FREE_AI_SEARCH_DAILY_LIMIT - dailyUsage.aiSearchCount);
+  const rakutenRemaining = isPro ? Infinity : Math.max(0, FREE_RAKUTEN_SEARCH_DAILY_LIMIT - dailyUsage.rakutenSearchCount);
 
   // Multi-select
   const selection = useMultiSelect();
@@ -172,7 +174,23 @@ export const MaterialSearchModal: React.FC<MaterialSearchModalProps> = ({
     selection.clear();
 
     if (activeTab === 'rakuten') {
-      rakuten.search(query);
+      await guardedRakutenSearchRef.current.execute({
+        isProLoading,
+        isPro,
+        reload: dailyUsage.reload,
+        search: () => rakuten.search(query),
+        incrementRakuten: dailyUsage.incrementRakuten,
+        onBlocked: (limit) => {
+          Alert.alert(
+            '楽天検索の上限に達しました',
+            `無料プランでは1日${limit}回まで楽天検索できます。\nProプランにアップグレードすると無制限に利用できます。`,
+            [
+              { text: 'キャンセル', style: 'cancel' },
+              { text: 'Proプランを見る', onPress: () => router.push('/paywall') },
+            ]
+          );
+        },
+      });
     } else {
       const result = await guardedAiSearchRef.current.execute({
         isProLoading,
@@ -488,6 +506,19 @@ export const MaterialSearchModal: React.FC<MaterialSearchModalProps> = ({
             <Text style={[styles.tabText, activeTab === 'rakuten' && styles.tabTextActive]}>
               楽天検索
             </Text>
+            {limitsReady && !isPro && (
+              <View style={[
+                styles.remainingBadge,
+                rakutenRemaining === 0 && styles.remainingBadgeExhausted,
+              ]}>
+                <Text style={[
+                  styles.remainingBadgeText,
+                  rakutenRemaining === 0 && styles.remainingBadgeTextExhausted,
+                ]}>
+                  {rakutenRemaining}/{FREE_RAKUTEN_SEARCH_DAILY_LIMIT}
+                </Text>
+              </View>
+            )}
           </Pressable>
           <Pressable
             style={[styles.tab, activeTab === 'ai' && styles.tabActiveAi]}

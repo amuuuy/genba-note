@@ -43,8 +43,8 @@ describe('useMaterialSearch', () => {
   });
 
   describe('search flow types', () => {
-    it('search returns Promise<void>', () => {
-      const mockSearch: UseMaterialSearchReturn['search'] = jest.fn().mockResolvedValue(undefined);
+    it('search returns Promise<boolean>', () => {
+      const mockSearch: UseMaterialSearchReturn['search'] = jest.fn().mockResolvedValue(true);
       expect(typeof mockSearch).toBe('function');
     });
 

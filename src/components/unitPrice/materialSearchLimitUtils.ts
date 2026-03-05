@@ -5,7 +5,7 @@
  * in node test environment (no JSX dependency).
  */
 
-import { canSearchAi } from '@/subscription/freeTierLimitsService';
+import { canSearchAi, canSearchRakuten } from '@/subscription/freeTierLimitsService';
 
 /**
  * Determine whether AI limit check should be performed.
@@ -96,6 +96,104 @@ export function createGuardedAiSearch(): {
       inFlight = true;
       try {
         return await executeAiSearch(deps);
+      } finally {
+        inFlight = false;
+      }
+    },
+    isInFlight: () => inFlight,
+  };
+}
+
+// --- Rakuten search limit (mirrors AI pattern) ---
+
+/**
+ * Determine whether Rakuten limit check should be performed.
+ * Returns false (skip check) when Pro status is still loading or user is Pro.
+ */
+export function shouldCheckRakutenLimit(isProLoading: boolean, isPro: boolean): boolean {
+  return !isProLoading && !isPro;
+}
+
+/**
+ * Check Rakuten search daily limit and return block info if limit reached.
+ * Returns null if search is allowed, or { limit } if blocked.
+ */
+export function checkRakutenSearchLimit(
+  todayCount: number,
+  isPro: boolean
+): { limit: number } | null {
+  const check = canSearchRakuten(todayCount, isPro);
+  if (!check.allowed) {
+    return { limit: check.limit };
+  }
+  return null;
+}
+
+/**
+ * Result of executeRakutenSearch: whether search succeeded and whether increment was called.
+ */
+export interface RakutenSearchExecutionResult {
+  outcome: 'blocked' | 'searched';
+  searchSuccess?: boolean;
+  incremented: boolean;
+}
+
+/**
+ * Testable async function encapsulating the Rakuten search flow:
+ * 1. If shouldCheck, reload daily usage and check limit
+ * 2. If blocked, call onBlocked and return
+ * 3. Execute search
+ * 4. If search succeeded and shouldCheck, increment usage
+ */
+export async function executeRakutenSearch(deps: {
+  isProLoading: boolean;
+  isPro: boolean;
+  reload: () => Promise<{ rakutenSearchCount: number }>;
+  search: () => Promise<boolean>;
+  incrementRakuten: () => Promise<void>;
+  onBlocked: (limit: number) => void;
+}): Promise<RakutenSearchExecutionResult> {
+  const shouldCheck = shouldCheckRakutenLimit(deps.isProLoading, deps.isPro);
+
+  if (shouldCheck) {
+    const freshUsage = await deps.reload();
+    const blocked = checkRakutenSearchLimit(freshUsage.rakutenSearchCount, deps.isPro);
+    if (blocked) {
+      deps.onBlocked(blocked.limit);
+      return { outcome: 'blocked', incremented: false };
+    }
+  }
+
+  const success = await deps.search();
+  let incremented = false;
+
+  if (success && shouldCheck) {
+    await deps.incrementRakuten().catch(() => {});
+    incremented = true;
+  }
+
+  return { outcome: 'searched', searchSuccess: success, incremented };
+}
+
+/** Result when guarded Rakuten search is skipped due to re-entry */
+export type GuardedRakutenSearchResult = RakutenSearchExecutionResult | { outcome: 'skipped' };
+
+/**
+ * Creates a guarded version of executeRakutenSearch that prevents re-entry.
+ * While a search is in-flight, subsequent calls return { outcome: 'skipped' }.
+ */
+export function createGuardedRakutenSearch(): {
+  execute: (deps: Parameters<typeof executeRakutenSearch>[0]) => Promise<GuardedRakutenSearchResult>;
+  isInFlight: () => boolean;
+} {
+  let inFlight = false;
+
+  return {
+    execute: async (deps) => {
+      if (inFlight) return { outcome: 'skipped' };
+      inFlight = true;
+      try {
+        return await executeRakutenSearch(deps);
       } finally {
         inFlight = false;
       }
