@@ -9,7 +9,9 @@
     "web": "expo start --web",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "update:preview": "eas update --channel preview --environment staging --platform all --auto",
+    "update:production": "eas update --channel production --environment production --platform all --auto"
   },
   "dependencies": {
     "@expo/ngrok": "^4.1.3",
