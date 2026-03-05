@@ -28,6 +28,7 @@ import {
   FREE_CUSTOMER_LIMIT,
   FREE_UNIT_PRICE_LIMIT,
   FREE_PHOTOS_PER_CUSTOMER_LIMIT,
+  FREE_AI_SEARCH_DAILY_LIMIT,
 } from '@/subscription/freeTierLimitsService';
 import { openTermsOfService, openPrivacyPolicy } from '@/utils/legalLinkHandlers';
 
@@ -40,6 +41,7 @@ const PRO_FEATURES = [
   { icon: '✓', text: '顧客登録 無制限', free: `無料: ${FREE_CUSTOMER_LIMIT}件まで` },
   { icon: '✓', text: '単価マスタ 無制限', free: `無料: ${FREE_UNIT_PRICE_LIMIT}件まで` },
   { icon: '✓', text: '作業写真 無制限', free: `無料: ${FREE_PHOTOS_PER_CUSTOMER_LIMIT}枚/顧客` },
+  { icon: '✓', text: 'AI価格調査 無制限', free: `無料: ${FREE_AI_SEARCH_DAILY_LIMIT}回/日` },
   { icon: '✓', text: '全テンプレート利用可能', free: '無料: 3テンプレート' },
   { icon: '✓', text: 'PDF出力（透かしなし）', free: '無料: SAMPLE透かし付き' },
   { icon: '✓', text: 'CSVエクスポート', free: '無料: 利用不可' },

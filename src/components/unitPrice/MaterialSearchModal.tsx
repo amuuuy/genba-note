@@ -24,7 +24,9 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import type { UnitPriceInput } from '@/domain/unitPrice';
 import type { LineItemInput } from '@/domain/lineItem/lineItemService';
@@ -38,11 +40,15 @@ import {
 import { useMaterialSearch } from '@/hooks/useMaterialSearch';
 import { useAiPriceSearch } from '@/hooks/useAiPriceSearch';
 import { useMultiSelect } from '@/hooks/useMultiSelect';
+import { useProStatus } from '@/hooks/useProStatus';
+import { useDailySearchUsage } from '@/hooks/useDailySearchUsage';
+import { FREE_AI_SEARCH_DAILY_LIMIT } from '@/subscription/freeTierLimitsService';
 import { generateUUID } from '@/utils/uuid';
 import { MaterialSearchResultItem } from './MaterialSearchResultItem';
 import { AiSearchResultView } from './AiSearchResultView';
 import { UnitPriceEditorModal } from './UnitPriceEditorModal';
 import { LineItemEditorModal } from '../document/edit/LineItemEditorModal';
+import { createGuardedAiSearch } from './materialSearchLimitUtils';
 
 export type MaterialSearchMode = 'unitPrice' | 'lineItem';
 
@@ -97,12 +103,20 @@ export const MaterialSearchModal: React.FC<MaterialSearchModalProps> = ({
   const [query, setQuery] = useState('');
   const [hasAiSearched, setHasAiSearched] = useState(false);
   const inputRef = useRef<TextInput>(null);
+  const guardedAiSearchRef = useRef(createGuardedAiSearch());
 
   // Rakuten search hook
   const rakuten = useMaterialSearch();
 
   // AI search hook
   const ai = useAiPriceSearch();
+
+  // Pro status and daily usage for free tier limits
+  const { isPro, isLoading: isProLoading } = useProStatus();
+  const dailyUsage = useDailySearchUsage(visible);
+  // Show remaining only when both Pro status and daily usage are loaded
+  const limitsReady = !isProLoading && dailyUsage.isLoaded;
+  const aiRemaining = isPro ? Infinity : Math.max(0, FREE_AI_SEARCH_DAILY_LIMIT - dailyUsage.aiSearchCount);
 
   // Multi-select
   const selection = useMultiSelect();
@@ -152,7 +166,7 @@ export const MaterialSearchModal: React.FC<MaterialSearchModalProps> = ({
     onClose();
   }, [rakuten, ai, selection, onClose]);
 
-  const handleSearch = useCallback(() => {
+  const handleSearch = useCallback(async () => {
     if (!query.trim() || isLoading) return;
 
     selection.clear();
@@ -160,10 +174,28 @@ export const MaterialSearchModal: React.FC<MaterialSearchModalProps> = ({
     if (activeTab === 'rakuten') {
       rakuten.search(query);
     } else {
-      setHasAiSearched(true);
-      ai.search(query);
+      const result = await guardedAiSearchRef.current.execute({
+        isProLoading,
+        isPro,
+        reload: dailyUsage.reload,
+        search: () => ai.search(query),
+        incrementAi: dailyUsage.incrementAi,
+        onBlocked: (limit) => {
+          Alert.alert(
+            'AI検索の上限に達しました',
+            `無料プランでは1日${limit}回までAI検索できます。\nProプランにアップグレードすると無制限に利用できます。`,
+            [
+              { text: 'キャンセル', style: 'cancel' },
+              { text: 'Proプランを見る', onPress: () => router.push('/paywall') },
+            ]
+          );
+        },
+      });
+      if (result.outcome === 'searched') {
+        setHasAiSearched(true);
+      }
     }
-  }, [query, activeTab, isLoading, rakuten, ai, selection]);
+  }, [query, activeTab, isLoading, rakuten, ai, selection, dailyUsage, isPro, isProLoading]);
 
   // --- Single item register (opens editor) ---
 
@@ -471,6 +503,19 @@ export const MaterialSearchModal: React.FC<MaterialSearchModalProps> = ({
             <Text style={[styles.tabText, activeTab === 'ai' && styles.tabTextActiveAi]}>
               AI価格調査
             </Text>
+            {limitsReady && !isPro && (
+              <View style={[
+                styles.remainingBadge,
+                aiRemaining === 0 && styles.remainingBadgeExhausted,
+              ]}>
+                <Text style={[
+                  styles.remainingBadgeText,
+                  aiRemaining === 0 && styles.remainingBadgeTextExhausted,
+                ]}>
+                  {aiRemaining}/{FREE_AI_SEARCH_DAILY_LIMIT}
+                </Text>
+              </View>
+            )}
           </Pressable>
         </View>
 
@@ -801,5 +846,24 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#fff',
+  },
+  // Remaining count badge on AI tab
+  remainingBadge: {
+    backgroundColor: '#F2F2F7',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 8,
+    marginLeft: 4,
+  },
+  remainingBadgeExhausted: {
+    backgroundColor: '#FFEBEE',
+  },
+  remainingBadgeText: {
+    fontSize: 10,
+    color: '#8E8E93',
+    fontWeight: '500',
+  },
+  remainingBadgeTextExhausted: {
+    color: '#FF3B30',
   },
 });

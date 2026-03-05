@@ -20,8 +20,8 @@ export interface UseAiPriceSearchReturn {
   isLoading: boolean;
   /** Error message (Japanese, null if no error) */
   error: string | null;
-  /** Execute search. Pass query to avoid stale-closure issues. */
-  search: (queryOverride?: string) => Promise<void>;
+  /** Execute search. Pass query to avoid stale-closure issues. Returns true on success. */
+  search: (queryOverride?: string) => Promise<boolean>;
   /** Clear search state (query, result, error). */
   clear: () => void;
 }
@@ -35,9 +35,9 @@ export function useAiPriceSearch(): UseAiPriceSearchReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const search = useCallback(async (queryOverride?: string) => {
+  const search = useCallback(async (queryOverride?: string): Promise<boolean> => {
     const searchQuery = queryOverride ?? query;
-    if (!searchQuery.trim()) return;
+    if (!searchQuery.trim()) return false;
 
     if (queryOverride !== undefined) setQuery(queryOverride);
     setIsLoading(true);
@@ -53,6 +53,7 @@ export function useAiPriceSearch(): UseAiPriceSearchReturn {
     }
 
     setIsLoading(false);
+    return response.success;
   }, [query]);
 
   const clear = useCallback(() => {
