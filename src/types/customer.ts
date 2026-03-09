@@ -1,5 +1,5 @@
 /**
- * Customer Types for GenBa Note
+ * Customer Types for ポチッと事務
  *
  * Key design decisions:
  * - Customer is a master data entity (separate from Document)

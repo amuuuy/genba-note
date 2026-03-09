@@ -207,7 +207,7 @@ export default function PaywallScreen() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>GenBa Note Pro</Text>
+        <Text style={styles.title}>ポチッと事務 Pro</Text>
         <Text style={styles.subtitle}>建設業務をもっと効率的に</Text>
       </View>
 

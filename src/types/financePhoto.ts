@@ -1,5 +1,5 @@
 /**
- * Finance Photo Types for GenBa Note
+ * Finance Photo Types for ポチッと事務
  *
  * Key design decisions:
  * - Photos are linked to FinanceEntry (income/expense)

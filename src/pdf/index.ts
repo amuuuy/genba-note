@@ -1,5 +1,5 @@
 /**
- * PDF Module for GenBa Note
+ * PDF Module for ポチッと事務
  *
  * Provides HTML template generation, PDF generation, and Pro feature gating.
  */

@@ -1,5 +1,5 @@
 /**
- * Date utilities for GenBa Note
+ * Date utilities for ポチッと事務
  *
  * CRITICAL CONSTRAINTS (from SPEC.md 2.1.4):
  *

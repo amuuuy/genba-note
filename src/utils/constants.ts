@@ -1,5 +1,5 @@
 /**
- * Validation constants for GenBa Note
+ * Validation constants for ポチッと事務
  *
  * These limits ensure:
  * 1. Calculations stay within JavaScript's safe integer range

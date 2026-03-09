@@ -1,5 +1,5 @@
 /**
- * Work Log Entry Types for GenBa Note
+ * Work Log Entry Types for ポチッと事務
  *
  * Key design decisions:
  * - WorkLogEntry is linked to Customer (1:N relationship)

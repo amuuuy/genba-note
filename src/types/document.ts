@@ -1,5 +1,5 @@
 /**
- * Document Types for GenBa Note
+ * Document Types for ポチッと事務
  *
  * Key design decisions from SPEC.md:
  * - All dates are stored as 'YYYY-MM-DD' strings (never use new Date() for parsing)

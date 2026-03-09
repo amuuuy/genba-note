@@ -1,5 +1,5 @@
 /**
- * Customer Photo Types for GenBa Note
+ * Customer Photo Types for ポチッと事務
  *
  * Key design decisions:
  * - Photos are linked to Customer (not Document)

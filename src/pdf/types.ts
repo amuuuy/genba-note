@@ -1,5 +1,5 @@
 /**
- * PDF Types for GenBa Note
+ * PDF Types for ポチッと事務
  *
  * Types for PDF template generation, PDF generation service, and Pro feature gating.
  * Follows SPEC 2.7 for PDF output specifications.
