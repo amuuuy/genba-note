@@ -28,6 +28,16 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appleId": "kenjimu48@gmail.com",
+        "ascAppId": "6760102152",
+        "appleTeamId": "6M8W2U5GAB"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-service-account.json",
+        "track": "production"
+      }
+    }
   }
 }
